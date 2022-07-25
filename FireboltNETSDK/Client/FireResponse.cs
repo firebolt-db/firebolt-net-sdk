@@ -1,0 +1,83 @@
+﻿#region License Apache 2.0
+/* Copyright 2022 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#endregion
+
+namespace FireboltDotNetSdk.Client
+{
+    public class FireResponse
+    {
+        public class LoginResponse
+        {
+            /// <summary>
+            /// Access token.
+            /// </summary>
+            public string? Access_token { get; set; }
+
+            /// <summary>
+            /// Number of seconds after which token will expire.
+            /// </summary>
+            public string Expires_in { get; set; }
+
+            /// <summary>
+            /// Refresh token.
+            /// </summary>
+            public string Refresh_token { get; set; }
+
+            /// <summary>
+            /// Type of the token.
+            /// </summary>
+            public string Token_type { get; set; }
+
+        }
+
+        public class RefreshResponse
+        {
+            /// <summary>
+            /// Access token.
+            /// </summary>
+            public string Access_token { get; set; }
+
+            /// <summary>
+            /// Number of seconds after which token will expire.
+            /// </summary>
+            public string Expiry { get; set; }
+
+            /// <summary>
+            /// Type of the token.
+            /// </summary>
+            public string Token_type { get; set; }
+
+        }
+
+        public class GetEngineUrlByDatabaseNameResponse
+        {
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public string? Engine_url { get; init; }
+
+        }
+
+        public class GetAccountIdByNameResponse
+        {
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public string? Account_id { get; init; }
+
+        }
+    }
+}
