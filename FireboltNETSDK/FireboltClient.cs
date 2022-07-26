@@ -24,7 +24,7 @@ namespace FireboltDotNetSdk
     public class FireboltClient
     {
         private string BaseUrl { get; set; }
-        private string? Token {  get; set; }
+        public string? Token {  get; set; }
 
         private FireboltCommand FireboltClientInternal { get; set; }
 
@@ -73,6 +73,8 @@ namespace FireboltDotNetSdk
         /// Returns engine URL by database name given.
         /// </summary>
         /// <param name="databaseName">Name of the database.</param>
+        /// <param name="engine"></param>
+        /// <param name="account"></param>
         /// <returns>A successful response.</returns>
         public Task<GetEngineUrlByDatabaseNameResponse> GetEngineUrlByDatabaseName(string? databaseName, string? engine,string? account)
         {

@@ -27,6 +27,7 @@ using System.Text;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using static FireboltDotNetSdk.Client.FireRequest;
@@ -41,9 +42,9 @@ namespace FireboltDotNetSdk.Client
     {
         private string? _commandText;
 
-        private string? Response { get; set; }
+        public string? Response { get; set; }
 
-        private static readonly HashSet<string> SetParamList = new();
+        public static readonly HashSet<string> SetParamList = new();
 
         /// <summary>
         /// Gets or sets the SQL statement to execute at the data source.
@@ -76,12 +77,13 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         private new FireboltConnection? Connection { get; set; }
 
-        /// <inheritdoc cref="Connection"/>    
-        protected override DbConnection? DbConnection
-        {
-            get => Connection;
-            set => Connection = (FireboltConnection?)value;
-        }
+        /// <summary>
+        /// Gets or sets the connection within which the command executes. Always returns <b>null</b>.
+        /// </summary>
+        /// <returns><b>null</b></returns>
+        /// <exception cref="NotSupportedException">The value set is not <b>null</b>.</exception>
+        protected override DbConnection? DbConnection { get; set; }
+
 
         /// <summary>
         /// Gets or sets the transaction within which the command executes. Always returns <b>null</b>.
@@ -119,7 +121,7 @@ namespace FireboltDotNetSdk.Client
                     Response = Connection?.Client.ExecuteQuery(Connection.Engine.Engine_url, Connection.Database, commandText).GetAwaiter().GetResult();
                     return FormDataForResponse(Response);
                 }
-                catch (System.Exception ex)
+                catch (FireboltException ex)
                 {
                     throw new FireboltException(ex.Message);
                 }
@@ -130,9 +132,9 @@ namespace FireboltDotNetSdk.Client
         /// Gets original data in JSON format for further manipulation<b>null</b>.
         /// </summary>
         /// <returns><b>null</b></returns>
-        public Welcome? GetOriginalJSONData()
+        public Welcome? GetOriginalJsonData()
         {
-            if (Response != null && !Response.Any()) return null;
+            if (Response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
             var prettyJson = JToken.Parse(Response).ToString(Formatting.Indented);
             return JsonConvert.DeserializeObject<Welcome>(prettyJson);
         }
@@ -143,7 +145,7 @@ namespace FireboltDotNetSdk.Client
         /// <returns><b>null</b></returns>
         public int RowCount()
         {
-            var prettyJson = JToken.Parse(Response ?? throw new FireboltException("Data is missing")).ToString(Formatting.Indented);
+            var prettyJson = JToken.Parse(Response ?? throw new FireboltException("RowCount is missing")).ToString(Formatting.Indented);
             var data = JsonConvert.DeserializeObject<Welcome>(prettyJson);
             return ((int)data.Rows)!;
         }
@@ -163,7 +165,7 @@ namespace FireboltDotNetSdk.Client
             throw new NotImplementedException();
         }
 
-        private void PrepareRequest(HttpClient client)
+        public void PrepareRequest(HttpClient client)
         {
 
             //Added to avoid 403 Forbidden error
@@ -179,19 +181,6 @@ namespace FireboltDotNetSdk.Client
         public string RefreshToken { get; set; }
         public string TokenExpired { get; set; }
 
-        /// <summary>
-        /// Executes a SQL query
-        /// </summary>
-        /// <param name="engineEndpoint">Engine endpoint (URL)</param>
-        /// <param name="databaseName">Database name</param>
-        /// <param name="query">SQL query to execute</param>
-        /// <returns>A successful response.</returns>
-        /// <exception cref="FireboltException">A server side error occurred.</exception>
-        public Task<string?> ExecuteQueryAsync(string? engineEndpoint, string databaseName, string query)
-        {
-            return ExecuteQueryAsync(engineEndpoint, databaseName, query, CancellationToken.None);
-        }
-
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
         /// Executes a SQL query
@@ -204,7 +193,7 @@ namespace FireboltDotNetSdk.Client
         public async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string databaseName, string query, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(databaseName) || string.IsNullOrEmpty(query))
-                throw new ArgumentNullException(nameof(query));
+                throw new FireboltException($"Something parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
 
             var urlBuilder = new StringBuilder();
             var setParam = SetParamList.Aggregate(string.Empty, (current, item) => current + ("&" + item));
@@ -281,7 +270,7 @@ namespace FireboltDotNetSdk.Client
             _settings = new Lazy<JsonSerializerSettings>(CreateSerializerSettings);
         }
 
-        private static JsonSerializerSettings CreateSerializerSettings()
+        public static JsonSerializerSettings CreateSerializerSettings()
         {
             var settings = new JsonSerializerSettings();
             UpdateJsonSerializerSettings();
@@ -352,21 +341,29 @@ namespace FireboltDotNetSdk.Client
                     var status = (int)response.StatusCode;
                     if (status == 200)
                     {
-                        var objectResponse = await ReadObjectResponseAsync<LoginResponse>(response, headers, cancellationToken).ConfigureAwait(false);
+                        var objectResponse =
+                            await ReadObjectResponseAsync<LoginResponse>(response, headers, cancellationToken)
+                                .ConfigureAwait(false);
                         if (objectResponse.Object == null)
                         {
-                            throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
+                            throw new FireboltException("Response was null which was not expected.", status,
+                                objectResponse.Text, headers, null);
                         }
+
                         return objectResponse.Object;
                     }
                     else
                     {
-                        var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, cancellationToken).ConfigureAwait(false);
+                        var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, cancellationToken)
+                            .ConfigureAwait(false);
                         if (objectResponse.Object == null)
                         {
-                            throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
+                            throw new FireboltException("Response was null which was not expected.", status,
+                                objectResponse.Text, headers, null);
                         }
-                        throw new FireboltException<Error>("An unexpected error response", status, objectResponse.Text, headers, objectResponse.Object, null);
+
+                        throw new FireboltException<Error>("An unexpected error response", status, objectResponse.Text,
+                            headers, objectResponse.Object, null);
                     }
                 }
                 finally
@@ -375,24 +372,16 @@ namespace FireboltDotNetSdk.Client
                         response.Dispose();
                 }
             }
+            //catch (System.Exception ex)
+            //{
+            //    throw new FireboltException("");
+
+            //}
             finally
             {
                 if (disposeClient)
                     client.Dispose();
             }
-        }
-
-        /// <summary>
-        /// Returns engine URL by database name given.
-        /// </summary>
-        /// <param name="databaseName">Name of the database.</param>
-        /// <param name="engine"></param>
-        /// <param name="account"></param>
-        /// <returns>A successful response.</returns>
-        /// <exception cref="FireboltException">A server side error occurred.</exception>
-        public Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName, string? engine, string? account)
-        {
-            return CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, engine,account, CancellationToken.None);
         }
 
         /// <param name="engine"></param>
@@ -491,8 +480,12 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         /// <returns>A successful response.</returns>
         /// <exception cref="FireboltException">A server side error occurred.</exception>
-        private async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string? account, CancellationToken cancellationToken)
+        public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
         {
+            if (account == null)
+            {
+                throw new FireboltException("Account name is empty");
+            }
             //Get на /iam/v2/accounts:getIdByName
             var urlBuilder = new StringBuilder();
             urlBuilder.Append(BaseUrl.TrimEnd('/')).Append("/iam/v2/accounts:getIdByName?");
@@ -654,19 +647,6 @@ namespace FireboltDotNetSdk.Client
             return result ?? "";
         }
 
-
-        /// <inheritdoc/>
-        public override ValueTask DisposeAsync()
-        {
-            return base.DisposeAsync();
-        }
-
-        /// <inheritdoc/>
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-        }
-
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             throw new NotImplementedException();
@@ -692,8 +672,12 @@ namespace FireboltDotNetSdk.Client
             throw new NotImplementedException();
         }
 
-        private static IEnumerable<NewMeta> FormDataForResponse(string? response)
+        public static IEnumerable<NewMeta> FormDataForResponse(string response)
         {
+            if (response==null)
+            {
+                throw new FireboltException("JSON data is missing");
+            }
             var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
             var data = JsonConvert.DeserializeObject<Welcome>(prettyJson);
             var newListData = new List<NewMeta>();

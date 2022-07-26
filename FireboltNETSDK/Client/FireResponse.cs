@@ -43,25 +43,6 @@ namespace FireboltDotNetSdk.Client
 
         }
 
-        public class RefreshResponse
-        {
-            /// <summary>
-            /// Access token.
-            /// </summary>
-            public string Access_token { get; set; }
-
-            /// <summary>
-            /// Number of seconds after which token will expire.
-            /// </summary>
-            public string Expiry { get; set; }
-
-            /// <summary>
-            /// Type of the token.
-            /// </summary>
-            public string Token_type { get; set; }
-
-        }
-
         public class GetEngineUrlByDatabaseNameResponse
         {
             /// <summary>

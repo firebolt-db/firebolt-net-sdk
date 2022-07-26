@@ -32,21 +32,5 @@ namespace FireboltDotNetSdk.Client
             public string Username { get; set; }
 
         }
-
-        public class RefreshRequest
-        {
-            /// <summary>
-            /// Refresh token.
-            /// </summary>
-            public string RefreshToken { get; set; }
-
-        }
-        public partial class RestartEngineRequest
-        {
-            /// <summary>
-            /// Required. ID of the engine.
-            /// </summary>
-            public string EngineId { get; set; }
-        }
     }
 }

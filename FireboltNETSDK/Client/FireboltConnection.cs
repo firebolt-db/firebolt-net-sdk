@@ -81,31 +81,7 @@ namespace FireboltDotNetSdk.Client
 
         public override string DataSource => throw new NotImplementedException();
 
-        public override string ConnectionString
-        {
-            get
-            {
-                var state = _connectionState;
-                if (state.Settings == null)
-                    return string.Empty;
-
-                return new FireboltConnectionStringBuilder(state.Settings).ConnectionString;
-            }
-            set
-            {
-                var newSettings = value == null ? null : new FireboltConnectionStringBuilder(value).BuildSettings();
-                var state = _connectionState;
-            }
-        }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnection"/> class.
-        /// </summary>
-        public FireboltConnection()
-        {
-            _connectionState = new FireboltConnectionState();
-            Client = new FireboltClient(Endpoint);
-        }
+        public override string ConnectionString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         /// <summary>
         /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
@@ -114,23 +90,6 @@ namespace FireboltDotNetSdk.Client
         public FireboltConnection(string connectionString)
             : this(new FireboltConnectionStringBuilder(connectionString))
         {
-        }
-        /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
-        /// </summary>
-        /// <param name="connectionSettings">The connection settings.</param>
-        public FireboltConnection(FireboltConnectionSettings connectionSettings)
-        {
-            if (connectionSettings == null)
-                throw new ArgumentNullException(nameof(connectionSettings));
-            if (_connectionString != null)
-            {
-                _connectionString.Username = connectionSettings.UserName;
-                _connectionString.Password = connectionSettings.Password;
-            }
-
-            _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
-            Client = new FireboltClient(Endpoint);
         }
 
         /// <summary>
@@ -216,7 +175,7 @@ namespace FireboltDotNetSdk.Client
                     return Task.FromResult(true);
                 }
             }
-            catch (System.Exception ex)
+            catch (FireboltException ex)
             {
                 throw new FireboltException(ex.Message);
             }
@@ -226,8 +185,15 @@ namespace FireboltDotNetSdk.Client
 
         public GetEngineUrlByDatabaseNameResponse SetEngine(string? engineUrl)
         {
-            Engine = Client.GetEngineUrlByDatabaseName(_connectionState.Settings?.Database ?? throw new FireboltException("Missing database parameter"), engineUrl, _connectionState.Settings ?.Account).GetAwaiter().GetResult();
-            return Engine;
+            try
+            {
+                Engine = Client.GetEngineUrlByDatabaseName(_connectionState.Settings?.Database ?? throw new FireboltException("Missing database parameter"), engineUrl, _connectionState.Settings?.Account).GetAwaiter().GetResult();
+                return Engine;
+            }
+            catch (System.Exception)
+            {
+                throw new FireboltException($"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database");
+            }
         }
 
         /// <summary>
@@ -255,7 +221,7 @@ namespace FireboltDotNetSdk.Client
             return CreateCursor();
         }
 
-        private void OnSessionEstablished()
+        public void OnSessionEstablished()
         {
             _connectionState.State = ConnectionState.Open;
         }
@@ -280,25 +246,6 @@ namespace FireboltDotNetSdk.Client
         protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)
         {
             throw new NotImplementedException();
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposed)
-                return;
-
-            try
-            {
-                this.Close();
-            }
-            catch (System.Exception ex)
-            {
-                // ignored
-            }
-
-            disposed = true;
-
-            base.Dispose(disposing);
         }
     }
 }

@@ -85,23 +85,14 @@ namespace FireboltDotNetSdk.Client
 
         static FireboltConnectionStringBuilder()
         {
-            var asm = typeof(FireboltConnectionStringBuilder).Assembly;
-
             AllProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 nameof(Database),
                 nameof(Password),
                 nameof(UserName),
                 nameof(Endpoint),
-                nameof(Account),
+                nameof(Account)
             };
-        }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnectionStringBuilder"/> with the default settings.
-        /// </summary>
-        public FireboltConnectionStringBuilder()
-        {
         }
 
         /// <summary>
@@ -111,22 +102,6 @@ namespace FireboltDotNetSdk.Client
         public FireboltConnectionStringBuilder(string connectionString)
         {
             ConnectionString = connectionString;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnectionStringBuilder"/> with the specified.
-        /// </summary>
-        /// <param name="settings">The settings.</param>
-        public FireboltConnectionStringBuilder(FireboltConnectionSettings settings)
-        {
-            if (settings == null)
-                throw new ArgumentNullException(nameof(settings));
-
-            UserName = settings.UserName;
-            Password = settings.Password;
-            Database = settings.Database;
-            Endpoint = settings.Endpoint;
-            Account = settings.Account;
         }
 
         /// <inheritdoc/>
