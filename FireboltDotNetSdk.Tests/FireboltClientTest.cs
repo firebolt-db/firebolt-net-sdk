@@ -43,7 +43,7 @@ namespace FireboltDotNetSdk.Tests
         public void GetEngineUrlByDatabaseNameTest()
         {
             var client = new FireboltClient("test.api.firebolt.io");
-            var status = client.GetEngineUrlByDatabaseName("DBName","EngineURL","AccountName");
+            var status = client.GetEngineUrlByDatabaseName("DBName","AccountName");
             Assert.AreEqual("Faulted", status.Status.ToString());
         }
 

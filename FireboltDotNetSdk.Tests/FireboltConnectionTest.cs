@@ -115,7 +115,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (FireboltException ex)
             {
-                That(ex.Message, Is.EqualTo("Missing password"));
+                That(ex.Message, Is.EqualTo("Password is missing"));
             }
         }
 

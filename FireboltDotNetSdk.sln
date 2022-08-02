@@ -5,7 +5,12 @@ VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FireboltDotNetSdk", "FireboltNETSDK\FireboltDotNetSdk.csproj", "{9A0B2D88-F0F3-4CD9-B9B6-718A3AFDFE79}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FireboltDotNetSdk.Tests", "FireboltDotNetSdk.Tests\FireboltDotNetSdk.Tests.csproj", "{9916600C-AB27-4C1E-8B74-6CF4F03F8633}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FireboltDotNetSdk.Tests", "FireboltDotNetSdk.Tests\FireboltDotNetSdk.Tests.csproj", "{9916600C-AB27-4C1E-8B74-6CF4F03F8633}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{01E32E00-D55C-4107-BE63-8D967096BFBC}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

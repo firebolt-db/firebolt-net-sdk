@@ -2,7 +2,7 @@
 
 namespace FireboltDotNetSdk.Utils
 {
-    public class Welcome
+    public class QueryResult
     {
         [JsonProperty("query", NullValueHandling = NullValueHandling.Ignore)]
         public Query Query { get; set; }

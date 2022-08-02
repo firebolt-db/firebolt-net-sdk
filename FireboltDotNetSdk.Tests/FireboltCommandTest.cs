@@ -39,11 +39,11 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltCommand(commandText);
             try
             {
-                cs.Execute(commandText);
+                var t =cs.Execute(commandText);
             }
             catch (FireboltException ex)
             {
-                Assert.That(ex.Message, Is.EqualTo("JSON data is missing"));
+                Assert.That(ex.Message, Is.EqualTo("Response is empty while GetOriginalJSONData"));
             }
         }
 
@@ -161,7 +161,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (System.Exception e)
             {
-                Assert.IsTrue(e.Message.Contains("429"));
+                Assert.IsTrue(e.Message.Contains("403") || e.Message.Contains("429"));
             }
         }
 

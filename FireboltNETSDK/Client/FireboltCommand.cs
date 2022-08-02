@@ -106,20 +106,22 @@ namespace FireboltDotNetSdk.Client
 
         internal FireboltCommand(FireboltConnection connection) => Connection = connection ?? throw new ArgumentNullException(nameof(connection));
 
-        public IEnumerable<NewMeta> Execute(string commandText)
+        public QueryResult Execute(string commandText)
         {
-            if (commandText.StartsWith("SET"))
+            var engineUrl = Connection?.Engine?.engine?.endpoint ?? Connection?.DefaultEngine?.Engine_url;
+            if (commandText.Trim().StartsWith("SET"))
             {
                 commandText = commandText.Remove(0, 4).Trim();
                 SetParamList.Add(commandText);
-                return new List<NewMeta>();
+                return new QueryResult();
             }
             else
             {
                 try
                 {
-                    Response = Connection?.Client.ExecuteQuery(Connection.Engine.Engine_url, Connection.Database, commandText).GetAwaiter().GetResult();
-                    return FormDataForResponse(Response);
+                    Response = Connection?.Client.ExecuteQuery(engineUrl, Connection.Database, commandText).GetAwaiter().GetResult();
+                    //return FormDataForResponse(Response);
+                    return GetOriginalJsonData();
                 }
                 catch (FireboltException ex)
                 {
@@ -132,11 +134,11 @@ namespace FireboltDotNetSdk.Client
         /// Gets original data in JSON format for further manipulation<b>null</b>.
         /// </summary>
         /// <returns><b>null</b></returns>
-        public Welcome? GetOriginalJsonData()
+        public QueryResult? GetOriginalJsonData()
         {
             if (Response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
             var prettyJson = JToken.Parse(Response).ToString(Formatting.Indented);
-            return JsonConvert.DeserializeObject<Welcome>(prettyJson);
+            return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
         }
 
         /// <summary>
@@ -146,7 +148,7 @@ namespace FireboltDotNetSdk.Client
         public int RowCount()
         {
             var prettyJson = JToken.Parse(Response ?? throw new FireboltException("RowCount is missing")).ToString(Formatting.Indented);
-            var data = JsonConvert.DeserializeObject<Welcome>(prettyJson);
+            var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
             return ((int)data.Rows)!;
         }
 
@@ -393,15 +395,15 @@ namespace FireboltDotNetSdk.Client
         /// <param name="databaseName">Name of the database.</param>
         /// <returns>A successful response.</returns>
         /// <exception cref="FireboltException">A server side error occurred.</exception>
-        public async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName,string? engine, string? account ,CancellationToken cancellationToken)
+        public async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName, string? account ,CancellationToken cancellationToken)
         {
             var urlBuilder = new StringBuilder();
-            var correctUrl = engine == null ? "getURLByDatabaseName" : "getIdByName";
-            var correctParam = engine == null ? "database_name" : "engine_name";
+
             if (account == null)
             {
-                urlBuilder.Append(BaseUrl.TrimEnd('/')).Append("/core/v1/account/engines:" + correctUrl + "?");
-                urlBuilder.Append(Uri.EscapeDataString(correctParam) + "=").Append(System.Uri.EscapeDataString(ConvertToString(databaseName, System.Globalization.CultureInfo.InvariantCulture))).Append("&");
+                urlBuilder.Append(BaseUrl.TrimEnd('/')).Append("/core/v1/account/engines:" + "getURLByDatabaseName" + "?");
+                urlBuilder.Append(Uri.EscapeDataString("database_name") + "=").Append(Uri.EscapeDataString(ConvertToString(databaseName,
+                    System.Globalization.CultureInfo.InvariantCulture))).Append("&");
                 urlBuilder.Length--;
             }
             else
@@ -409,8 +411,9 @@ namespace FireboltDotNetSdk.Client
                 var accountId = await GetAccountIdByNameAsync(account, cancellationToken);
                 if (accountId == null) throw new FireboltException("Account id is missing");
                 urlBuilder.Append(BaseUrl.TrimEnd('/'))
-                    .Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + correctUrl + "?");
-                urlBuilder.Append(Uri.EscapeDataString(correctParam) + "=").Append(System.Uri.EscapeDataString(ConvertToString(databaseName, System.Globalization.CultureInfo.InvariantCulture))).Append("&");
+                    .Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getURLByDatabaseName" + "?");
+                urlBuilder.Append(Uri.EscapeDataString("database_name") + "=").Append(Uri.EscapeDataString(ConvertToString(databaseName,
+                    System.Globalization.CultureInfo.InvariantCulture))).Append("&");
                 urlBuilder.Length--;
             }
 
@@ -443,6 +446,82 @@ namespace FireboltDotNetSdk.Client
                     if (status == 200)
                     {
                         var objectResponse = await ReadObjectResponseAsync<GetEngineUrlByDatabaseNameResponse>(response, headers, cancellationToken).ConfigureAwait(false);
+                        
+                        if (objectResponse.Object == null)
+                        {
+                            throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
+                        }
+                        return objectResponse.Object;
+                    }
+                    else
+                    {
+                        var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, cancellationToken).ConfigureAwait(false);
+                        if (objectResponse.Object == null)
+                        {
+                            throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
+                        }
+                        throw new FireboltException<Error>("An unexpected error response", status, objectResponse.Text, headers, objectResponse.Object, null);
+                    }
+                }
+                finally
+                {
+                    if (disposeResponse)
+                        response.Dispose();
+                }
+            }
+            finally
+            {
+                if (disposeClient)
+                    client.Dispose();
+            }
+        }
+
+        public async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine, string? account, CancellationToken cancellationToken)
+        {
+            if (engine==null)
+            {
+                throw new FireboltException("Engine name is incorrect or missing");
+            }
+            var urlBuilder = new StringBuilder();
+            var accountName = account == null ? "firebolt" : account;
+            var accountId = await GetAccountIdByNameAsync(accountName, cancellationToken);
+            if (accountId == null) throw new FireboltException("Account id is missing");
+            urlBuilder.Append(BaseUrl.TrimEnd('/'))
+                    .Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getIdByName" + "?");
+            urlBuilder.Append(Uri.EscapeDataString("engine_name") + "=").Append(Uri.EscapeDataString(ConvertToString(engine,
+                    System.Globalization.CultureInfo.InvariantCulture))).Append("&");
+            urlBuilder.Length--;
+            
+
+            var client = new HttpClient();
+            var disposeClient = true;
+            try
+            {
+                using var request = new HttpRequestMessage();
+                request.Method = new HttpMethod("GET");
+                request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                PrepareRequest();
+
+                var url = urlBuilder.ToString();
+                request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
+
+                PrepareRequest(client);
+
+                var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                var disposeResponse = true;
+                try
+                {
+                    var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
+                    foreach (var item in response.Content.Headers)
+                        headers[item.Key] = item.Value;
+
+                    ProcessResponse();
+
+                    var status = (int)response.StatusCode;
+                    if (status == 200)
+                    {
+                        var objectResponse = await ReadObjectResponseAsync<GetEngineNameByEngineIdResponse>(response, headers, cancellationToken).ConfigureAwait(false);
 
                         if (objectResponse.Object == null)
                         {
@@ -473,6 +552,74 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        public async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string engineId, string accountId, CancellationToken cancellationToken)
+        {
+            if (engineId == null)
+            {
+                throw new FireboltException("Engine name is incorrect or missing");
+            }
+            var urlBuilder = new StringBuilder();
+            urlBuilder.Append(BaseUrl.TrimEnd('/'))
+                    .Append("/core/v1/accounts/" + accountId + "/engines/" + engineId);
+
+            var client = new HttpClient();
+            var disposeClient = true;
+            try
+            {
+                using var request = new HttpRequestMessage();
+                request.Method = new HttpMethod("GET");
+                request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                PrepareRequest();
+
+                var url = urlBuilder.ToString();
+                request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
+
+                PrepareRequest(client);
+
+                var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                var disposeResponse = true;
+                try
+                {
+                    var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
+                    foreach (var item in response.Content.Headers)
+                        headers[item.Key] = item.Value;
+
+                    ProcessResponse();
+
+                    var status = (int)response.StatusCode;
+                    if (status == 200)
+                    {
+                        var objectResponse = await ReadObjectResponseAsync<GetEngineUrlByEngineNameResponse>(response, headers, cancellationToken).ConfigureAwait(false);
+
+                        if (objectResponse.Object == null)
+                        {
+                            throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
+                        }
+                        return objectResponse.Object;
+                    }
+                    else
+                    {
+                        var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, cancellationToken).ConfigureAwait(false);
+                        if (objectResponse.Object == null)
+                        {
+                            throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
+                        }
+                        throw new FireboltException<Error>("An unexpected error response", status, objectResponse.Text, headers, objectResponse.Object, null);
+                    }
+                }
+                finally
+                {
+                    if (disposeResponse)
+                        response.Dispose();
+                }
+            }
+            finally
+            {
+                if (disposeClient)
+                    client.Dispose();
+            }
+        }
         /// <param name="account"></param>
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -546,7 +693,6 @@ namespace FireboltDotNetSdk.Client
                     client.Dispose();
             }
         }
-
 
         private struct ObjectResponseResult<T>
         {
@@ -679,20 +825,27 @@ namespace FireboltDotNetSdk.Client
                 throw new FireboltException("JSON data is missing");
             }
             var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
-            var data = JsonConvert.DeserializeObject<Welcome>(prettyJson);
+            var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
             var newListData = new List<NewMeta>();
-            foreach (var t in data.Data)
+            try
             {
-                for (var j = 0; j < t.Count; j++)
-                {
-                    newListData.Add(new NewMeta()
-                    {
-                        Data = new ArrayList() { TypesConverter.ConvertToCSharpVal(t[j].ToString(), (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])) },
-                        Meta = (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])
-                    });
-                }
+                //foreach (var t in data.Data)
+                //{
+                //    for (var j = 0; j < t.Count; j++)
+                //    {
+                //        newListData.Add(new NewMeta()
+                //        {
+                //            Data = new ArrayList() { TypesConverter.ConvertToCSharpVal(t[j].ToString(), (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])) },
+                //            Meta = (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])
+                //        });
+                //    }
+                //}
+                return newListData;
             }
-            return newListData;
+            catch (System.Exception e)
+            {
+                throw new FireboltException(e.Message);
+            }
         }
     }
 }

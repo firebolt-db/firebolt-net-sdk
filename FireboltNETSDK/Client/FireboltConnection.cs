@@ -39,7 +39,8 @@ namespace FireboltDotNetSdk.Client
 
         public readonly FireboltClient Client;
 
-        public GetEngineUrlByDatabaseNameResponse Engine;
+        public GetEngineUrlByDatabaseNameResponse? DefaultEngine;
+        public GetEngineUrlByEngineNameResponse? Engine;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -159,18 +160,18 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
         public override Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
-            var creds = new LoginRequest()
+            var credentials = new LoginRequest()
             {
-                Password = _connectionState.Settings?.Password ?? throw new FireboltException("Missing password"),
-                Username = _connectionState.Settings.UserName ?? throw new FireboltException("Missing username")
+                Password = Password,
+                Username = UserName 
             };
             try
             {
-                var getToken = Client.Login(creds).GetAwaiter().GetResult();
+                var getToken = Client.Login(credentials).GetAwaiter().GetResult();
                 Client.SetToken(getToken);
-                Engine = SetEngine(null);
+                DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
-                if (Engine.Engine_url!=null)
+                if (DefaultEngine != null)
                 {
                     return Task.FromResult(true);
                 }
@@ -183,16 +184,52 @@ namespace FireboltDotNetSdk.Client
             return Task.FromResult(false);
         }
 
-        public GetEngineUrlByDatabaseNameResponse SetEngine(string? engineUrl)
+        public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineUrl)
         {
             try
             {
-                Engine = Client.GetEngineUrlByDatabaseName(_connectionState.Settings?.Database ?? throw new FireboltException("Missing database parameter"), engineUrl, _connectionState.Settings?.Account).GetAwaiter().GetResult();
-                return Engine;
+                DefaultEngine = Client
+                    .GetEngineUrlByDatabaseName(
+                        _connectionState.Settings?.Database ??
+                        throw new FireboltException("Missing database parameter"), _connectionState.Settings?.Account)
+                    .GetAwaiter().GetResult();
+                return DefaultEngine;
             }
-            catch (System.Exception)
+
+            catch (System.Exception ex)
             {
-                throw new FireboltException($"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database");
+                if (ex.Message.Contains("404"))
+                {
+                    return null;
+                }
+
+                throw new FireboltException(
+                    $"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database");
+            }
+
+        }
+
+        public GetEngineUrlByEngineNameResponse SetEngine(string? engineUrl)
+        {
+            try
+            {
+                var enginevalue = Client.GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account).GetAwaiter()
+                    .GetResult();
+                var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id, enginevalue.engine_id.account_id).GetAwaiter()
+                    .GetResult();
+                Engine = result;
+                return result;
+
+            }
+            catch (System.Exception ex)
+            {
+                if (ex.Message.Contains("404"))
+                {
+                    return null;
+                }
+
+                throw new FireboltException(
+                    $"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database");
             }
         }
 

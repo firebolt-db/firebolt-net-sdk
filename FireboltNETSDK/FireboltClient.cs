@@ -76,9 +76,33 @@ namespace FireboltDotNetSdk
         /// <param name="engine"></param>
         /// <param name="account"></param>
         /// <returns>A successful response.</returns>
-        public Task<GetEngineUrlByDatabaseNameResponse> GetEngineUrlByDatabaseName(string? databaseName, string? engine,string? account)
+        public Task<GetEngineUrlByDatabaseNameResponse> GetEngineUrlByDatabaseName(string? databaseName,string? account)
         {
-            return FireboltClientInternal.CoreV1GetEngineUrlByDatabaseNameAsync(databaseName,engine, account, CancellationToken.None);
+            return FireboltClientInternal.CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, account, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Returns engine URL by database name given.
+        /// </summary>
+        /// <param name="databaseName">Name of the database.</param>
+        /// <param name="engine"></param>
+        /// <param name="account"></param>
+        /// <returns>A successful response.</returns>
+        public Task<GetEngineNameByEngineIdResponse> GetEngineUrlByEngineName(string? engine, string? account)
+        {
+            return FireboltClientInternal.CoreV1GetEngineUrlByEngineNameAsync(engine, account, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Returns engine URL by database name given.
+        /// </summary>
+        /// <param name="databaseName">Name of the database.</param>
+        /// <param name="engine"></param>
+        /// <param name="account"></param>
+        /// <returns>A successful response.</returns>
+        public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string? engineId, string? accountId)
+        {
+            return FireboltClientInternal.CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None);
         }
 
         /// <summary>

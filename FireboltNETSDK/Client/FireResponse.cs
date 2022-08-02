@@ -52,6 +52,49 @@ namespace FireboltDotNetSdk.Client
 
         }
 
+        public class GetEngineUrlByEngineNameResponse
+        {
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public EngineDetails? engine { get; set; }
+
+        }
+
+        public class EngineDetails
+        {
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public string? endpoint { get; set; }
+        }
+
+        public class GetEngineNameByEngineIdResponse
+        {
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public Engine engine_id { get; set; }
+
+        }
+
+        public class Engine
+        {
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public string? engine_id { get; set; }
+
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public string? account_id { get; set; }
+
+        }
+
+
+
+
         public class GetAccountIdByNameResponse
         {
             /// <summary>
