@@ -27,7 +27,6 @@ using System.Text;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using static FireboltDotNetSdk.Client.FireRequest;
@@ -169,9 +168,9 @@ namespace FireboltDotNetSdk.Client
 
         public void PrepareRequest(HttpClient client)
         {
-
             //Added to avoid 403 Forbidden error
-            client.DefaultRequestHeaders.Add("User-Agent", "Other");
+            var version = Assembly.GetEntryAssembly().GetName().Version.ToString();
+            client.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_" + version);
 
             if (!string.IsNullOrEmpty(Token))
             {
@@ -242,12 +241,7 @@ namespace FireboltDotNetSdk.Client
                     }
                     else
                     {
-                        var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, cancellationToken).ConfigureAwait(false);
-                        if (objectResponse.Object == null)
-                        {
-                            throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, innerException: null);
-                        }
-                        throw new FireboltException<Error>("An unexpected error response", status, objectResponse.Text, headers, objectResponse.Object, null);
+                        throw new FireboltException("Response was null which was not expected with status: " + status);
                     }
                 }
                 finally
@@ -829,17 +823,17 @@ namespace FireboltDotNetSdk.Client
             var newListData = new List<NewMeta>();
             try
             {
-                //foreach (var t in data.Data)
-                //{
-                //    for (var j = 0; j < t.Count; j++)
-                //    {
-                //        newListData.Add(new NewMeta()
-                //        {
-                //            Data = new ArrayList() { TypesConverter.ConvertToCSharpVal(t[j].ToString(), (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])) },
-                //            Meta = (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])
-                //        });
-                //    }
-                //}
+                foreach (var t in data.Data)
+                {
+                    for (var j = 0; j < t.Count; j++)
+                    {
+                        newListData.Add(new NewMeta()
+                        {
+                            Data = new ArrayList() { TypesConverter.ConvertToCSharpVal(t[j].ToString(), (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])) },
+                            Meta = (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])
+                        });
+                    }
+                }
                 return newListData;
             }
             catch (System.Exception e)
