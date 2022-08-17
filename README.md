@@ -1,7 +1,6 @@
 # firebolt-net-sdk
-===============
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![NuGet]()]()
 
 This is an implementation of .NET Core driver(.NET 6) for Firebolt DB in a form of ADO.NET DbProvider API.
 Supports all latest .NET frameworks and all platforms.
@@ -33,7 +32,7 @@ The following example demonstrates how to open a connection to Firebolt
             string endpoint = "****";
             string account = "firebolt";
             string engine = "****";
-            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};";
+            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};account={account}";
           
             using var conn = new FireboltConnection(conn_string);
            
