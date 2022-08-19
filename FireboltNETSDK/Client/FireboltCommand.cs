@@ -170,6 +170,7 @@ namespace FireboltDotNetSdk.Client
         {
             //Added to avoid 403 Forbidden error
             var version = Assembly.GetEntryAssembly().GetName().Version.ToString();
+            var specificUserAgent = $".NETSDK/{version} (.NET {Environment.Version.ToString()}; {Environment.OSVersion})";
             client.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_" + version);
 
             if (!string.IsNullOrEmpty(Token))
