@@ -17,7 +17,7 @@ It can also be downloaded using Visual Studio UI (Tools > NuGet Package Manager 
 
 Alternatively, packages can also be downloaded using Package Manager Console:
 ```{r, engine='bash', code_block_name}
-PM> Install-Package Firebolt
+PM> Install-Package FireboltNetSDK -Version 0.0.1
 ```
 
 Examples

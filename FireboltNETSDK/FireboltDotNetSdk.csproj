@@ -8,11 +8,33 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <FileVersion>0.0.1</FileVersion>
     <AssemblyVersion>0.0.1</AssemblyVersion>
-    <Version>0.0.4</Version>
+    <Version>0.0.1</Version>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon></PackageIcon>
+    <RepositoryUrl>https://github.com/firebolt-db/firebolt-net-sdk</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Initial release of a Firebolt .NET sdk. Supported features
+- Authentication
+- SQL Query execution
+- SET statement support</PackageReleaseNotes>
+    <RepositoryType>git</RepositoryType>
+    <Description>A .NET module for connecting and running queries against Firebolt databases</Description>
+    <PackageId>FireboltNetSDK</PackageId>
+    <PackageTags>database; sql;</PackageTags>
+    <Authors>Firebolt</Authors>
+    <Company>Firebolt</Company>
+    <PackageProjectUrl>https://www.firebolt.io/</PackageProjectUrl>
   </PropertyGroup>
+  
+    <ItemGroup>
+    <Compile Remove="Program.cs" />
+  </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Program.cs" />
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
