@@ -25,8 +25,8 @@
     <Company>Firebolt</Company>
     <PackageProjectUrl>https://www.firebolt.io/</PackageProjectUrl>
   </PropertyGroup>
-  
-    <ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Program.cs" />
   </ItemGroup>
 
