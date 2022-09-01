@@ -19,11 +19,13 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.RegularExpressions;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -99,7 +101,14 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        protected override DbParameterCollection DbParameterCollection => throw new NotImplementedException();
+        /// <summary>
+        /// Gets the <see cref="FireboltParameterCollection"/>.
+        /// </summary>
+        /// <returns>The parameters of the SQL statement. The default is an empty collection.</returns>
+        public new FireboltParameterCollection Parameters { get; } = new FireboltParameterCollection();
+
+        /// <inheritdoc cref="Parameters"/>    
+        protected sealed override DbParameterCollection DbParameterCollection => Parameters;
 
         public override int CommandTimeout { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
@@ -118,7 +127,12 @@ namespace FireboltDotNetSdk.Client
             {
                 try
                 {
-                    Response = Connection?.Client.ExecuteQuery(engineUrl, Connection.Database, commandText).GetAwaiter().GetResult();
+                    string newCommandText= commandText;
+                    if (Parameters.Any())
+                    {
+                        newCommandText = GetParamQuery(commandText);
+                    }
+                    Response = Connection?.Client.ExecuteQuery(engineUrl, Connection.Database, newCommandText).GetAwaiter().GetResult();
                     //return FormDataForResponse(Response);
                     return GetOriginalJsonData();
                 }
@@ -127,6 +141,52 @@ namespace FireboltDotNetSdk.Client
                     throw new FireboltException(ex.Message);
                 }
             }
+        }
+
+        /// <summary>
+        /// Get query with ready parse parameters<b>null</b>.
+        /// </summary>
+        /// <returns><b>null</b></returns>
+        public string GetParamQuery(string commandText)
+        {
+            var escape_chars = new Dictionary<string, string>
+            {
+                { "\0", "\\0" },
+                { "\\", "\\\\" },
+                { "'", "\\'" }
+            };
+            try
+            {
+                foreach (var item in Parameters.ToList())
+                {
+                    if (item.Value == null) { throw new FireboltException("Query parameter value cannot be null"); }
+                    string pattern = string.Format(@"\{0}\b", item.ParameterName.ToString());
+                    RegexOptions regexOptions = RegexOptions.IgnoreCase;
+                    var verifyParameters = item.Value;
+                    if (item.Value is string & item.Value != null)
+                    {
+                        string sourceText = item.Value.ToString();
+                        foreach(var item1 in escape_chars)
+                        {
+                           sourceText = sourceText.Replace(item1.Key, item1.Value);
+                        }
+                        verifyParameters = "'" + sourceText + "'";
+                    }
+                    else if (item.Value is DateTime)
+                    {
+                        var dt = (DateTime)item.Value;
+                        string date_str = dt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss");
+                        verifyParameters = new string("'" + date_str + "'");
+                    }
+                    commandText = Regex.Replace(commandText, pattern, verifyParameters.ToString(), regexOptions);
+                }
+                return commandText;
+            }
+            catch (System.Exception)
+            {
+                throw new FireboltException("Error while verify parameters for query");
+            }
+           
         }
 
         /// <summary>
@@ -795,7 +855,7 @@ namespace FireboltDotNetSdk.Client
 
         protected override DbParameter CreateDbParameter()
         {
-            throw new NotImplementedException();
+            return new FireboltParameter();
         }
 
         public override int ExecuteNonQuery()

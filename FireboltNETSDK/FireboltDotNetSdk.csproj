@@ -10,7 +10,7 @@
     <AssemblyVersion>0.0.1</AssemblyVersion>
     <Version>0.0.1</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageIcon></PackageIcon>
+    <PackageIcon>Utils/images/firebolt_logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/firebolt-db/firebolt-net-sdk</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Initial release of a Firebolt .NET sdk. Supported features
@@ -43,6 +43,13 @@
     <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Utils\images\firebolt_logo.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -199,5 +199,64 @@ namespace FireboltDotNetSdk.Tests
                 Assert.AreEqual(e.Message, "JSON data is missing");
             }
         }
+
+        [TestCase("abcd")]
+        public void ExistaramListTest(string commandText)
+        {
+            var cs = new FireboltCommand(commandText);
+            cs.Parameters.AddWithValue("@param", commandText);
+            Assert.IsTrue(cs.Parameters.Any());
+        }
+
+
+        [TestCase("abcd", "'abcd'")]
+        [TestCase("test' OR '1' == '1", "'test\\' OR \\'1\\' == \\'1'")]
+        [TestCase("test\\", "'test\\\\'")]
+        [TestCase("some\0value", "'some\\\\0value'")]
+        public void SetParamListStrTest(string commandText, string expect)
+        {
+            var testParam = "@param";
+            var cs = new FireboltCommand(commandText);
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+
+            Assert.That(expect, Is.EqualTo(result));
+        }
+
+        [TestCase(1, "1")]
+        public void SetParamListIntTest(int commandText, string expect)
+        {
+            var testParam = "@param";
+            var cs = new FireboltCommand(commandText.ToString());
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+
+            Assert.That(expect, Is.EqualTo(result));
+
+        }
+
+        [TestCase("2022-01-10", "'2022-01-09 22:00:00'")]
+        public void SetParamListDateTest(DateTime commandText, string expect)
+        {
+            var testParam = "@param";
+            var cs = new FireboltCommand(commandText.ToString());
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+
+            Assert.That(expect, Is.EqualTo(result));
+
+        }
+
+        [Test]
+        public void SetParamListDatesTest()
+        {
+            var testParam = "@param";
+            var commandText = DateTime.Now;
+            var cs = new FireboltCommand(commandText.ToString());
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+            var expect = commandText.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss");
+            Assert.That("'" + expect + "'", Is.EqualTo(result));
+        }
     }
 }
