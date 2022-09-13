@@ -159,24 +159,106 @@ namespace FireboltDotNetSdk.Client
             {
                 foreach (var item in Parameters.ToList())
                 {
-                    if (item.Value == null) { throw new FireboltException("Query parameter value cannot be null"); }
+                    //if (item.Value == null) { throw new FireboltException("Query parameter value cannot be null"); }
                     string pattern = string.Format(@"\{0}\b", item.ParameterName.ToString());
                     RegexOptions regexOptions = RegexOptions.IgnoreCase;
                     var verifyParameters = item.Value;
                     if (item.Value is string & item.Value != null)
                     {
                         string sourceText = item.Value.ToString();
-                        foreach(var item1 in escape_chars)
+                        foreach (var item1 in escape_chars)
                         {
-                           sourceText = sourceText.Replace(item1.Key, item1.Value);
+                            sourceText = sourceText.Replace(item1.Key, item1.Value);
                         }
                         verifyParameters = "'" + sourceText + "'";
                     }
                     else if (item.Value is DateTime)
                     {
-                        var dt = (DateTime)item.Value;
-                        string date_str = dt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss");
+                        DateTime dt = (DateTime)item.Value;
+                        string date_str = dt.ToString("yyyy-MM-dd HH:mm:ss");
+                        date_str = dt.Hour == 0 && dt.Minute == 0 && dt.Second == 0 ? date_str.Split(' ')[0] : date_str;
                         verifyParameters = new string("'" + date_str + "'");
+                    }
+                    else if (item.Value is null || item.Value.ToString() == string.Empty)
+                    {
+                        verifyParameters = "NULL";
+                    }
+                    else if (item.Value is bool)
+                    {
+                        if ((bool)item.Value)
+                        {
+                            verifyParameters = "1";
+                        }
+                        else
+                        {
+                            verifyParameters = "0";
+                        }
+                    }
+                    else if (item.Value is IList && item.Value.GetType().IsGenericType)
+                    {
+                        if (item.Value.GetType().GenericTypeArguments[0].Name == "Int32")
+                        {
+                            int[] arr = ((IEnumerable)item.Value).Cast<int>().Select(Convert.ToInt32).ToArray();
+                            var y = "";
+                            for (var i = 0; i < arr.Length; i++)
+                            {
+                                if (i == arr.Length - 1)
+                                {
+                                    y += arr[i];
+                                }
+                                else
+                                {
+                                    y += arr[i] + ",";
+                                }
+                            }
+                            verifyParameters = "[" + y + "]";
+                        }
+                        if (item.Value.GetType().GenericTypeArguments[0].Name == "String")
+                        {
+                            string[] arr = ((IEnumerable)item.Value).Cast<string>()
+                            .ToArray();
+                            var y = "";
+                            for (var i = 0; i < arr.Length; i++)
+                            {
+                                if (i == arr.Length - 1)
+                                {
+                                    y += "'" + arr[i] + "'";
+                                }
+                                else
+                                {
+                                    y += "'" + arr[i] + "',";
+                                }
+                            }
+                            verifyParameters = "[" + y + "]";
+                        }
+                    }
+                    else if(item.Value is int || item.Value is long || item.Value is Double || item.Value is float || item.Value is decimal)
+                    {
+                        switch (item.Value.GetType().Name)
+                        {
+                            case "Decimal":
+                                var decValue = (decimal)item.Value;
+                                verifyParameters = decValue.ToString().Replace(',', '.');
+                                break;
+                            case "Double":
+                                var doubleValue = (double)item.Value;
+                                verifyParameters = doubleValue.ToString().Replace(',', '.');
+                                break;
+                            case "Single":
+                                var floatValue = (float)item.Value;
+                                verifyParameters = floatValue.ToString().Replace(',', '.');
+                                break;
+                            case "Int32":
+                               var  intValue = (int)item.Value;
+                                verifyParameters = intValue.ToString();
+                                break;
+                            case "Int64":
+                                var longValue = (long)item.Value;
+                                verifyParameters = longValue.ToString();
+                                break;
+                            default:
+                                break;
+                        }
                     }
                     commandText = Regex.Replace(commandText, pattern, verifyParameters.ToString(), regexOptions);
                 }

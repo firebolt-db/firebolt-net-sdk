@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -39,7 +40,7 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltCommand(commandText);
             try
             {
-                var t =cs.Execute(commandText);
+                var t = cs.Execute(commandText);
             }
             catch (FireboltException ex)
             {
@@ -107,7 +108,7 @@ namespace FireboltDotNetSdk.Tests
             _client = new HttpClient();
             var cs = new FireboltCommand("commandText");
             cs.PrepareRequest(_client);
-            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, "Other");
+            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, ".NETSDK");
         }
 
         [Test]
@@ -116,7 +117,7 @@ namespace FireboltDotNetSdk.Tests
             _client = new HttpClient();
             var cs = new FireboltCommand("commandText");
             cs.PrepareRequest(_client);
-            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, "Other");
+            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, ".NETSDK");
             cs.Token = "notNull";
             cs.PrepareRequest(_client);
             Assert.AreEqual(_client.DefaultRequestHeaders.Authorization.Parameter, "notNull");
@@ -169,10 +170,10 @@ namespace FireboltDotNetSdk.Tests
         public void GetAccountIdByNameAsyncTest()
         {
             var cs = new FireboltCommand("https://api.dev.firebolt.io");
-            
+
             try
             {
-                cs.GetAccountIdByNameAsync(null,CancellationToken.None).GetAwaiter().GetResult();
+                cs.GetAccountIdByNameAsync(null, CancellationToken.None).GetAwaiter().GetResult();
             }
             catch (FireboltException e)
             {
@@ -232,11 +233,10 @@ namespace FireboltDotNetSdk.Tests
             var result = cs.GetParamQuery(testParam);
 
             Assert.That(expect, Is.EqualTo(result));
-
         }
 
-        [TestCase("2022-01-10", "'2022-01-09 22:00:00'")]
-        public void SetParamListDateTest(DateTime commandText, string expect)
+        [TestCase(15000000000L, "15000000000")]
+        public void SetParamListLongTest(long commandText, string expect)
         {
             var testParam = "@param";
             var cs = new FireboltCommand(commandText.ToString());
@@ -244,7 +244,50 @@ namespace FireboltDotNetSdk.Tests
             var result = cs.GetParamQuery(testParam);
 
             Assert.That(expect, Is.EqualTo(result));
+        }
 
+        [TestCase(1.123, "1.123")]
+        public void SetParamListDoubleTest(double commandText, string expect)
+        {
+            var testParam = "@param";
+            var cs = new FireboltCommand(commandText.ToString());
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+
+            Assert.That(expect, Is.EqualTo(result));
+        }
+
+        [TestCase(1.123, "1.123")]
+        public void SetParamListDecimalTest(Decimal commandText, string expect)
+        {
+            var testParam = "@param";
+            var cs = new FireboltCommand(commandText.ToString());
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+
+            Assert.That(expect, Is.EqualTo(result));
+        }
+
+        [TestCase(5.75F, "5.75")]
+        public void SetParamListFloatTest(float commandText, string expect)
+        {
+            var testParam = "@param";
+            var cs = new FireboltCommand(commandText.ToString());
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+
+            Assert.That(expect, Is.EqualTo(result));
+        }
+
+        [TestCase(null, "NULL")]
+        public void SetParamListNullTest(string commandText, string expect)
+        {
+            var testParam = "@param";
+            var cs = new FireboltCommand("Select 1,@param");
+            cs.Parameters.AddWithValue("@param", commandText);
+            var result = cs.GetParamQuery(testParam);
+
+            Assert.That(expect, Is.EqualTo(result));
         }
 
         [Test]
@@ -255,7 +298,7 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltCommand(commandText.ToString());
             cs.Parameters.AddWithValue("@param", commandText);
             var result = cs.GetParamQuery(testParam);
-            var expect = commandText.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss");
+            var expect = commandText.ToString("yyyy-MM-dd HH:mm:ss");
             Assert.That("'" + expect + "'", Is.EqualTo(result));
         }
     }

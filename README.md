@@ -108,12 +108,9 @@ Execute command with parameters (Collection of parameters is Parameters)
 
             cursor.Parameters.AddWithValue("@pass", date);
 
-            cursor.Parameters.Add(new FireboltParameter("@str_param") {DbType = DbType.Byte, Value = 8});
-            cursor.Parameters.Add(new FireboltParameter("@brt_time") {DbType = DbType.Date, Value = DateTime.Now});
-
             cursor.Parameters.Add(new FireboltParameter("@str_param1") { Value = 200 });
 
-            cursor.Execute("SELECT * FROM users WHERE password = @pass AND Age = @param1 AND Distance = @str_param1 AND DateBrt = @brt_time");
+            cursor.Execute("SELECT * FROM users WHERE password = @pass AND Age = @param1 AND Distance = @str_param1");
 
             conn.Close();
 ```
