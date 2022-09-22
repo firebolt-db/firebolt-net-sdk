@@ -198,38 +198,56 @@ namespace FireboltDotNetSdk.Client
                     {
                         if (item.Value.GetType().GenericTypeArguments[0].Name == "Int32")
                         {
-                            int[] arr = ((IEnumerable)item.Value).Cast<int>().Select(Convert.ToInt32).ToArray();
-                            var y = "";
-                            for (var i = 0; i < arr.Length; i++)
-                            {
-                                if (i == arr.Length - 1)
-                                {
-                                    y += arr[i];
-                                }
-                                else
-                                {
-                                    y += arr[i] + ",";
-                                }
-                            }
-                            verifyParameters = "[" + y + "]";
+                            verifyParameters = CollectGenericInt(item.Value);
                         }
                         if (item.Value.GetType().GenericTypeArguments[0].Name == "String")
                         {
-                            string[] arr = ((IEnumerable)item.Value).Cast<string>()
-                            .ToArray();
-                            var y = "";
-                            for (var i = 0; i < arr.Length; i++)
+                           verifyParameters = CollectGenericString(item.Value);
+                        }
+                        if (item.Value.GetType().GenericTypeArguments[0].Name.Contains("List"))
+                        {
+                            if (item.Value.GetType().FullName.Contains("String"))
                             {
-                                if (i == arr.Length - 1)
+                                var y = "";
+                                var arr = (List<List<string>>)item.Value;
+                                foreach (var arrItem in arr)
                                 {
-                                    y += "'" + arr[i] + "'";
+                                    y += (string)CollectGenericString(arrItem) + ",";
+                                    if (arrItem == arr[arr.Count - 1])
+                                    {
+                                        y = y.Remove(y.Length - 1);
+                                    }
                                 }
-                                else
-                                {
-                                    y += "'" + arr[i] + "',";
-                                }
+                                verifyParameters = "[" + y + "]";
                             }
-                            verifyParameters = "[" + y + "]";
+                            else if (item.Value.GetType().FullName.Contains("Int32"))
+                            {
+                                var y = "";
+                                var arr = (List<List<int>>)item.Value;
+                                foreach (var arrItem in arr)
+                                {
+                                    y += (string)CollectGenericInt(arrItem) + ",";
+                                    if (arrItem == arr[arr.Count - 1])
+                                    {
+                                        y = y.Remove(y.Length - 1);
+                                    }
+                                }
+                                verifyParameters = "[" + y + "]";
+                            }
+                            else if (item.Value.GetType().FullName.Contains("Double"))
+                            {
+                                var y = "";
+                                var arr = (List<List<double>>)item.Value;
+                                foreach (var arrItem in arr)
+                                {
+                                    y += (string)CollectGenericDouble(arrItem) + ",";
+                                    if (arrItem == arr[arr.Count - 1])
+                                    {
+                                        y = y.Remove(y.Length - 1);
+                                    }
+                                }
+                                verifyParameters = "[" + y + "]";
+                            }
                         }
                     }
                     else if(item.Value is int || item.Value is long || item.Value is Double || item.Value is float || item.Value is decimal)
@@ -269,6 +287,70 @@ namespace FireboltDotNetSdk.Client
                 throw new FireboltException("Error while verify parameters for query");
             }
            
+        }
+
+        public object CollectGenericString(object item) {
+            object verifyParameters;
+            string[] arr = ((IEnumerable)item).Cast<string>()
+                            .ToArray();
+            var y = "";
+            for (var i = 0; i < arr.Length; i++)
+            {
+                if (i.GetType().IsGenericType)
+                {
+
+                }
+                if (i == arr.Length - 1)
+                {
+                    y += "'" + arr[i] + "'";
+                }
+                else
+                {
+                    y += "'" + arr[i] + "',";
+                }
+            }
+            verifyParameters = "[" + y + "]";
+            return verifyParameters;
+        }
+
+        public object CollectGenericInt(object item)
+        {
+            object verifyParameters;
+            int[] arr = ((IEnumerable)item).Cast<int>().Select(Convert.ToInt32).ToArray();
+            var y = "";
+            for (var i = 0; i < arr.Length; i++)
+            {
+                if (i == arr.Length - 1)
+                {
+                    y += arr[i];
+                }
+                else
+                {
+                    y += arr[i] + ",";
+                }
+            }
+            verifyParameters = "[" + y + "]";
+            return verifyParameters;
+        }
+
+        public object CollectGenericDouble(object item)
+        {
+            object verifyParameters;
+            double[] arr = ((IEnumerable)item).Cast<double>().Select(Convert.ToDouble).ToArray();
+            var y = "";
+            for (var i = 0; i < arr.Length; i++)
+            {
+                if (i == arr.Length - 1)
+                {
+                    y += arr[i];
+                }
+                else
+                {
+                    y += arr[i] + ";";
+                }
+            }
+            verifyParameters = "[" + y + "]";
+            return verifyParameters;
         }
 
         /// <summary>
