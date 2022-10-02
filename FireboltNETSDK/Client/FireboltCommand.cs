@@ -200,53 +200,35 @@ namespace FireboltDotNetSdk.Client
                         {
                             verifyParameters = CollectGenericInt(item.Value);
                         }
+                        if(item.Value.GetType().GenericTypeArguments[0].Name == "Int64")
+                        {
+                            verifyParameters = CollectGenericInt64(item.Value);
+                        }
                         if (item.Value.GetType().GenericTypeArguments[0].Name == "String")
                         {
                            verifyParameters = CollectGenericString(item.Value);
+                        }
+                        if (item.Value.GetType().GenericTypeArguments[0].Name == ("Double"))
+                        {
+                            verifyParameters = CollectGenericDouble(item.Value);
                         }
                         if (item.Value.GetType().GenericTypeArguments[0].Name.Contains("List"))
                         {
                             if (item.Value.GetType().FullName.Contains("String"))
                             {
-                                var y = "";
-                                var arr = (List<List<string>>)item.Value;
-                                foreach (var arrItem in arr)
-                                {
-                                    y += (string)CollectGenericString(arrItem) + ",";
-                                    if (arrItem == arr[arr.Count - 1])
-                                    {
-                                        y = y.Remove(y.Length - 1);
-                                    }
-                                }
-                                verifyParameters = "[" + y + "]";
+                                verifyParameters = CollectGenericString(item.Value);
                             }
                             else if (item.Value.GetType().FullName.Contains("Int32"))
                             {
-                                var y = "";
-                                var arr = (List<List<int>>)item.Value;
-                                foreach (var arrItem in arr)
-                                {
-                                    y += (string)CollectGenericInt(arrItem) + ",";
-                                    if (arrItem == arr[arr.Count - 1])
-                                    {
-                                        y = y.Remove(y.Length - 1);
-                                    }
-                                }
-                                verifyParameters = "[" + y + "]";
+                                verifyParameters = CollectGenericInt(item.Value);
+                            }
+                            else if (item.Value.GetType().FullName.Contains("Int64"))
+                            {
+                                verifyParameters = CollectGenericInt64(item.Value);
                             }
                             else if (item.Value.GetType().FullName.Contains("Double"))
                             {
-                                var y = "";
-                                var arr = (List<List<double>>)item.Value;
-                                foreach (var arrItem in arr)
-                                {
-                                    y += (string)CollectGenericDouble(arrItem) + ",";
-                                    if (arrItem == arr[arr.Count - 1])
-                                    {
-                                        y = y.Remove(y.Length - 1);
-                                    }
-                                }
-                                verifyParameters = "[" + y + "]";
+                                verifyParameters = CollectGenericDouble(item.Value);
                             }
                         }
                     }
@@ -317,6 +299,26 @@ namespace FireboltDotNetSdk.Client
         {
             object verifyParameters;
             int[] arr = ((IEnumerable)item).Cast<int>().Select(Convert.ToInt32).ToArray();
+            var y = "";
+            for (var i = 0; i < arr.Length; i++)
+            {
+                if (i == arr.Length - 1)
+                {
+                    y += arr[i];
+                }
+                else
+                {
+                    y += arr[i] + ",";
+                }
+            }
+            verifyParameters = "[" + y + "]";
+            return verifyParameters;
+        }
+
+        public object CollectGenericInt64(object item)
+        {
+            object verifyParameters;
+            long[] arr = ((IEnumerable)item).Cast<long>().Select(Convert.ToInt64).ToArray();
             var y = "";
             for (var i = 0; i < arr.Length; i++)
             {
