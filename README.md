@@ -134,23 +134,3 @@ Execute command with parameters (Collection of parameters is Parameters)
 
             conn.Close();
 ```
-
-```cs
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var cursor = conn.CreateCursor();
-
-            //var param = new List<List<int>>() { new List<int>() { 1,2,3}, new List<int>() { 1, 8, 3}, new List<int>() { 5453 } };
-            //var param = new List<List<string>>() { new List<string>() { "1","2","str"}, new List<string>() { "1","8", "3"}, new List<string>() { "str5453" } };
-            var param = new List<List<double>>() { new List<double>() { 1.2,2.2,3,4.32424,5.2424244545}, new List<double>() { 1, 2.1, 3}, new List<double>() { 5453 } };
-
-            cursor.Parameters.AddWithValue("@pass", param);
-
-            cursor.Parameters.Add(new FireboltParameter("@str_param1") { Value = 200 });
-
-            cursor.Execute("SELECT * FROM users WHERE password = @pass AND Age = @param1 AND Distance = @str_param1");
-
-            conn.Close();
-```
