@@ -167,7 +167,20 @@ namespace FireboltDotNetSdk.Client
             };
             try
             {
-                var getToken = Client.Login(credentials).GetAwaiter().GetResult();
+                LoginResponse getToken;
+                var getDir = TokenSecureStorage.GetOperatingSystem();
+                var file = GetCacheTokenFile(UserName, Password, getDir);
+                if (file!=null)
+                {
+                   var storedToken = TokenSecureStorage.GetCachedToken(file);
+                   getToken = new LoginResponse() { Access_token = storedToken.token, Expires_in = storedToken.expiration.ToString() };
+                }
+                else
+                {
+                    getToken = Client.Login(credentials).GetAwaiter().GetResult();
+                    TokenSecureStorage.CachedTokenAsync(getDir,getToken, UserName, Password);
+                }
+                
                 Client.SetToken(getToken);
                 DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
@@ -278,6 +291,12 @@ namespace FireboltDotNetSdk.Client
         public override void Open()
         {
             OpenAsync();
+        }
+
+        public string GetCacheTokenFile(string username, string password,string path) {
+            var fileName = TokenSecureStorage.GenerateFileName(username, password);
+            var getFile = Directory.EnumerateFiles(path, fileName.Replace(@"/", string.Empty), SearchOption.AllDirectories).FirstOrDefault();
+            return getFile;
         }
 
         protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)
