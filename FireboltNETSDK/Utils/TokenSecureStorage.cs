@@ -1,9 +1,7 @@
 ﻿using FireboltDotNetSdk.Exception;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Generators;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Security;
+using Newtonsoft.Json.Linq;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -13,10 +11,13 @@ namespace FireboltDotNetSdk.Utils
 {
     public static class TokenSecureStorage
     {
-        private static string APPNAME = "\\firebolt";
-        private static Random random = new Random();
+        private static readonly string APPNAME = "\\firebolt";
         private static string FileName;
 
+        /// <summary>
+        /// Identify filesystem path where we srote JSON file
+        /// </summary>
+        /// <returns>filesystem path</returns>
         public static string GetOperatingSystem()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -36,211 +37,388 @@ namespace FireboltDotNetSdk.Utils
 
             throw new FireboltException("Cannot determine operating system!");
         }
-
-        public static string GenerateSalt() {
-            ASCIIEncoding ascii = new ASCIIEncoding();
-
-            return Base64Encode(RandomString(16)); // decode(ASCII)  why????
-        }
-
+       
         public static string GenerateFileName(string username, string password) {
-            var usernameBytes = Convert.ToBase64String(SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(username)));
-            var passwordBytes = Convert.ToBase64String(SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(password)));
+            var usernameBytes = SHA256HexHashString(username);
+            var passwordBytes = SHA256HexHashString(password);
             FileName = usernameBytes + passwordBytes + ".json";
             return FileName;
         }
 
-        public static bool CreatePasswordHash_Single()
+        private static string ToHex(byte[] bytes, bool upperCase)
         {
-            int iterations = 39000; 
-            int saltByteSize = 32; 
-            int hashByteSize = 64; 
-
-            BouncyCastleHashing mainHashingLib = new BouncyCastleHashing();
-
-            var password = "password";
-            var username = "username";
-            var creds = username + password;
-
-            byte[] saltBytes = mainHashingLib.CreateSalt(saltByteSize);
-            string saltString = Convert.ToBase64String(saltBytes);
-
-            string pwdHash = mainHashingLib.PBKDF2_SHA256_GetHash(creds, saltString, iterations, hashByteSize);
-
-            var isValid = mainHashingLib.ValidatePassword(creds, saltBytes, iterations, hashByteSize, Convert.FromBase64String(pwdHash));
-
-            return isValid;
+            int bytesLenght = 16;
+            StringBuilder result = new StringBuilder(bytesLenght * 2);
+            for (int i = 0; i < bytesLenght; i++)
+                result.Append(bytes[i].ToString(upperCase ? "X2" : "x2"));
+            return result.ToString();
         }
 
-        public static string GetSalt() {
-            return null;
+        public static string SHA256HexHashString(string StringIn)
+        {
+            string hashString;
+            using (var sha256 = SHA256.Create())
+            {
+                var hash = sha256.ComputeHash(Encoding.Default.GetBytes(StringIn));
+                hashString = ToHex(hash, false);
+            }
+
+            return hashString;
         }
 
-        public static CachedJSONData GetCachedToken(string path) {
-            var data = ReadDataJSON(path);
+        /// <summary>
+        /// Get cached token from file
+        /// </summary>
+        /// <returns></returns>
+        public static CachedJSONData? GetCachedToken(string path)
+        {
+            try
+            {
+                var data = ReadDataJSON(path);
+                if (data == null) return null;
+
+                var key64 = data.Salt.UrlSafe64Decode();
+                var decoded64 = Decrypt(key64, data.Token, out var timestamp);
+                var decoded = decoded64.UrlSafe64Encode().FromBase64String();
+
+                CachedJSONData _data = new()
+                {
+                    Token = decoded,
+                    Salt = data.Salt,
+                    Expiration = Convert.ToInt32(data.Expiration)
+                };
+                return _data;
+            }
+            catch (System.Exception ex)
+            {
+                throw new FireboltException("Error while GetCachedToken " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Cached token and set to file
+        /// </summary>
+        /// <returns></returns>
+        public static bool CachedTokenAsync(string dir, LoginResponse tokenData, string username, string password)
+        {
+
+            var key = GenerateKey();
+            var key64 = key.UrlSafe64Decode();
+            var src = tokenData.Access_token;
+            var src64 = src.ToBase64String();
+            try
+            {
+                var token = Encrypt(key64, src64.UrlSafe64Decode());
+                CachedJSONData _data = new()
+                {
+                    Token = token,
+                    Salt = key,
+                    Expiration = Convert.ToInt32(tokenData.Expires_in)
+                };
+
+                var getFileName = dir + "\\" + GenerateFileName(username, password).Replace(@"/", string.Empty);
+                string json = JsonConvert.SerializeObject(_data, Formatting.Indented);
+                File.WriteAllText(getFileName, json);
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                throw new FireboltException("Error while CachedTokenAsync " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Read JSON file
+        /// </summary>
+        /// <returns>Deserialize JSON</returns>
+        public static CachedJSONData ReadDataJSON(string path) {
+            try
+            {
+                StreamReader r = new StreamReader(path);
+                string jsonString = r.ReadToEnd();
+                var prettyJson = JToken.Parse(jsonString).ToString(Formatting.Indented);
+                var data = JsonConvert.DeserializeObject<CachedJSONData>(prettyJson);
+                return data;
+            }
+            catch (System.Exception ex)
+            {
+                throw new FireboltException("Error while ReadDataJSON " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Encrypt method 
+        /// </summary>
+        /// <returns>Encryption token</returns>
+        public static string Encrypt(byte[] key, byte[] data, DateTime? timestamp = null, byte[] iv = null,
+            bool trimEnd = false)
+        {
+            if (key == null)
+            {
+                throw new FireboltException($"{nameof(key)} is null.");
+            }
+
+            if (key.Length != 32)
+            {
+                throw new FireboltException($"Length of {nameof(key)} should be 32.");
+            }
 
             if (data == null)
             {
-                return null;
+                throw new FireboltException($"{nameof(data)} is null.");
             }
 
-            return data;
-        }
-
-        public static bool CachedTokenAsync(string dir , LoginResponse tokenData, string username, string password) {
-
-            List<CachedJSONData> _data = new();
-            _data.Add(new CachedJSONData()
+            if (iv != null && iv.Length != 16)
             {
-                token = tokenData.Access_token,
-                salt = GenerateSalt(),
-                expiration = Convert.ToInt32(tokenData.Expires_in)
-            });
-           
-            var getFileName = dir + "\\" + GenerateFileName(username, password).Replace(@"/", string.Empty);
-            string json = JsonConvert.SerializeObject(_data.ToArray());
+                throw new FireboltException($"Length of {nameof(iv)} should be 16.");
+            }
 
-            //write string to file
-            System.IO.File.WriteAllText(getFileName, json);
+            if (timestamp == null) timestamp = DateTime.UtcNow;
 
-            return true;
+            var result = new byte[57 + (data.Length + 16) / 16 * 16];
+
+            result[0] = 0x80;
+
+            var timestamp2 = new DateTimeOffset(timestamp.Value).ToUnixTimeSeconds();
+            timestamp2 = IPAddress.NetworkToHostOrder(timestamp2);
+            var timestamp3 = BitConverter.GetBytes(timestamp2);
+            Buffer.BlockCopy(timestamp3, 0, result, 1, timestamp3.Length);
+
+            using (var aes = new AesManaged())
+            {
+                aes.Mode = CipherMode.CBC;
+
+                var encryptionKey = new byte[16];
+                Buffer.BlockCopy(key, 16, encryptionKey, 0, 16);
+
+                aes.Key = encryptionKey;
+
+                if (iv != null)
+                    aes.IV = iv;
+                else
+                    aes.GenerateIV();
+
+                Buffer.BlockCopy(aes.IV, 0, result, 9, 16);
+
+                aes.Padding = PaddingMode.PKCS7;
+
+                using (var encryptor = aes.CreateEncryptor())
+                {
+                    var encrypted = encryptor.TransformFinalBlock(data, 0, data.Length);
+                    Buffer.BlockCopy(encrypted, 0, result, 25, encrypted.Length);
+                }
+            }
+
+            var signingKey = new byte[16];
+            Buffer.BlockCopy(key, 0, signingKey, 0, 16);
+
+            using (var hmac = new HMACSHA256(signingKey))
+            {
+                hmac.TransformFinalBlock(result, 0, result.Length - 32);
+                Buffer.BlockCopy(hmac.Hash, 0, result, result.Length - 32, 32);
+            }
+
+            return result.UrlSafe64Encode(trimEnd);
         }
 
-        public static CachedJSONData ReadDataJSON(string path) {
-            StreamReader r = new StreamReader(path);
-            string jsonString = r.ReadToEnd();
-            var data = JsonConvert.DeserializeObject<CachedJSONData>(jsonString);
-            return data;
-        }
-
-        public static string RandomString(int length)
+        /// <summary>
+        /// Decrypt method 
+        /// </summary>
+        /// <returns>Decryption token</returns>
+        public static byte[] Decrypt(byte[] key, string token, out DateTime timestamp, int? ttl = null)
         {
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789=";
-            return new string(Enumerable.Repeat(chars, length)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
-        }
+            if (key == null)
+            {
+                throw new FireboltException($"{nameof(key)} is null.");
+            }
 
-        public static string Base64Encode(string plainText)
-        {
-            var plainTextBytes = Encoding.UTF8.GetBytes(plainText);
-            return Convert.ToBase64String(plainTextBytes);
-        }
+            if (key.Length != 32)
+            {
+                throw new FireboltException($"Length of {nameof(key)} should be 32.");
+            }
 
-        public static string Base64Decode(string base64EncodedData)
-        {
-            var base64EncodedBytes = Convert.FromBase64String(base64EncodedData);
-            return Encoding.UTF8.GetString(base64EncodedBytes);
-        }
-    }
-    public class CachedJSONData
-    {
-        public string token { get; set; }
-        public string salt { get; set; }
-        public int expiration { get; set; }
-    }
+            if (token == null)
+            {
+                throw new FireboltException($"{nameof(key)} is null.");
+            }
 
-    /// <summary>
-    /// Contains the relevant Bouncy Castle Methods required to encrypt a password.
-    /// References NuGet Package BouncyCastle.Crypto.dll
-    /// </summary>
-    public class BouncyCastleHashing
-    {
-        private SecureRandom _cryptoRandom;
+            var token2 = token.UrlSafe64Decode();
 
-        public BouncyCastleHashing()
-        {
-            _cryptoRandom = new SecureRandom();
+            if (token2.Length < 57) throw new FireboltException($"Length of {nameof(key)} should be greater or equal 57.");
+
+            var version = token2[0];
+
+            if (version != 0x80) throw new FireboltException("Invalid version.");
+
+            var signingKey = new byte[16];
+            Buffer.BlockCopy(key, 0, signingKey, 0, 16);
+
+            using (var hmac = new HMACSHA256(signingKey))
+            {
+                hmac.TransformFinalBlock(token2, 0, token2.Length - 32);
+                var hash2 = hmac.Hash;
+
+                var hash = token2.Skip(token2.Length - 32).Take(32);
+
+                if (!hash.SequenceEqual(hash2)) throw new FireboltException("Wrong HMAC!");
+            }
+          
+            var timestamp2 = BitConverter.ToInt64(token2, 1);
+            timestamp2 = IPAddress.NetworkToHostOrder(timestamp2);
+            var datetimeOffset = DateTimeOffset.FromUnixTimeSeconds(timestamp2);
+            timestamp = datetimeOffset.UtcDateTime;
+
+            if (ttl.HasValue)
+            {
+                var calculatedTimeSeconds = datetimeOffset.ToUnixTimeSeconds() + ttl.Value;
+                var currentTimeSeconds = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
+                if (calculatedTimeSeconds < currentTimeSeconds)
+                {
+                    throw new FireboltException("Token is expired.");
+                }
+            }
+
+            byte[] decrypted;
+
+            using (var aes = new AesManaged())
+            {
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.PKCS7;
+
+                var encryptionKey = new byte[16];
+                Buffer.BlockCopy(key, 16, encryptionKey, 0, 16);
+                aes.Key = encryptionKey;
+
+                var iv = new byte[16];
+                Buffer.BlockCopy(token2, 9, iv, 0, 16);
+                aes.IV = iv;
+
+                using (var decryptor = aes.CreateDecryptor())
+                {
+                    const int startCipherText = 25;
+                    var cipherTextLength = token2.Length - 32 - 25;
+                    decrypted = decryptor.TransformFinalBlock(token2, startCipherText, cipherTextLength);
+                }
+            }
+
+            return decrypted;
         }
 
         /// <summary>
         /// Random Salt Creation
         /// </summary>
-        /// <param name="size">The size of the salt in bytes</param>
         /// <returns>A random salt of the required size.</returns>
-        public byte[] CreateSalt(int size)
+        public static string GenerateKey()
         {
-            byte[] salt = new byte[size];
-            _cryptoRandom.NextBytes(salt);
-            return salt;
+            var keyBytes = new byte[32];
+            var rng = new RNGCryptoServiceProvider();
+            rng.GetBytes(keyBytes);
+            return keyBytes.UrlSafe64Encode();
         }
 
-        /// <summary>
-        /// Gets a PBKDF2_SHA256 Hash  (Overload)
-        /// </summary>
-        /// <param name="password">The password as a plain text string</param>
-        /// <param name="saltAsBase64String">The salt for the password</param>
-        /// <param name="iterations">The number of times to encrypt the password</param>
-        /// <param name="hashByteSize">The byte size of the final hash</param>
-        /// <returns>A base64 string of the hash.</returns>
-        public string PBKDF2_SHA256_GetHash(string password, string saltAsBase64String, int iterations, int hashByteSize)
+        public static string UrlSafe64Encode(this byte[] bytes, bool trimEnd = false)
         {
-            var saltBytes = Convert.FromBase64String(saltAsBase64String);
+            try
+            {
+                var length = (bytes.Length + 2) / 3 * 4;
+                var chars = new char[length];
+                Convert.ToBase64CharArray(bytes, 0, bytes.Length, chars, 0);
 
-            var hash = PBKDF2_SHA256_GetHash(password, saltBytes, iterations, hashByteSize);
+                var trimmedLength = length;
 
-            return Convert.ToBase64String(hash);
+                if (trimEnd)
+                    switch (bytes.Length % 3)
+                    {
+                        case 1:
+                            trimmedLength -= 2;
+                            break;
+                        case 2:
+                            trimmedLength -= 1;
+                            break;
+                    }
+
+                for (var i = 0; i < trimmedLength; i++)
+                    switch (chars[i])
+                    {
+                        case '/':
+                            chars[i] = '_';
+                            break;
+                        case '+':
+                            chars[i] = '-';
+                            break;
+                    }
+
+                var result = new string(chars, 0, trimmedLength);
+                return result;
+            }
+            catch (IOException e)
+            {
+                throw new FireboltException(e.Message);
+            }
         }
 
-        /// <summary>
-        /// Gets a PBKDF2_SHA256 Hash (CORE METHOD)
-        /// </summary>
-        /// <param name="password">The password as a plain text string</param>
-        /// <param name="salt">The salt as a byte array</param>
-        /// <param name="iterations">The number of times to encrypt the password</param>
-        /// <param name="hashByteSize">The byte size of the final hash</param>
-        /// <returns>A the hash as a byte array.</returns>
-        public byte[] PBKDF2_SHA256_GetHash(string password, byte[] salt, int iterations, int hashByteSize)
+        public static byte[] UrlSafe64Decode(this string s)
         {
-            var pdb = new Pkcs5S2ParametersGenerator(new Org.BouncyCastle.Crypto.Digests.Sha256Digest());
-            pdb.Init(PbeParametersGenerator.Pkcs5PasswordToBytes(password.ToCharArray()), salt,
-                         iterations);
-            var key = (KeyParameter)pdb.GenerateDerivedMacParameters(hashByteSize * 8);
-            return key.GetKey();
+            try
+            {
+                char[] chars;
+
+                switch (s.Length % 4)
+                {
+                    case 2:
+                        chars = new char[s.Length + 2];
+                        chars[chars.Length - 2] = '=';
+                        chars[chars.Length - 1] = '=';
+                        break;
+                    case 3:
+                        chars = new char[s.Length + 1];
+                        chars[chars.Length - 1] = '=';
+                        break;
+                    default:
+                        chars = new char[s.Length];
+                        break;
+                }
+
+                for (var i = 0; i < s.Length; i++)
+                    switch (s[i])
+                    {
+                        case '_':
+                            chars[i] = '/';
+                            break;
+                        case '-':
+                            chars[i] = '+';
+                            break;
+                        default:
+                            chars[i] = s[i];
+                            break;
+                    }
+
+                var result = Convert.FromBase64CharArray(chars, 0, chars.Length);
+                return result;
+            }
+            catch (IOException e)
+            {
+                throw new FireboltException(e.Message);
+            }
         }
 
-        /// <summary>
-        /// Validates a password given a hash of the correct one. (OVERLOAD)
-        /// </summary>
-        /// <param name="password">The original password to hash</param>
-        /// <param name="salt">The salt that was used when hashing the password</param>
-        /// <param name="iterations">The number of times it was encrypted</param>
-        /// <param name="hashByteSize">The byte size of the final hash</param>
-        /// <param name="hashAsBase64String">The hash the password previously provided as a base64 string</param>
-        /// <returns>True if the hashes match</returns>
-        public bool ValidatePassword(string password, string salt, int iterations, int hashByteSize, string hashAsBase64String)
+        public static string ToBase64String(this string plainText)
         {
-            byte[] saltBytes = Convert.FromBase64String(salt);
-            byte[] actualHashBytes = Convert.FromBase64String(hashAsBase64String);
-            return ValidatePassword(password, saltBytes, iterations, hashByteSize, actualHashBytes);
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            return System.Convert.ToBase64String(plainTextBytes);
         }
 
-        /// <summary>
-        /// Validates a password given a hash of the correct one (MAIN METHOD).
-        /// </summary>
-        /// <param name="password">The password to check.</param>
-        /// <param name="correctHash">A hash of the correct password.</param>
-        /// <returns>True if the password is correct. False otherwise.</returns>
-        public bool ValidatePassword(string password, byte[] saltBytes, int iterations, int hashByteSize, byte[] actualGainedHasAsByteArray)
+        public static string FromBase64String(this string base64EncodedData)
         {
-            byte[] testHash = PBKDF2_SHA256_GetHash(password, saltBytes, iterations, hashByteSize);
-            return SlowEquals(actualGainedHasAsByteArray, testHash);
+            var base64EncodedBytes = Convert.FromBase64String(base64EncodedData);
+            return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
         }
+    }
 
-        /// <summary>
-        /// Compares two byte arrays in length-constant time. This comparison
-        /// method is used so that password hashes cannot be extracted from
-        /// on-line systems using a timing attack and then attacked off-line.
-        /// </summary>
-        /// <param name="a">The first byte array.</param>
-        /// <param name="b">The second byte array.</param>
-        /// <returns>True if both byte arrays are equal. False otherwise.</returns>
-        private bool SlowEquals(byte[] a, byte[] b)
-        {
-            uint diff = (uint)a.Length ^ (uint)b.Length;
-            for (int i = 0; i < a.Length && i < b.Length; i++)
-                diff |= (uint)(a[i] ^ b[i]);
-            return diff == 0;
-        }
-
+    public class CachedJSONData
+    {
+        public string Token { get; set; }
+        public string Salt { get; set; }
+        public int Expiration { get; set; }
     }
 }

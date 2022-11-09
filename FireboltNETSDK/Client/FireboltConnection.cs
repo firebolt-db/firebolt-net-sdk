@@ -15,13 +15,11 @@
  */
 #endregion
 
-using System.Data;
-using System.Data.Common;
-using System.Security;
-using System.Text.RegularExpressions;
-using System.Transactions;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using System.Data;
+using System.Data.Common;
+using System.Transactions;
 using static FireboltDotNetSdk.Client.FireRequest;
 using static FireboltDotNetSdk.Client.FireResponse;
 
@@ -35,7 +33,6 @@ namespace FireboltDotNetSdk.Client
         private FireboltConnectionState _connectionState;
 
         public LoginRequest _connectionString;
-        private bool disposed = false;
 
         public readonly FireboltClient Client;
 
@@ -173,7 +170,7 @@ namespace FireboltDotNetSdk.Client
                 if (file!=null)
                 {
                    var storedToken = TokenSecureStorage.GetCachedToken(file);
-                   getToken = new LoginResponse() { Access_token = storedToken.token, Expires_in = storedToken.expiration.ToString() };
+                   getToken = new LoginResponse() { Access_token = storedToken.Token, Expires_in = storedToken.Expiration.ToString() };
                 }
                 else
                 {
