@@ -16,10 +16,5 @@ repos:
           name: dotnet-format-analyzers
           entry: dotnet-format analyzers --severity warn --verify-no-changes
           language: system
-          pass_filenames: false          
-      -   id: style-cop-analyzer
-          name: style-cop-analyzer
-          entry: dotnet style check FireboltDotNetSdk.sln
-          language: system
           pass_filenames: false
 
