@@ -156,23 +156,23 @@ namespace FireboltDoNetSdk.Utils
                 switch (intPart)
                 {
                     case < 0:
-                    {
-                        isMinus = true;
-                        intPart = -intPart;
-                        if (intPart < 0)
-                            throw new OverflowException();
-                        break;
-                    }
-                    case 0:
-                    {
-                        // Sign is stripped from the Int64 for value of "-0"
-                        if (s[offset] == '-')
                         {
                             isMinus = true;
+                            intPart = -intPart;
+                            if (intPart < 0)
+                                throw new OverflowException();
+                            break;
                         }
+                    case 0:
+                        {
+                            // Sign is stripped from the Int64 for value of "-0"
+                            if (s[offset] == '-')
+                            {
+                                isMinus = true;
+                            }
 
-                        break;
-                    }
+                            break;
+                        }
                 }
                 var d1 = new decimal(intPart);
                 var d2 = new decimal((int)(decimalPart & 0xffffffff), (int)((decimalPart >> 32) & 0xffffffff), 0, false, (byte)decimalLen);
