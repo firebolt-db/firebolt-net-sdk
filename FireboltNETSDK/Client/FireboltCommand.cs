@@ -43,7 +43,7 @@ namespace FireboltDotNetSdk.Client
 
         public string? Response { get; set; }
 
-        public static readonly HashSet<string> SetParamList = new();
+        public readonly HashSet<string> SetParamList = new();
 
         /// <summary>
         /// Gets or sets the SQL statement to execute at the data source.
@@ -230,10 +230,10 @@ namespace FireboltDotNetSdk.Client
                     ProcessResponse();
 
                     var status = (int)response.StatusCode;
+		    ReadResponseAsString = true;
+		    var objectResponse = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                     if (status == 200)
                     {
-                        ReadResponseAsString = true;
-                        var objectResponse = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         if (objectResponse == null)
                         {
                             throw new FireboltException("Response was null which was not expected.", status, objectResponse ?? string.Empty, headers, null);
@@ -242,7 +242,7 @@ namespace FireboltDotNetSdk.Client
                     }
                     else
                     {
-                        throw new FireboltException("Response was null which was not expected with status: " + status);
+                        throw new FireboltException("Response was null which was not expected with status: " + status + ", body: " + objectResponse);
                     }
                 }
                 finally

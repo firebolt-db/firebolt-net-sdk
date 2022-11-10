@@ -30,7 +30,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var cs = new FireboltCommand(commandText);
             cs.Execute(commandText);
-            Assert.IsNotEmpty(FireboltCommand.SetParamList);
+            Assert.IsNotEmpty(cs.SetParamList);
         }
 
         [TestCase("Select 1")]
@@ -95,9 +95,9 @@ namespace FireboltDotNetSdk.Tests
         {
             var cs = new FireboltCommand(commandText);
             cs.Execute(commandText);
-            Assert.IsNotEmpty(FireboltCommand.SetParamList);
+            Assert.IsNotEmpty(cs.SetParamList);
             cs.ClearSetList();
-            Assert.IsEmpty(FireboltCommand.SetParamList);
+            Assert.IsEmpty(cs.SetParamList);
         }
 
 
@@ -107,7 +107,7 @@ namespace FireboltDotNetSdk.Tests
             _client = new HttpClient();
             var cs = new FireboltCommand("commandText");
             cs.PrepareRequest(_client);
-            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, "Other");
+            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, ".NETSDK");
         }
 
         [Test]
@@ -116,7 +116,7 @@ namespace FireboltDotNetSdk.Tests
             _client = new HttpClient();
             var cs = new FireboltCommand("commandText");
             cs.PrepareRequest(_client);
-            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, "Other");
+            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, ".NETSDK");
             cs.Token = "notNull";
             cs.PrepareRequest(_client);
             Assert.AreEqual(_client.DefaultRequestHeaders.Authorization.Parameter, "notNull");

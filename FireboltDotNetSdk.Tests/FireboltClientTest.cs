@@ -57,7 +57,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (System.Exception e)
             {
-                Assert.AreEqual(e.Message, "No such host is known. (dbname:443)");
+                Assert.AreEqual(e.Message, "Resource temporarily unavailable (dbname:443)");
             }
         }
 
@@ -71,7 +71,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (System.Exception e)
             {
-                Assert.AreEqual(e.Message, "No such host is known. (endpoint_url:443)");
+                Assert.AreEqual(e.Message, "Resource temporarily unavailable (endpoint_url:443)");
             }
         }
     }
