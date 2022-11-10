@@ -1,18 +1,25 @@
 repos:
 
-  -   repo: https://github.com/jvstein/pre-commit-dotnet-format
-      rev: 'v0.2'
-      hooks:
-      -   id: dotnet-format
-
   -   repo: local
       hooks:
-      -   id: dotnet-format
-          name: dotnet-format FireboltDotNetSdk.sln
-          entry: dotnet dotnet-format
+      -   id: dotnet-format-whitespace
+          name: dotnet-format-whitespace
+          entry: dotnet-format whitespace --verify-no-changes
           language: system
+          pass_filenames: false
+      -   id: dotnet-format-style
+          name: dotnet-format-style
+          entry: dotnet-format style --severity warn --verify-no-changes
+          language: system
+          pass_filenames: false
+      -   id: dotnet-format-analyzers
+          name: dotnet-format-analyzers
+          entry: dotnet-format analyzers --severity warn --verify-no-changes
+          language: system
+          pass_filenames: false          
       -   id: style-cop-analyzer
           name: style-cop-analyzer
           entry: dotnet style check FireboltDotNetSdk.sln
           language: system
+          pass_filenames: false
 
