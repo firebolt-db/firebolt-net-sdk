@@ -4,6 +4,7 @@ using FireboltDotNetSdk.Client;
 namespace FireboltDotNetSdk.Tests
 {
     [TestFixture]
+    [Category("Integration")]
     internal class IntegrationTests
     {
         private string _database;
@@ -20,7 +21,7 @@ namespace FireboltDotNetSdk.Tests
 	    return default_value;
 	}
 
-    [SetUp]
+	[SetUp]
         public void Init()
         {
 	    _database = WithDefault(Environment.GetEnvironmentVariable("FIREBOLT_DATABASE"), null);
