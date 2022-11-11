@@ -2,11 +2,12 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Nuget](https://img.shields.io/nuget/v/FireboltNetSDK?style=plastic)](https://www.nuget.org/packages/FireboltNetSDK/0.0.1)
+[![Build](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/build.yml/badge.svg)](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/build.yml)
+[![Unit tests](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/unit-tests.yml)
+[![Code quality checks](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/code-check.yml/badge.svg)](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/code-check.yml)
 
 This is an implementation of .NET Core driver(.NET 6) for Firebolt DB in a form of ADO.NET DbProvider API.
 Supports all latest .NET frameworks and all platforms.
-
-Array query parameters are not supported yet.
 
 This project is developed under Visual Studio 2022. Earlier versions of Visual Studio are not supported.
 
@@ -89,31 +90,3 @@ Execute command with SET parameter
 
             conn.Close();
 ```
-
-Execute command with parameters (Collection of parameters is Parameters)
-
-```cs
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var cursor = conn.CreateCursor();
-
-            var p = cursor.CreateParameter();
-
-            p.ParameterName = "@param1";
-            p.Value = 199;
-            p.DbType = DbType.Int32;
-            p.Direction = ParameterDirection.Input;
-
-            cursor.Parameters.Add(p);
-
-            cursor.Parameters.AddWithValue("@pass", date);
-
-            cursor.Parameters.Add(new FireboltParameter("@str_param1") { Value = 200 });
-
-            cursor.Execute("SELECT * FROM users WHERE password = @pass AND Age = @param1 AND Distance = @str_param1");
-
-            conn.Close();
-```
-
