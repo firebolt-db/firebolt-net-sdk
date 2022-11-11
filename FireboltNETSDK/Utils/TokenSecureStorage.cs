@@ -5,6 +5,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Unicode;
 using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk.Utils
@@ -318,11 +319,8 @@ namespace FireboltDotNetSdk.Utils
 
         public static string GenerateKey(string salt, string password)
         {
-            using (var hmac = new HMACSHA256())
-            {
-                var df = new Pbkdf2(hmac, password, salt.UrlSafe64Decode(), 49000);
-                return Convert.ToBase64String(df.GetBytes(16));
-            }
+            Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.Unicode.GetBytes(password), Encoding.Unicode.GetBytes(salt), iterations: 49000);
+            return Encoding.UTF8.GetString(pbkdf2.GetBytes(32));
         }
 
         public static string UrlSafe64Encode(this byte[] bytes, bool trimEnd = false)
