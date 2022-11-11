@@ -171,8 +171,8 @@ namespace FireboltDotNetSdk.Client
                 {
                     token = new LoginResponse()
                     {
-                        Access_token = storedToken.Token,
-                        Expires_in = storedToken.Expiration.ToString()
+                        Access_token = storedToken.token,
+                        Expires_in = storedToken.expiration.ToString()
                     };
                 }
                 else

@@ -65,15 +65,15 @@ namespace FireboltDotNetSdk.Utils
                 var data = ReadDataJSON(cacheFilePath);
                 if (data == null) return null;
 
-                var key64 = data.Salt.UrlSafe64Decode();
-                var decoded64 = Decrypt(key64, data.Token, out var timestamp);
+                var key64 = data.salt.UrlSafe64Decode();
+                var decoded64 = Decrypt(key64, data.token, out var timestamp);
                 var decoded = decoded64.UrlSafe64Encode().FromBase64String();
 
                 CachedJSONData _data = new()
                 {
-                    Token = decoded,
-                    Salt = data.Salt,
-                    Expiration = Convert.ToInt32(data.Expiration)
+                    token = decoded,
+                    salt = data.salt,
+                    expiration = Convert.ToInt32(data.expiration)
                 };
                 return _data;
             }
@@ -99,9 +99,9 @@ namespace FireboltDotNetSdk.Utils
                 var token = Encrypt(key64, src64.UrlSafe64Decode());
                 CachedJSONData _data = new()
                 {
-                    Token = token,
-                    Salt = key,
-                    Expiration = Convert.ToInt32(tokenData.Expires_in)
+                    token = token,
+                    salt = key,
+                    expiration = Convert.ToInt32(tokenData.Expires_in)
                 };
 
                 var cacheDir = GetCacheDir();
