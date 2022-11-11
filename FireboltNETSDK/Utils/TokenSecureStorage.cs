@@ -66,8 +66,8 @@ namespace FireboltDotNetSdk.Utils
                 var data = ReadDataJSON(cacheFilePath);
                 if (data == null) return null;
 
-                var key64 = data.salt.UrlSafe64Decode();
-                var decoded64 = Decrypt(key64, data.token, out var timestamp);
+                var key = GenerateKey(data.salt, username + password);
+                var decoded64 = Decrypt(key, data.token, out var timestamp);
                 var decoded = decoded64.UrlSafe64Encode().FromBase64String();
 
                 CachedJSONData _data = new()
@@ -97,11 +97,11 @@ namespace FireboltDotNetSdk.Utils
 
             try
             {
-                var token = Encrypt(key.UrlSafe64Decode(), Encoding.Unicode.GetBytes(tokenPayload));
+                var token = Encrypt(key, Encoding.Unicode.GetBytes(tokenPayload));
                 CachedJSONData _data = new()
                 {
                     token = token,
-                    salt = key,
+                    salt = salt,
                     expiration = Convert.ToInt32(tokenData.Expires_in)
                 };
 
@@ -317,10 +317,10 @@ namespace FireboltDotNetSdk.Utils
             return keyBytes.UrlSafe64Encode();
         }
 
-        public static string GenerateKey(string salt, string password)
+        public static byte[] GenerateKey(string salt, string password)
         {
             Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.Unicode.GetBytes(password), Encoding.Unicode.GetBytes(salt), iterations: 39000);
-            return Encoding.UTF8.GetString(pbkdf2.GetBytes(32));
+            return pbkdf2.GetBytes(32);
         }
 
         public static string UrlSafe64Encode(this byte[] bytes, bool trimEnd = false)
