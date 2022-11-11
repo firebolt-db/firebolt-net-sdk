@@ -127,7 +127,7 @@ namespace FireboltDotNetSdk.Client
             {
                 try
                 {
-                    string newCommandText= commandText;
+                    string newCommandText = commandText;
                     if (Parameters.Any())
                     {
                         newCommandText = GetParamQuery(commandText);
@@ -196,43 +196,9 @@ namespace FireboltDotNetSdk.Client
                     }
                     else if (item.Value is IList && item.Value.GetType().IsGenericType)
                     {
-                        if (item.Value.GetType().GenericTypeArguments[0].Name == "Int32")
-                        {
-                            verifyParameters = CollectGenericInt(item.Value);
-                        }
-                        if(item.Value.GetType().GenericTypeArguments[0].Name == "Int64")
-                        {
-                            verifyParameters = CollectGenericInt64(item.Value);
-                        }
-                        if (item.Value.GetType().GenericTypeArguments[0].Name == "String")
-                        {
-                           verifyParameters = CollectGenericString(item.Value);
-                        }
-                        if (item.Value.GetType().GenericTypeArguments[0].Name == ("Double"))
-                        {
-                            verifyParameters = CollectGenericDouble(item.Value);
-                        }
-                        if (item.Value.GetType().GenericTypeArguments[0].Name.Contains("List"))
-                        {
-                            if (item.Value.GetType().FullName.Contains("String"))
-                            {
-                                verifyParameters = CollectGenericString(item.Value);
-                            }
-                            else if (item.Value.GetType().FullName.Contains("Int32"))
-                            {
-                                verifyParameters = CollectGenericInt(item.Value);
-                            }
-                            else if (item.Value.GetType().FullName.Contains("Int64"))
-                            {
-                                verifyParameters = CollectGenericInt64(item.Value);
-                            }
-                            else if (item.Value.GetType().FullName.Contains("Double"))
-                            {
-                                verifyParameters = CollectGenericDouble(item.Value);
-                            }
-                        }
+                        throw new FireboltException("Array query parameters are not supported yet.");
                     }
-                    else if(item.Value is int || item.Value is long || item.Value is Double || item.Value is float || item.Value is decimal)
+                    else if (item.Value is int || item.Value is long || item.Value is Double || item.Value is float || item.Value is decimal)
                     {
                         switch (item.Value.GetType().Name)
                         {
@@ -249,7 +215,7 @@ namespace FireboltDotNetSdk.Client
                                 verifyParameters = floatValue.ToString().Replace(',', '.');
                                 break;
                             case "Int32":
-                               var  intValue = (int)item.Value;
+                                var intValue = (int)item.Value;
                                 verifyParameters = intValue.ToString();
                                 break;
                             case "Int64":
@@ -268,91 +234,7 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Error while verify parameters for query");
             }
-           
-        }
 
-        public object CollectGenericString(object item) {
-            object verifyParameters;
-            string[] arr = ((IEnumerable)item).Cast<string>()
-                            .ToArray();
-            var y = "";
-            for (var i = 0; i < arr.Length; i++)
-            {
-                if (i.GetType().IsGenericType)
-                {
-
-                }
-                if (i == arr.Length - 1)
-                {
-                    y += "'" + arr[i] + "'";
-                }
-                else
-                {
-                    y += "'" + arr[i] + "',";
-                }
-            }
-            verifyParameters = "[" + y + "]";
-            return verifyParameters;
-        }
-
-        public object CollectGenericInt(object item)
-        {
-            object verifyParameters;
-            int[] arr = ((IEnumerable)item).Cast<int>().Select(Convert.ToInt32).ToArray();
-            var y = "";
-            for (var i = 0; i < arr.Length; i++)
-            {
-                if (i == arr.Length - 1)
-                {
-                    y += arr[i];
-                }
-                else
-                {
-                    y += arr[i] + ",";
-                }
-            }
-            verifyParameters = "[" + y + "]";
-            return verifyParameters;
-        }
-
-        public object CollectGenericInt64(object item)
-        {
-            object verifyParameters;
-            long[] arr = ((IEnumerable)item).Cast<long>().Select(Convert.ToInt64).ToArray();
-            var y = "";
-            for (var i = 0; i < arr.Length; i++)
-            {
-                if (i == arr.Length - 1)
-                {
-                    y += arr[i];
-                }
-                else
-                {
-                    y += arr[i] + ",";
-                }
-            }
-            verifyParameters = "[" + y + "]";
-            return verifyParameters;
-        }
-
-        public object CollectGenericDouble(object item)
-        {
-            object verifyParameters;
-            double[] arr = ((IEnumerable)item).Cast<double>().Select(Convert.ToDouble).ToArray();
-            var y = "";
-            for (var i = 0; i < arr.Length; i++)
-            {
-                if (i == arr.Length - 1)
-                {
-                    y += arr[i];
-                }
-                else
-                {
-                    y += arr[i] + ";";
-                }
-            }
-            verifyParameters = "[" + y + "]";
-            return verifyParameters;
         }
 
         /// <summary>
@@ -616,7 +498,7 @@ namespace FireboltDotNetSdk.Client
         /// <param name="databaseName">Name of the database.</param>
         /// <returns>A successful response.</returns>
         /// <exception cref="FireboltException">A server side error occurred.</exception>
-        public async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName, string? account ,CancellationToken cancellationToken)
+        public async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName, string? account, CancellationToken cancellationToken)
         {
             var urlBuilder = new StringBuilder();
 
@@ -667,7 +549,7 @@ namespace FireboltDotNetSdk.Client
                     if (status == 200)
                     {
                         var objectResponse = await ReadObjectResponseAsync<GetEngineUrlByDatabaseNameResponse>(response, headers, cancellationToken).ConfigureAwait(false);
-                        
+
                         if (objectResponse.Object == null)
                         {
                             throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
@@ -699,7 +581,7 @@ namespace FireboltDotNetSdk.Client
 
         public async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine, string? account, CancellationToken cancellationToken)
         {
-            if (engine==null)
+            if (engine == null)
             {
                 throw new FireboltException("Engine name is incorrect or missing");
             }
@@ -712,7 +594,7 @@ namespace FireboltDotNetSdk.Client
             urlBuilder.Append(Uri.EscapeDataString("engine_name") + "=").Append(Uri.EscapeDataString(ConvertToString(engine,
                     System.Globalization.CultureInfo.InvariantCulture))).Append("&");
             urlBuilder.Length--;
-            
+
 
             var client = new HttpClient();
             var disposeClient = true;
@@ -975,39 +857,39 @@ namespace FireboltDotNetSdk.Client
             switch (value)
             {
                 case Enum:
-                {
-                    var name = System.Enum.GetName(value.GetType(), value);
-                    if (name != null)
                     {
-                        var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
-                        if (field != null)
+                        var name = System.Enum.GetName(value.GetType(), value);
+                        if (name != null)
                         {
-                            if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
+                            var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
+                            if (field != null)
                             {
-                                return attribute.Value ?? name;
+                                if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
+                                {
+                                    return attribute.Value ?? name;
+                                }
                             }
+
+                            var converted = Convert.ToString(Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType()), cultureInfo));
+                            return converted ?? string.Empty;
                         }
 
-                        var converted = Convert.ToString(Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType()), cultureInfo));
-                        return converted ?? string.Empty;
+                        break;
                     }
-
-                    break;
-                }
                 case bool b:
                     return Convert.ToString(b, cultureInfo).ToLowerInvariant();
                 case byte[] bytes:
                     return Convert.ToBase64String(bytes);
                 default:
-                {
-                    if (value.GetType().IsArray)
                     {
-                        IEnumerable<object?> array = Enumerable.OfType<object>((Array)value);
-                        return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
-                    }
+                        if (value.GetType().IsArray)
+                        {
+                            IEnumerable<object?> array = Enumerable.OfType<object>((Array)value);
+                            return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
             }
 
             var result = Convert.ToString(value, cultureInfo);
@@ -1041,7 +923,7 @@ namespace FireboltDotNetSdk.Client
 
         public static IEnumerable<NewMeta> FormDataForResponse(string response)
         {
-            if (response==null)
+            if (response == null)
             {
                 throw new FireboltException("JSON data is missing");
             }

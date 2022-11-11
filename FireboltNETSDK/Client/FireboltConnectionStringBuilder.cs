@@ -129,7 +129,7 @@ namespace FireboltDotNetSdk.Client
 
         private string? GetString(string key)
         {
-            return TryGetValue(key, out var value) ? (string) value : null;
+            return TryGetValue(key, out var value) ? (string)value : null;
         }
     }
 }

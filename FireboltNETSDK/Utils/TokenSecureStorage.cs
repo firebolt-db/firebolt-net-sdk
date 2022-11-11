@@ -37,8 +37,9 @@ namespace FireboltDotNetSdk.Utils
 
             throw new FireboltException("Cannot determine operating system!");
         }
-       
-        public static string GenerateFileName(string username, string password) {
+
+        public static string GenerateFileName(string username, string password)
+        {
             var usernameBytes = SHA256HexHashString(username);
             var passwordBytes = SHA256HexHashString(password);
             FileName = usernameBytes + passwordBytes + ".json";
@@ -131,7 +132,8 @@ namespace FireboltDotNetSdk.Utils
         /// Read JSON file
         /// </summary>
         /// <returns>Deserialize JSON</returns>
-        public static CachedJSONData ReadDataJSON(string path) {
+        public static CachedJSONData ReadDataJSON(string path)
+        {
             try
             {
                 StreamReader r = new StreamReader(path);
@@ -262,7 +264,7 @@ namespace FireboltDotNetSdk.Utils
 
                 if (!hash.SequenceEqual(hash2)) throw new FireboltException("Wrong HMAC!");
             }
-          
+
             var timestamp2 = BitConverter.ToInt64(token2, 1);
             timestamp2 = IPAddress.NetworkToHostOrder(timestamp2);
             var datetimeOffset = DateTimeOffset.FromUnixTimeSeconds(timestamp2);

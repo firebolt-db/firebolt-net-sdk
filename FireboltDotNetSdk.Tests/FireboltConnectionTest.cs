@@ -76,7 +76,7 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             cs.OnSessionEstablished();
-            AreEqual(ConnectionState.Open,cs.State);
+            AreEqual(ConnectionState.Open, cs.State);
         }
 
         [Test]
@@ -150,7 +150,7 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltConnection(connectionString);
             try
             {
-               cs.Open();
+                cs.Open();
             }
             catch (System.Exception ex)
             {
@@ -163,7 +163,7 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint;";
             var cs = new FireboltConnection(connectionString);
-            var cursor= cs.CreateCursor();
+            var cursor = cs.CreateCursor();
             Equals("testdb.ib", cursor.Connection?.Database);
         }
 

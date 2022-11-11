@@ -9,7 +9,7 @@ using FireboltDotNetSdk.Exception;
 namespace FireboltDotNetSdk.Tests
 {
     [TestFixture]
-    public  class FireboltClientTest
+    public class FireboltClientTest
     {
 
         [Test]
@@ -43,7 +43,7 @@ namespace FireboltDotNetSdk.Tests
         public void GetEngineUrlByDatabaseNameTest()
         {
             var client = new FireboltClient("test.api.firebolt.io");
-            var status = client.GetEngineUrlByDatabaseName("DBName","AccountName");
+            var status = client.GetEngineUrlByDatabaseName("DBName", "AccountName");
             Assert.AreEqual("Faulted", status.Status.ToString());
         }
 

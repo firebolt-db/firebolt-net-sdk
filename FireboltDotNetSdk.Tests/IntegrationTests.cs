@@ -12,15 +12,15 @@ namespace FireboltDotNetSdk.Tests
         private string _account;
         private string _engine;
 
-    [SetUp]
+        [SetUp]
         public void Init()
         {
-             _database = "*******";
-             _username = "*******";                     //should takes from ENV
-             _password = "******";                      //should takes from ENV
-             _endpoint = "https://api.dev.firebolt.io"; //default PROD endpoint
-             _account = "firebolt";
-             _engine = "******";                        //if empty, then we take the default engine
+            _database = "*******";
+            _username = "*******";                     //should takes from ENV
+            _password = "******";                      //should takes from ENV
+            _endpoint = "https://api.dev.firebolt.io"; //default PROD endpoint
+            _account = "firebolt";
+            _engine = "******";                        //if empty, then we take the default engine
         }
 
         [TestCase("SELECT 1")]
@@ -31,7 +31,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT 80000 as uint32")]
         [TestCase("SELECT -80000 as int32")]
         [TestCase("SELECT 30000000000 as uint64")]
-        [TestCase("SELECT -30000000000 as int64")] 
+        [TestCase("SELECT -30000000000 as int64")]
         public void ExecuteTest(string commandText)
         {
             var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};";

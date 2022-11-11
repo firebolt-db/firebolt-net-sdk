@@ -275,8 +275,8 @@ namespace FireboltDotNetSdk.Client
 
             return parameterName;
         }
-       
-        private class ParameterColumnTypeDescriptorAdapter 
+
+        private class ParameterColumnTypeDescriptorAdapter
         {
             private readonly FireboltParameter _parameter;
 

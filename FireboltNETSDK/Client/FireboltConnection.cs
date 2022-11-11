@@ -160,24 +160,24 @@ namespace FireboltDotNetSdk.Client
             var credentials = new LoginRequest()
             {
                 Password = Password,
-                Username = UserName 
+                Username = UserName
             };
             try
             {
                 LoginResponse getToken;
                 var getDir = TokenSecureStorage.GetOperatingSystem();
                 var file = GetCacheTokenFile(UserName, Password, getDir);
-                if (file!=null)
+                if (file != null)
                 {
-                   var storedToken = TokenSecureStorage.GetCachedToken(file);
-                   getToken = new LoginResponse() { Access_token = storedToken.Token, Expires_in = storedToken.Expiration.ToString() };
+                    var storedToken = TokenSecureStorage.GetCachedToken(file);
+                    getToken = new LoginResponse() { Access_token = storedToken.Token, Expires_in = storedToken.Expiration.ToString() };
                 }
                 else
                 {
                     getToken = Client.Login(credentials).GetAwaiter().GetResult();
-                    TokenSecureStorage.CachedTokenAsync(getDir,getToken, UserName, Password);
+                    TokenSecureStorage.CachedTokenAsync(getDir, getToken, UserName, Password);
                 }
-                
+
                 Client.SetToken(getToken);
                 DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
@@ -190,7 +190,7 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException(ex.Message);
             }
-           
+
             return Task.FromResult(false);
         }
 
@@ -290,7 +290,8 @@ namespace FireboltDotNetSdk.Client
             OpenAsync();
         }
 
-        public string GetCacheTokenFile(string username, string password,string path) {
+        public string GetCacheTokenFile(string username, string password, string path)
+        {
             var fileName = TokenSecureStorage.GenerateFileName(username, password);
             var getFile = Directory.EnumerateFiles(path, fileName.Replace(@"/", string.Empty), SearchOption.AllDirectories).FirstOrDefault();
             return getFile;

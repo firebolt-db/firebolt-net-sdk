@@ -6,6 +6,8 @@
 This is an implementation of .NET Core driver(.NET 6) for Firebolt DB in a form of ADO.NET DbProvider API.
 Supports all latest .NET frameworks and all platforms.
 
+Array query parameters are not supported yet.
+
 This project is developed under Visual Studio 2022. Earlier versions of Visual Studio are not supported.
 
 
@@ -115,22 +117,3 @@ Execute command with parameters (Collection of parameters is Parameters)
             conn.Close();
 ```
 
-```cs
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var cursor = conn.CreateCursor();
-
-            //var param = new List<int>() {1,2,3,};
-            //var param = new List<string>() { "1","2","str"};
-            var param = new List<double>() { 1.2,2.2,3,4.32424,5.2424244545};
-
-            cursor.Parameters.AddWithValue("@pass", param);
-
-            cursor.Parameters.Add(new FireboltParameter("@str_param1") { Value = 200 });
-
-            cursor.Execute("SELECT * FROM users WHERE password = @pass AND Age = @param1 AND Distance = @str_param1");
-
-            conn.Close();
-```
