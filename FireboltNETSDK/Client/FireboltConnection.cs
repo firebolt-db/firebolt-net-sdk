@@ -69,6 +69,7 @@ namespace FireboltDotNetSdk.Client
             set => throw new NotImplementedException();
         }
 
+
         /// <summary>
         /// Gets the state of the connection.
         /// </summary>
@@ -293,8 +294,11 @@ namespace FireboltDotNetSdk.Client
         public string GetCacheTokenFile(string username, string password, string path)
         {
             var fileName = TokenSecureStorage.GenerateFileName(username, password);
-            var getFile = Directory.EnumerateFiles(path, fileName.Replace(@"/", string.Empty), SearchOption.AllDirectories).FirstOrDefault();
-            return getFile;
+            if (Directory.Exists(path))
+            {
+                return Directory.EnumerateFiles(path, fileName, SearchOption.AllDirectories).FirstOrDefault();
+            }
+            return null;
         }
 
         protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)

@@ -20,7 +20,11 @@ namespace FireboltDotNetSdk.Utils
         /// <returns>filesystem path</returns>
         public static string GetOperatingSystem()
         {
-            return Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), APPNAME);
+            if (Directory.Exists(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)))
+            {
+                return Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), APPNAME);
+            }
+            return null;
         }
 
         public static string GenerateFileName(string username, string password)
