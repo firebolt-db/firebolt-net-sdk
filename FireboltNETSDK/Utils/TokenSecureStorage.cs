@@ -319,7 +319,7 @@ namespace FireboltDotNetSdk.Utils
 
         public static string GenerateKey(string salt, string password)
         {
-            Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.Unicode.GetBytes(password), Encoding.Unicode.GetBytes(salt), iterations: 49000);
+            Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.Unicode.GetBytes(password), Encoding.Unicode.GetBytes(salt), iterations: 39000);
             return Encoding.UTF8.GetString(pbkdf2.GetBytes(32));
         }
 
