@@ -11,7 +11,7 @@ namespace FireboltDotNetSdk.Utils
 {
     public static class TokenSecureStorage
     {
-        private static readonly string APPNAME = "\\firebolt";
+        private static readonly string APPNAME = "firebolt";
         private static string FileName;
 
         /// <summary>
