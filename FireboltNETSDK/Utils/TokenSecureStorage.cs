@@ -20,22 +20,7 @@ namespace FireboltDotNetSdk.Utils
         /// <returns>filesystem path</returns>
         public static string GetOperatingSystem()
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                return Environment.GetEnvironmentVariable("Home") + APPNAME;
-            }
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                return Environment.GetEnvironmentVariable("Home") + APPNAME;
-            }
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return Environment.GetEnvironmentVariable("LocalAppData") + APPNAME;
-            }
-
-            throw new FireboltException("Cannot determine operating system!");
+            return Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), APPNAME);
         }
 
         public static string GenerateFileName(string username, string password)
