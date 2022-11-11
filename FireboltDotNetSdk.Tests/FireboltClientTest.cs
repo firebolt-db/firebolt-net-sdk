@@ -9,7 +9,7 @@ using FireboltDotNetSdk.Exception;
 namespace FireboltDotNetSdk.Tests
 {
     [TestFixture]
-    public  class FireboltClientTest
+    public class FireboltClientTest
     {
 
         [Test]
@@ -22,8 +22,8 @@ namespace FireboltDotNetSdk.Tests
             };
             var client = new FireboltClient("test.api.firebolt.io");
             client.SetToken(token);
-            Assert.AreEqual("randomNumber", client.Token.ToString());
-            Assert.AreEqual("JWT", token.Token_type);
+            Assert.That(client.Token.ToString(), Is.EqualTo("randomNumber"));
+            Assert.That(token.Token_type, Is.EqualTo("JWT"));
         }
 
         [Test]
@@ -43,8 +43,8 @@ namespace FireboltDotNetSdk.Tests
         public void GetEngineUrlByDatabaseNameTest()
         {
             var client = new FireboltClient("test.api.firebolt.io");
-            var status = client.GetEngineUrlByDatabaseName("DBName","AccountName");
-            Assert.AreEqual("Faulted", status.Status.ToString());
+            var status = client.GetEngineUrlByDatabaseName("DBName", "AccountName");
+            Assert.That(status.Status.ToString(), Is.EqualTo("Faulted"));
         }
 
         [Test]
@@ -57,7 +57,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (System.Exception e)
             {
-                Assert.AreEqual(e.Message, "No such host is known. (dbname:443)");
+                Assert.That(e.Message, Is.EqualTo("Resource temporarily unavailable (dbname:443)"));
             }
         }
 
@@ -71,7 +71,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (System.Exception e)
             {
-                Assert.AreEqual(e.Message, "No such host is known. (endpoint_url:443)");
+                Assert.That(e.Message, Is.EqualTo("Resource temporarily unavailable (endpoint_url:443)"));
             }
         }
     }

@@ -43,7 +43,7 @@ namespace FireboltDotNetSdk.Client
 
         public string? Response { get; set; }
 
-        public static readonly HashSet<string> SetParamList = new();
+        public readonly HashSet<string> SetParamList = new();
 
         /// <summary>
         /// Gets or sets the SQL statement to execute at the data source.
@@ -230,10 +230,10 @@ namespace FireboltDotNetSdk.Client
                     ProcessResponse();
 
                     var status = (int)response.StatusCode;
+                    ReadResponseAsString = true;
+                    var objectResponse = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                     if (status == 200)
                     {
-                        ReadResponseAsString = true;
-                        var objectResponse = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         if (objectResponse == null)
                         {
                             throw new FireboltException("Response was null which was not expected.", status, objectResponse ?? string.Empty, headers, null);
@@ -242,7 +242,7 @@ namespace FireboltDotNetSdk.Client
                     }
                     else
                     {
-                        throw new FireboltException("Response was null which was not expected with status: " + status);
+                        throw new FireboltException("Response was null which was not expected with status: " + status + ", body: " + objectResponse);
                     }
                 }
                 finally
@@ -390,7 +390,7 @@ namespace FireboltDotNetSdk.Client
         /// <param name="databaseName">Name of the database.</param>
         /// <returns>A successful response.</returns>
         /// <exception cref="FireboltException">A server side error occurred.</exception>
-        public async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName, string? account ,CancellationToken cancellationToken)
+        public async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName, string? account, CancellationToken cancellationToken)
         {
             var urlBuilder = new StringBuilder();
 
@@ -441,7 +441,7 @@ namespace FireboltDotNetSdk.Client
                     if (status == 200)
                     {
                         var objectResponse = await ReadObjectResponseAsync<GetEngineUrlByDatabaseNameResponse>(response, headers, cancellationToken).ConfigureAwait(false);
-                        
+
                         if (objectResponse.Object == null)
                         {
                             throw new FireboltException("Response was null which was not expected.", status, objectResponse.Text, headers, null);
@@ -473,7 +473,7 @@ namespace FireboltDotNetSdk.Client
 
         public async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine, string? account, CancellationToken cancellationToken)
         {
-            if (engine==null)
+            if (engine == null)
             {
                 throw new FireboltException("Engine name is incorrect or missing");
             }
@@ -486,7 +486,7 @@ namespace FireboltDotNetSdk.Client
             urlBuilder.Append(Uri.EscapeDataString("engine_name") + "=").Append(Uri.EscapeDataString(ConvertToString(engine,
                     System.Globalization.CultureInfo.InvariantCulture))).Append("&");
             urlBuilder.Length--;
-            
+
 
             var client = new HttpClient();
             var disposeClient = true;
@@ -749,39 +749,39 @@ namespace FireboltDotNetSdk.Client
             switch (value)
             {
                 case Enum:
-                {
-                    var name = System.Enum.GetName(value.GetType(), value);
-                    if (name != null)
                     {
-                        var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
-                        if (field != null)
+                        var name = System.Enum.GetName(value.GetType(), value);
+                        if (name != null)
                         {
-                            if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
+                            var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
+                            if (field != null)
                             {
-                                return attribute.Value ?? name;
+                                if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
+                                {
+                                    return attribute.Value ?? name;
+                                }
                             }
+
+                            var converted = Convert.ToString(Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType()), cultureInfo));
+                            return converted ?? string.Empty;
                         }
 
-                        var converted = Convert.ToString(Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType()), cultureInfo));
-                        return converted ?? string.Empty;
+                        break;
                     }
-
-                    break;
-                }
                 case bool b:
                     return Convert.ToString(b, cultureInfo).ToLowerInvariant();
                 case byte[] bytes:
                     return Convert.ToBase64String(bytes);
                 default:
-                {
-                    if (value.GetType().IsArray)
                     {
-                        IEnumerable<object?> array = Enumerable.OfType<object>((Array)value);
-                        return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
-                    }
+                        if (value.GetType().IsArray)
+                        {
+                            IEnumerable<object?> array = Enumerable.OfType<object>((Array)value);
+                            return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
             }
 
             var result = Convert.ToString(value, cultureInfo);
@@ -815,7 +815,7 @@ namespace FireboltDotNetSdk.Client
 
         public static IEnumerable<NewMeta> FormDataForResponse(string response)
         {
-            if (response==null)
+            if (response == null)
             {
                 throw new FireboltException("JSON data is missing");
             }

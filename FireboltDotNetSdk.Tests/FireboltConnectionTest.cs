@@ -76,7 +76,7 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             cs.OnSessionEstablished();
-            AreEqual(ConnectionState.Open,cs.State);
+            That(cs.State, Is.EqualTo(ConnectionState.Open));
         }
 
         [Test]
@@ -92,7 +92,7 @@ namespace FireboltDotNetSdk.Tests
             var client = new FireboltClient("test.api.firebolt.io");
             client.SetToken(token);
             cs.Close();
-            AreEqual(ConnectionState.Closed, conState.State);
+            That(conState.State, Is.EqualTo(ConnectionState.Closed));
             IsNull(cs.Client.Token);
         }
 
@@ -101,7 +101,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var ConnectionString = $"database={hostname}:test.ib;username=user";
             var cs = new FireboltConnection(ConnectionString);
-            AreEqual("test:test.ib", cs.Database);
+            That(cs.Database, Is.EqualTo("test:test.ib"));
         }
 
         [Test]
@@ -150,7 +150,7 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltConnection(connectionString);
             try
             {
-               cs.Open();
+                cs.Open();
             }
             catch (System.Exception ex)
             {
@@ -163,7 +163,7 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint;";
             var cs = new FireboltConnection(connectionString);
-            var cursor= cs.CreateCursor();
+            var cursor = cs.CreateCursor();
             Equals("testdb.ib", cursor.Connection?.Database);
         }
 
@@ -173,7 +173,7 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             var cursor = cs.CreateCursor(commandText);
-            AreEqual("Select 1", cursor.CommandText);
+            That(cursor.CommandText, Is.EqualTo("Select 1"));
         }
 
         [TestCase("Select 1")]
@@ -182,7 +182,7 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             var cursor = cs.CreateCursor(commandText);
-            AreEqual("Select 1", cursor.CommandText);
+            That(cursor.CommandText, Is.EqualTo("Select 1"));
         }
 
     }
