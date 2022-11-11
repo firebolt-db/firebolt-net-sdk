@@ -165,21 +165,23 @@ namespace FireboltDotNetSdk.Client
             };
             try
             {
-                LoginResponse getToken;
-                var getDir = TokenSecureStorage.GetOperatingSystem();
-                var file = GetCacheTokenFile(UserName, Password, getDir);
-                if (file != null)
+                LoginResponse token;
+                var storedToken = TokenSecureStorage.GetCachedToken(UserName, Password);
+                if (storedToken != null)
                 {
-                    var storedToken = TokenSecureStorage.GetCachedToken(file);
-                    getToken = new LoginResponse() { Access_token = storedToken.Token, Expires_in = storedToken.Expiration.ToString() };
+                    token = new LoginResponse()
+                    {
+                        Access_token = storedToken.Token,
+                        Expires_in = storedToken.Expiration.ToString()
+                    };
                 }
                 else
                 {
-                    getToken = Client.Login(credentials).GetAwaiter().GetResult();
-                    TokenSecureStorage.CachedTokenAsync(getDir, getToken, UserName, Password);
+                    token = Client.Login(credentials).GetAwaiter().GetResult();
+                    TokenSecureStorage.CachedTokenAsync(token, UserName, Password);
                 }
 
-                Client.SetToken(getToken);
+                Client.SetToken(token);
                 DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
                 if (DefaultEngine != null)

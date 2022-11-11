@@ -18,21 +18,18 @@ namespace FireboltDotNetSdk.Utils
         /// Identify filesystem path where we srote JSON file
         /// </summary>
         /// <returns>filesystem path</returns>
-        public static string GetOperatingSystem()
+
+        public static string GetCacheDir()
         {
-            if (Directory.Exists(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)))
-            {
-                return Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), APPNAME);
-            }
-            return null;
+            var userLocalDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            return Path.Join(userLocalDir, APPNAME);
         }
 
         public static string GenerateFileName(string username, string password)
         {
             var usernameBytes = SHA256HexHashString(username);
             var passwordBytes = SHA256HexHashString(password);
-            FileName = usernameBytes + passwordBytes + ".json";
-            return FileName;
+            return usernameBytes + passwordBytes + ".json";
         }
 
         private static string ToHex(byte[] bytes, bool upperCase)
@@ -60,11 +57,12 @@ namespace FireboltDotNetSdk.Utils
         /// Get cached token from file
         /// </summary>
         /// <returns></returns>
-        public static CachedJSONData? GetCachedToken(string path)
+        public static CachedJSONData? GetCachedToken(string username, string password)
         {
+            var cacheFilePath = Path.Join(GetCacheDir(), GenerateFileName(username, password));
             try
             {
-                var data = ReadDataJSON(path);
+                var data = ReadDataJSON(cacheFilePath);
                 if (data == null) return null;
 
                 var key64 = data.Salt.UrlSafe64Decode();
@@ -89,7 +87,7 @@ namespace FireboltDotNetSdk.Utils
         /// Cached token and set to file
         /// </summary>
         /// <returns></returns>
-        public static bool CachedTokenAsync(string dir, LoginResponse tokenData, string username, string password)
+        public static bool CachedTokenAsync(LoginResponse tokenData, string username, string password)
         {
 
             var key = GenerateKey();
@@ -106,9 +104,15 @@ namespace FireboltDotNetSdk.Utils
                     Expiration = Convert.ToInt32(tokenData.Expires_in)
                 };
 
-                var getFileName = dir + "\\" + GenerateFileName(username, password).Replace(@"/", string.Empty);
+                var cacheDir = GetCacheDir();
+                if (!Directory.Exists(cacheDir))
+                {
+                    Directory.CreateDirectory(cacheDir);
+                }
+                var cacheFilePath = Path.Join(cacheDir, GenerateFileName(username, password));
+
                 string json = JsonConvert.SerializeObject(_data, Formatting.Indented);
-                File.WriteAllText(getFileName, json);
+                File.WriteAllText(cacheFilePath, json);
                 return true;
             }
             catch (System.Exception ex)
@@ -123,6 +127,11 @@ namespace FireboltDotNetSdk.Utils
         /// <returns>Deserialize JSON</returns>
         public static CachedJSONData ReadDataJSON(string path)
         {
+            if (!Directory.Exists(path))
+            {
+                return null;
+            }
+
             try
             {
                 StreamReader r = new StreamReader(path);
