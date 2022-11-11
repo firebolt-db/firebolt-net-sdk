@@ -31,7 +31,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var cs = new FireboltCommand(commandText);
             cs.Execute(commandText);
-            Assert.IsNotEmpty(FireboltCommand.SetParamList);
+            Assert.IsNotEmpty(cs.SetParamList);
         }
 
         [TestCase("Select 1")]
@@ -96,9 +96,9 @@ namespace FireboltDotNetSdk.Tests
         {
             var cs = new FireboltCommand(commandText);
             cs.Execute(commandText);
-            Assert.IsNotEmpty(FireboltCommand.SetParamList);
+            Assert.IsNotEmpty(cs.SetParamList);
             cs.ClearSetList();
-            Assert.IsEmpty(FireboltCommand.SetParamList);
+            Assert.IsEmpty(cs.SetParamList);
         }
 
 
@@ -108,7 +108,8 @@ namespace FireboltDotNetSdk.Tests
             _client = new HttpClient();
             var cs = new FireboltCommand("commandText");
             cs.PrepareRequest(_client);
-            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, ".NETSDK");
+
+            Assert.That(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, Is.EqualTo(".NETSDK"));
         }
 
         [Test]
@@ -117,10 +118,11 @@ namespace FireboltDotNetSdk.Tests
             _client = new HttpClient();
             var cs = new FireboltCommand("commandText");
             cs.PrepareRequest(_client);
-            Assert.AreEqual(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, ".NETSDK");
+
+            Assert.That(_client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, Is.EqualTo(".NETSDK"));
             cs.Token = "notNull";
             cs.PrepareRequest(_client);
-            Assert.AreEqual(_client.DefaultRequestHeaders.Authorization.Parameter, "notNull");
+            Assert.That(_client.DefaultRequestHeaders.Authorization.Parameter, Is.EqualTo("notNull"));
         }
 
         [Test]
@@ -133,8 +135,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (System.Exception e)
             {
-                Assert.AreEqual(e.Message,
-                    "Something parameters are null or empty: engineEndpoint: , databaseName: databaseName or query: commandText");
+                Assert.That(e.Message, Is.EqualTo("Something parameters are null or empty: engineEndpoint: , databaseName: databaseName or query: commandText"));
             }
 
         }
@@ -177,7 +178,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (FireboltException e)
             {
-                Assert.AreEqual(e.Message, "Account name is empty");
+                Assert.That(e.Message, Is.EqualTo("Account name is empty"));
             }
         }
 
@@ -197,7 +198,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (FireboltException e)
             {
-                Assert.AreEqual(e.Message, "JSON data is missing");
+                Assert.That(e.Message, Is.EqualTo("JSON data is missing"));
             }
         }
 

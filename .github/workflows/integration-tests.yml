@@ -1,0 +1,44 @@
+name: Integration tests
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      FIREBOLT_USERNAME:
+        required: true
+      FIREBOLT_PASSWORD:
+        required: true
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+    
+      - name: Set up .NET 6.0
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0
+    
+      - name: Install dependencies
+        run: |
+          dotnet restore
+
+      - name: Setup database and engine
+        id: setup
+        uses: firebolt-db/integration-testing-setup@master
+        with:
+          firebolt-username: ${{ secrets.FIREBOLT_USERNAME }}
+          firebolt-password: ${{ secrets.FIREBOLT_PASSWORD }}
+          api-endpoint: "api.staging.firebolt.io"
+          region: "us-east-1"
+
+      - name: Run integration tests
+        env:
+          FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
+          FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_USERNAME }}
+          FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_PASSWORD }}
+          API_ENDPOINT: "api.staging.firebolt.io"
+          ACCOUNT_NAME: "firebolt"
+          FIREBOLT_ENGINE_URL: ${{ steps.setup.outputs.engine_url }}
+        run: |
+          dotnet test --filter "Category=Integration"        

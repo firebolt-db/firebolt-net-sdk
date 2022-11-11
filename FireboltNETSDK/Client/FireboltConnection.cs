@@ -160,7 +160,7 @@ namespace FireboltDotNetSdk.Client
             var credentials = new LoginRequest()
             {
                 Password = Password,
-                Username = UserName 
+                Username = UserName
             };
             try
             {
@@ -190,7 +190,7 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException(ex.Message);
             }
-           
+
             return Task.FromResult(false);
         }
 
