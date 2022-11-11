@@ -90,13 +90,13 @@ namespace FireboltDotNetSdk.Utils
         public static bool CachedTokenAsync(LoginResponse tokenData, string username, string password)
         {
 
-            var key = GenerateKey();
-            var key64 = key.UrlSafe64Decode();
-            var src = tokenData.Access_token;
-            var src64 = src.ToBase64String();
+            var salt = GenerateSalt();
+            var key = GenerateKey(salt, username + password);
+            var tokenPayload = tokenData.Access_token;
+
             try
             {
-                var token = Encrypt(key64, src64.UrlSafe64Decode());
+                var token = Encrypt(key.UrlSafe64Decode(), Encoding.Unicode.GetBytes(tokenPayload));
                 CachedJSONData _data = new()
                 {
                     token = token,
@@ -308,12 +308,21 @@ namespace FireboltDotNetSdk.Utils
         /// Random Salt Creation
         /// </summary>
         /// <returns>A random salt of the required size.</returns>
-        public static string GenerateKey()
+        public static string GenerateSalt()
         {
-            var keyBytes = new byte[32];
+            var keyBytes = new byte[16];
             var rng = new RNGCryptoServiceProvider();
             rng.GetBytes(keyBytes);
             return keyBytes.UrlSafe64Encode();
+        }
+
+        public static string GenerateKey(string salt, string password)
+        {
+            using (var hmac = new HMACSHA256())
+            {
+                var df = new Pbkdf2(hmac, password, salt.UrlSafe64Decode(), 49000);
+                return Convert.ToBase64String(df.GetBytes(16));
+            }
         }
 
         public static string UrlSafe64Encode(this byte[] bytes, bool trimEnd = false)
