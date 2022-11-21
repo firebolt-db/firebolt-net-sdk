@@ -3,6 +3,7 @@
  */
 
 using System.Collections;
+using System.Data;
 using System.Globalization;
 using System.Text;
 using FireboltDotNetSdk.Exception;
@@ -330,6 +331,116 @@ public class Utf8Buffer
     }
 
     public override string ToString() => Utf8.GetString(Buffer, Offset, Length);
+
+}
+
+/// <summary>
+/// Specifies the data type of a field (column) or a <see cref="FireboltParameter"/> object.
+/// </summary>
+public enum FireboltDbType
+{
+    /// <summary>
+    /// The type is not supported by the client. An encoding should be defined explicitly via <see cref="FireboltParameter.StringEncoding"/>
+    /// or <see cref="FireboltColumnSettings.StringEncoding"/>.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.AnsiString"/>.</remarks>
+    AnsiString = DbType.AnsiString,
+
+    /// <summary>
+    /// An array of bytes.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.Binary"/>.</remarks>
+    Binary = DbType.Binary,
+
+    /// <summary>
+    /// An 8-bit unsigned integer ranging in value from 0 to 255.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.Byte"/>.</remarks>
+    Byte = DbType.Byte,
+
+    /// <summary>
+    /// A simple type representing Boolean values of <see langword="true"/> or <see langword="false"/>.        
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.Boolean"/>.</remarks>
+    Boolean = DbType.Boolean,
+
+    /// <summary>
+    /// A type representing a date value without a time.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.Date"/>.</remarks>
+    Date = DbType.Date,
+
+    /// <summary>
+    /// A type representing a date and time value.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.DateTime"/>.</remarks>
+    DateTime = DbType.DateTime,
+
+    /// <summary>
+    /// The Firebolt type Decimal(38, 9).
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.Decimal"/>.</remarks>
+    Decimal = DbType.Decimal,
+
+    /// <inheritdoc cref="DbType.Double"/>
+    /// <remarks>This value corresponds to <see cref="DbType.Double"/>.</remarks>
+    Double = DbType.Double,
+
+    /// <inheritdoc cref="DbType.Int16"/>
+    /// <remarks>This value corresponds to <see cref="DbType.Int16"/>.</remarks>
+    Int16 = DbType.Int16,
+
+    /// <inheritdoc cref="DbType.Int32"/>
+    /// <remarks>This value corresponds to <see cref="DbType.Int32"/>.</remarks>
+    Int32 = DbType.Int32,
+
+    /// <inheritdoc cref="DbType.Int64"/>
+    /// <remarks>This value corresponds to <see cref="DbType.Int64"/>.</remarks>
+    Int64 = DbType.Int64,
+
+    /// <summary>
+    /// A general type representing a value of either an unknown type or the Firebolt type Nothing.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.Object"/>.</remarks>
+    Object = DbType.Object,
+
+    /// <inheritdoc cref="DbType.SByte"/>
+    /// <remarks>This value corresponds to <see cref="DbType.SByte"/>.</remarks>
+    SByte = DbType.SByte,
+
+    /// <inheritdoc cref="DbType.Single"/>
+    /// <remarks>This value corresponds to <see cref="DbType.Single"/>.</remarks>
+    Single = DbType.Single,
+
+    /// <summary>
+    /// A variable-length string.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.String"/>.</remarks>
+    String = DbType.String,
+
+    /// <summary>
+    /// The type is not supported by the client.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.Time"/>.</remarks>
+    Time = DbType.Time,
+
+    /// <inheritdoc cref="DbType.UInt16"/>
+    /// <remarks>This value corresponds to <see cref="DbType.UInt16"/>.</remarks>
+    UInt16 = DbType.UInt16,
+
+    /// <inheritdoc cref="DbType.UInt32"/>
+    /// <remarks>This value corresponds to <see cref="DbType.UInt32"/>.</remarks>
+    UInt32 = DbType.UInt32,
+
+    /// <inheritdoc cref="DbType.UInt64"/>
+    /// <remarks>This value corresponds to <see cref="DbType.UInt64"/>.</remarks>
+    UInt64 = DbType.UInt64,
+
+    /// <summary>
+    /// A type representing a date and time value with time zone awareness.
+    /// </summary>
+    /// <remarks>This value corresponds to <see cref="DbType.DateTimeOffset"/>.</remarks>
+    DateTimeOffset = DbType.DateTimeOffset,
 
 }
 

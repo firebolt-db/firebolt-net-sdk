@@ -15,13 +15,11 @@
  */
 #endregion
 
-using System.Data;
-using System.Data.Common;
-using System.Security;
-using System.Text.RegularExpressions;
-using System.Transactions;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using System.Data;
+using System.Data.Common;
+using System.Transactions;
 using static FireboltDotNetSdk.Client.FireRequest;
 using static FireboltDotNetSdk.Client.FireResponse;
 
@@ -35,7 +33,6 @@ namespace FireboltDotNetSdk.Client
         private FireboltConnectionState _connectionState;
 
         public LoginRequest _connectionString;
-        private bool disposed = false;
 
         public readonly FireboltClient Client;
 
@@ -71,6 +68,7 @@ namespace FireboltDotNetSdk.Client
             get => _connectionState.Settings?.UserName ?? throw new FireboltException("UserName is missing");
             set => throw new NotImplementedException();
         }
+
 
         /// <summary>
         /// Gets the state of the connection.
@@ -158,7 +156,7 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
-        public override Task<bool> OpenAsync(CancellationToken cancellationToken)
+        public override async Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
             var credentials = new LoginRequest()
             {
@@ -167,13 +165,28 @@ namespace FireboltDotNetSdk.Client
             };
             try
             {
-                var getToken = Client.Login(credentials).GetAwaiter().GetResult();
-                Client.SetToken(getToken);
+                LoginResponse token;
+                var storedToken = await TokenSecureStorage.GetCachedToken(UserName, Password);
+                if (storedToken != null)
+                {
+                    token = new LoginResponse()
+                    {
+                        Access_token = storedToken.token,
+                        Expires_in = storedToken.expiration.ToString()
+                    };
+                }
+                else
+                {
+                    token = await Client.Login(credentials);
+                    await TokenSecureStorage.CacheToken(token, UserName, Password);
+                }
+
+                Client.SetToken(token);
                 DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
                 if (DefaultEngine != null)
                 {
-                    return Task.FromResult(true);
+                    return true;
                 }
             }
             catch (FireboltException ex)
@@ -181,7 +194,7 @@ namespace FireboltDotNetSdk.Client
                 throw new FireboltException(ex.Message);
             }
 
-            return Task.FromResult(false);
+            return false;
         }
 
         public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineUrl)
@@ -277,7 +290,7 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public override void Open()
         {
-            OpenAsync();
+            OpenAsync().GetAwaiter().GetResult();
         }
 
         protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)

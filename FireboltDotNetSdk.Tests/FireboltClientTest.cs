@@ -51,28 +51,14 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteQueryExceptionTest()
         {
             var client = new FireboltClient("test.api.firebolt.io");
-            try
-            {
-                var status = client.ExecuteQuery("DBName", "EngineURL", "Select 1").GetAwaiter().GetResult();
-            }
-            catch (System.Exception e)
-            {
-                Assert.That(e.Message, Is.EqualTo("Resource temporarily unavailable (dbname:443)"));
-            }
+            Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("DBName", "EngineURL", "Select 1").GetAwaiter().GetResult(); return Task.CompletedTask; });
         }
 
         [Test]
         public void ExecuteQueryTest()
         {
             var client = new FireboltClient("test.api.firebolt.io");
-            try
-            {
-                var status = client.ExecuteQuery("endpoint_url", "DBName", "Select 1").GetAwaiter().GetResult();
-            }
-            catch (System.Exception e)
-            {
-                Assert.That(e.Message, Is.EqualTo("Resource temporarily unavailable (endpoint_url:443)"));
-            }
+            Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("endpoint_url", "DBName", "Select 1").GetAwaiter().GetResult(); return Task.CompletedTask; });
         }
     }
 }

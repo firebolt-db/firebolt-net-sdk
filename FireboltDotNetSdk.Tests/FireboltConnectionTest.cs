@@ -124,7 +124,7 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=password;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
-            var ex = Throws<InvalidOperationException>(() => cs.OpenAsync());
+            var ex = ThrowsAsync<InvalidOperationException>(async () => await cs.OpenAsync());
         }
 
 

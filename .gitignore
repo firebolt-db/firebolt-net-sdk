@@ -1,0 +1,13 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/FireboltDotNetSdk/DesignTimeBuild
+/.vs/FireboltDotNetSdk/v17
+/FireboltNETSDK/bin
+/FireboltNETSDK/obj
+/.vs
+/FireboltDotNetSdk.Tests/bin
+/FireboltDotNetSdk.Tests/obj/Debug/net6.0
+/FireboltDotNetSdk.Tests/obj/Release/net6.0
+/FireboltDotNetSdk.Tests/obj
