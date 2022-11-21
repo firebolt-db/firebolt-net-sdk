@@ -156,7 +156,7 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
-        public override Task<bool> OpenAsync(CancellationToken cancellationToken)
+        public override async Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
             var credentials = new LoginRequest()
             {
@@ -166,7 +166,7 @@ namespace FireboltDotNetSdk.Client
             try
             {
                 LoginResponse token;
-                var storedToken = TokenSecureStorage.GetCachedToken(UserName, Password);
+                var storedToken = await TokenSecureStorage.GetCachedToken(UserName, Password);
                 if (storedToken != null)
                 {
                     token = new LoginResponse()
@@ -177,8 +177,8 @@ namespace FireboltDotNetSdk.Client
                 }
                 else
                 {
-                    token = Client.Login(credentials).GetAwaiter().GetResult();
-                    TokenSecureStorage.CachedTokenAsync(token, UserName, Password);
+                    token = await Client.Login(credentials);
+                    await TokenSecureStorage.CacheToken(token, UserName, Password);
                 }
 
                 Client.SetToken(token);
@@ -186,7 +186,7 @@ namespace FireboltDotNetSdk.Client
                 OnSessionEstablished();
                 if (DefaultEngine != null)
                 {
-                    return Task.FromResult(true);
+                    return true;
                 }
             }
             catch (FireboltException ex)
@@ -194,7 +194,7 @@ namespace FireboltDotNetSdk.Client
                 throw new FireboltException(ex.Message);
             }
 
-            return Task.FromResult(false);
+            return false;
         }
 
         public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineUrl)
@@ -290,17 +290,7 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public override void Open()
         {
-            OpenAsync();
-        }
-
-        public string GetCacheTokenFile(string username, string password, string path)
-        {
-            var fileName = TokenSecureStorage.GenerateFileName(username, password);
-            if (Directory.Exists(path))
-            {
-                return Directory.EnumerateFiles(path, fileName, SearchOption.AllDirectories).FirstOrDefault();
-            }
-            return null;
+            OpenAsync().GetAwaiter().GetResult();
         }
 
         protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)
