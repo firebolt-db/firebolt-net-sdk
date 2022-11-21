@@ -2,6 +2,7 @@
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Microsoft.AspNetCore.WebUtilities;
 using FireboltDotNetSdk.Exception;
 using static FireboltDotNetSdk.Client.FireResponse;
 
@@ -50,18 +51,24 @@ namespace FireboltDotNetSdk.Utils
             var cacheFilePath = Path.Join(GetCacheDir(), GenerateFileName(username, password));
             try
             {
-                var data = await readDataJSONAsync(cacheFilePath);
-                if (data == null) return null;
+                var raw_data = await readDataJSONAsync(cacheFilePath);
+                if (raw_data == null) return null;
 
-                var token = (new FernetEncryptor(username + password, data.salt)).Decrypt(Convert.FromBase64String(data.token));
+                var b64decoded = WebEncoders.Base64UrlDecode(raw_data.token);
+                var token = (new FernetEncryptor(username + password, raw_data.salt)).Decrypt(b64decoded);
 
-                CachedJSONData _data = new()
+                CachedJSONData data = new()
                 {
                     token = token,
-                    salt = data.salt,
-                    expiration = Convert.ToInt32(data.expiration)
+                    salt = raw_data.salt,
+                    expiration = Convert.ToInt32(raw_data.expiration)
                 };
-                return _data;
+                if (data.expiration < Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()))
+                {
+                    // Token has expired, returning null
+                    return null;
+                }
+                return data;
             }
             catch (System.Exception ex)
             {
@@ -78,11 +85,11 @@ namespace FireboltDotNetSdk.Utils
             {
                 var encryptor = new FernetEncryptor(username + password);
                 var token = encryptor.Encrypt(tokenData.Access_token);
-                CachedJSONData _data = new()
+                CachedJSONData data = new()
                 {
-                    token = Convert.ToBase64String(token),
+                    token = WebEncoders.Base64UrlEncode(token),
                     salt = encryptor.salt,
-                    expiration = Convert.ToInt32(tokenData.Expires_in)
+                    expiration = Convert.ToInt32(tokenData.Expires_in) + Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds())
                 };
 
                 var cacheDir = GetCacheDir();
@@ -92,7 +99,7 @@ namespace FireboltDotNetSdk.Utils
                 }
                 var cacheFilePath = Path.Join(cacheDir, GenerateFileName(username, password));
 
-                string json = JsonConvert.SerializeObject(_data, Formatting.Indented);
+                string json = JsonConvert.SerializeObject(data, Formatting.Indented);
                 await File.WriteAllTextAsync(cacheFilePath, json);
             }
             catch (System.Exception ex)
@@ -107,10 +114,7 @@ namespace FireboltDotNetSdk.Utils
         /// <returns>Deserialized JSON</returns>
         private static async Task<CachedJSONData?> readDataJSONAsync(string path)
         {
-            if (!Directory.Exists(path))
-            {
-                return null;
-            }
+            if (!File.Exists(path)) return null;
 
             try
             {
