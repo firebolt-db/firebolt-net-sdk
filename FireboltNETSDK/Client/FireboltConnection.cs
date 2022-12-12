@@ -30,11 +30,8 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltConnection : DbConnection
     {
-        private FireboltConnectionState _connectionState;
-
-        public LoginRequest _connectionString;
-
-        public readonly FireboltClient Client;
+        private readonly FireboltConnectionState _connectionState;
+        private readonly FireboltClient Client;
 
         public GetEngineUrlByDatabaseNameResponse? DefaultEngine;
         public GetEngineUrlByEngineNameResponse? Engine;
@@ -74,7 +71,7 @@ namespace FireboltDotNetSdk.Client
         /// Gets the state of the connection.
         /// </summary>
         /// <returns>The state of the connection.</returns>
-        public override ConnectionState State => _connectionState.State;
+        public override ConnectionState State => throw new NotImplementedException();
 
         public override string ServerVersion => throw new NotImplementedException();
 
@@ -102,7 +99,6 @@ namespace FireboltDotNetSdk.Client
 
             var connectionSettings = stringBuilder.BuildSettings();
 
-            _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
             Client = new FireboltClient(Endpoint);
         }
 
@@ -183,7 +179,6 @@ namespace FireboltDotNetSdk.Client
 
                 Client.SetToken(token);
                 DefaultEngine = SetDefaultEngine(null);
-                OnSessionEstablished();
                 if (DefaultEngine != null)
                 {
                     return true;
@@ -271,10 +266,6 @@ namespace FireboltDotNetSdk.Client
             return CreateCursor();
         }
 
-        public void OnSessionEstablished()
-        {
-            _connectionState.State = ConnectionState.Open;
-        }
 
         /// <summary>
         /// Closes the connection to the database.
@@ -282,20 +273,16 @@ namespace FireboltDotNetSdk.Client
         public override void Close()
         {
             Client.ClearToken();
-            _connectionState.State = ConnectionState.Closed;
         }
 
         /// <summary>
         /// Opens a database connection.
         /// </summary>
-        public override void Open()
+        public override async void Open()
         {
-            OpenAsync().GetAwaiter().GetResult();
+            await OpenAsync(CancellationToken.None);
         }
 
-        protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)
-        {
-            throw new NotImplementedException();
-        }
+        protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel) => throw new NotImplementedException();
     }
 }

@@ -21,7 +21,7 @@ using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk
 {
-    public class FireboltClient
+    public class FireboltClient : FireboltCommand
     {
         private string BaseUrl { get; set; }
         public string? Token { get; set; }
@@ -66,7 +66,7 @@ namespace FireboltDotNetSdk
         /// <returns></returns>
         public Task<LoginResponse> Login(LoginRequest loginRequest)
         {
-            return FireboltClientInternal.AuthV1LoginAsync(loginRequest);
+            return AuthV1LoginAsync(loginRequest);
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace FireboltDotNetSdk
         /// <returns>A successful response.</returns>
         public Task<GetEngineUrlByDatabaseNameResponse> GetEngineUrlByDatabaseName(string? databaseName, string? account)
         {
-            return FireboltClientInternal.CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, account, CancellationToken.None);
+            return CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, account, CancellationToken.None);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace FireboltDotNetSdk
         /// <returns>A successful response.</returns>
         public Task<GetEngineNameByEngineIdResponse> GetEngineUrlByEngineName(string? engine, string? account)
         {
-            return FireboltClientInternal.CoreV1GetEngineUrlByEngineNameAsync(engine, account, CancellationToken.None);
+            return CoreV1GetEngineUrlByEngineNameAsync(engine, account, CancellationToken.None);
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace FireboltDotNetSdk
         /// <returns>A successful response.</returns>
         public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string? engineId, string? accountId)
         {
-            return FireboltClientInternal.CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None);
+            return CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None);
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace FireboltDotNetSdk
         /// <returns>A successful response.</returns>
         public Task<string?> ExecuteQuery(string? engineEndpoint, string databaseName, string query)
         {
-            return FireboltClientInternal.ExecuteQueryAsync(engineEndpoint, databaseName, query, CancellationToken.None);
+            return ExecuteQueryAsync(engineEndpoint, databaseName, query, CancellationToken.None);
         }
     }
 }

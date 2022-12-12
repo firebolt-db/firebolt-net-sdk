@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using FireboltDotNetSdk.Client;
+﻿using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
-using static System.Data.ConnectionState;
 using static NUnit.Framework.Assert;
 
 namespace FireboltDotNetSdk.Tests
@@ -71,15 +64,6 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void OnSessionEstablishedTest()
-        {
-            const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
-            var cs = new FireboltConnection(connectionString);
-            cs.OnSessionEstablished();
-            That(cs.State, Is.EqualTo(ConnectionState.Open));
-        }
-
-        [Test]
         public void CloseTest()
         {
             var token = new FireResponse.LoginResponse()
@@ -88,12 +72,10 @@ namespace FireboltDotNetSdk.Tests
             };
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
-            var conState = new FireboltConnectionState();
             var client = new FireboltClient("test.api.firebolt.io");
             client.SetToken(token);
             cs.Close();
-            That(conState.State, Is.EqualTo(ConnectionState.Closed));
-            IsNull(cs.Client.Token);
+            That(client.Token, Is.Null);
         }
 
         [TestCase("test")]

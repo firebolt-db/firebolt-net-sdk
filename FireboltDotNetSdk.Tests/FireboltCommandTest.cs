@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using FireboltDotNetSdk.Client;
+﻿using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using Newtonsoft.Json;
 
@@ -14,6 +8,7 @@ namespace FireboltDotNetSdk.Tests
     public class FireboltCommandTest
     {
         private FireboltCommand _fireboltCommand;
+        private FireboltClient _fireboltClient;
         private HttpClient _client;
 
         [SetUp]
@@ -130,7 +125,7 @@ namespace FireboltDotNetSdk.Tests
         {
             try
             {
-                var task = _fireboltCommand.ExecuteQueryAsync("", "databaseName", "commandText", CancellationToken.None)
+                var task = _fireboltClient.ExecuteQuery("", "databaseName", "commandText")
                     .GetAwaiter().GetResult();
             }
             catch (System.Exception e)
@@ -159,7 +154,7 @@ namespace FireboltDotNetSdk.Tests
             };
             try
             {
-                cs.AuthV1LoginAsync(creds).GetAwaiter().GetResult();
+               _fireboltClient.Login(creds).GetAwaiter().GetResult();
             }
             catch (System.Exception e)
             {
