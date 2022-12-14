@@ -29,7 +29,7 @@ jobs:
         with:
           firebolt-username: ${{ secrets.FIREBOLT_USERNAME }}
           firebolt-password: ${{ secrets.FIREBOLT_PASSWORD }}
-          api-endpoint: "api.staging.firebolt.io"
+          api-endpoint: "api.dev.firebolt.io"
           region: "us-east-1"
 
       - name: Run integration tests
@@ -37,7 +37,7 @@ jobs:
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
           FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_USERNAME }}
           FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_PASSWORD }}
-          API_ENDPOINT: "api.staging.firebolt.io"
+          API_ENDPOINT: "api.dev.firebolt.io"
           ACCOUNT_NAME: "firebolt"
           FIREBOLT_ENGINE_URL: ${{ steps.setup.outputs.engine_url }}
         run: |
