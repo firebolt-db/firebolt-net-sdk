@@ -224,26 +224,26 @@ namespace FireboltDotNetSdk.Client
 
         public GetEngineUrlByEngineNameResponse SetEngine(string? engineUrl)
         {
-            //            try
-            //            {
-            var enginevalue = Client.GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account).GetAwaiter()
-                .GetResult();
-            var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id, enginevalue.engine_id.account_id).GetAwaiter()
-                .GetResult();
-            Engine = result;
-            return result;
+            try
+            {
+                var enginevalue = Client.GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account).GetAwaiter()
+                    .GetResult();
+                var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id, enginevalue.engine_id.account_id).GetAwaiter()
+                    .GetResult();
+                Engine = result;
+                return result;
 
-            //            }
-            // catch (System.Exception ex)
-            // {
-            //     if (ex.Message.Contains("404"))
-            //     {
-            //         return null;
-            //     }
+            }
+            catch (System.Exception ex)
+            {
+                if (ex.Message.Contains("404"))
+                {
+                    return null;
+                }
 
-            //     throw new FireboltException(
-            //         $"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database: {ex.Message}");
-            // }
+                throw new FireboltException(
+                    $"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database: {ex.Message}");
+            }
         }
 
         /// <summary>
