@@ -1,38 +1,11 @@
-﻿using System;
 using FireboltDotNetSdk.Client;
 
 namespace FireboltDotNetSdk.Tests
 {
+
     [TestFixture]
-    [Category("Integration")]
-    internal class IntegrationTests
+    internal class ExecutionTest : IntegrationTest
     {
-        private string _database;
-        private string _username;
-        private string _password;
-        private string _endpoint;
-        private string _account;
-        private string _engine;
-
-        public static string WithDefault(string val, string default_value)
-        {
-            if (val != null)
-            {
-                return val;
-            }
-            return default_value;
-        }
-
-        [SetUp]
-        public void Init()
-        {
-            _database = WithDefault(Environment.GetEnvironmentVariable("FIREBOLT_DATABASE"), null);
-            _username = WithDefault(Environment.GetEnvironmentVariable("FIREBOLT_USERNAME"), null);
-            _password = WithDefault(Environment.GetEnvironmentVariable("FIREBOLT_PASSWORD"), null);
-            _endpoint = WithDefault(Environment.GetEnvironmentVariable("FIREBOLT_ENDPOINT"), "https://api.dev.firebolt.io");
-            _account = WithDefault(Environment.GetEnvironmentVariable("FIREBOLT_ACCOUNT"), "firebolt");
-            _engine = WithDefault(Environment.GetEnvironmentVariable("FIREBOLT_ENGINE_URL"), null);
-        }
 
         [TestCase("SELECT 1")]
         [TestCase("SELECT 1, 'a'")]
@@ -45,7 +18,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT -30000000000 as int64")]
         public void ExecuteTest(string commandText)
         {
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};";
+            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -60,7 +33,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select sleepEachRow(1) from numbers(5)")]
         public void ExecuteSetTest(string commandText)
         {
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
+            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -75,11 +48,11 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select * from information_schema.tables")]
         public void ExecuteSetEngineTest(string commandText)
         {
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
+            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(_engine);
+            conn.SetEngine(Engine);
 
             var value = conn.CreateCursor().Execute(commandText);
             Assert.IsNotEmpty(value.Data);

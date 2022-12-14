@@ -19,18 +19,19 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.ComponentModel;
 using static FireboltDotNetSdk.Client.FireRequest;
 using static FireboltDotNetSdk.Client.FireResponse;
 
@@ -310,6 +311,8 @@ namespace FireboltDotNetSdk.Client
             urlBuilder.Append("https://").Append(engineEndpoint).Append("?database=").Append(databaseName).Append(setParam).Append("&output_format=JSONCompact");
 
             var client = new HttpClient();
+            // No timeout for queries
+            client.Timeout = Timeout.InfiniteTimeSpan;
             var disposeClient = true;
             try
             {
