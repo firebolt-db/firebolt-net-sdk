@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using FireboltDotNetSdk.Exception;
+using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -18,7 +19,7 @@ namespace FireboltDotNetSdk.Client
         private int _size;
         private TimeZoneInfo? _timeZone;
         private bool? _forcedNullable;
-        private FireboltDbType? _forcedType;
+        private FireboltDbType _forcedType;
         private byte? _forcedScale;
         private byte? _forcedPrecision;
         private int? _forcedArrayRank;
@@ -37,7 +38,11 @@ namespace FireboltDotNetSdk.Client
         /// <returns>One of the <see cref="FireboltDbType"/> values. The default value is defined based on the type of the parameter's value.</returns>
         public FireboltDbType FireboltDbType
         {
-            get => (FireboltDbType)_forcedType;
+            get
+            {
+                return (FireboltDbType)_forcedType;
+            }
+
             set => _forcedType = value;
         }
 
@@ -222,21 +227,6 @@ namespace FireboltDotNetSdk.Client
             _parameterName = parameterName;
         }
 
-        /// <inheritdoc/>
-        public override void ResetDbType()
-        {
-            _forcedType = null;
-            _forcedNullable = null;
-            _forcedPrecision = null;
-            _forcedScale = null;
-            _forcedArrayRank = null;
-
-            _size = 0;
-            StringEncoding = null;
-            _timeZone = null;
-        }
-
-
         private static string GetId(string? parameterName)
         {
             if (!ValidateParameterName(parameterName, out var id))
@@ -270,6 +260,11 @@ namespace FireboltDotNetSdk.Client
             }
 
             return parameterName;
+        }
+
+        public override void ResetDbType()
+        {
+            throw new NotImplementedException();
         }
 
         private class ParameterColumnTypeDescriptorAdapter

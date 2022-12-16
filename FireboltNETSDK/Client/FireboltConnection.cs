@@ -222,7 +222,7 @@ namespace FireboltDotNetSdk.Client
 
         }
 
-        public GetEngineUrlByEngineNameResponse SetEngine(string? engineUrl)
+        public GetEngineUrlByEngineNameResponse? SetEngine(string? engineUrl)
         {
             try
             {
