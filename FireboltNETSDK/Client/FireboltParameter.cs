@@ -12,20 +12,16 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public sealed class FireboltParameter : DbParameter
     {
-        private static readonly Regex ParameterNameRegex = new Regex("^[a-zA-Z_][0-9a-zA-Z_]*$");
-
+        private static readonly Regex ParameterNameRegex = new("^[a-zA-Z_][0-9a-zA-Z_]*$");
         private string _parameterName;
-
         private object? _value;
         private int _size;
         private TimeZoneInfo? _timeZone;
-
         private bool? _forcedNullable;
         private FireboltDbType? _forcedType;
         private byte? _forcedScale;
         private byte? _forcedPrecision;
         private int? _forcedArrayRank;
-
         private string? _sourceColumn;
 
         internal string Id { get; private set; }

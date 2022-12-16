@@ -30,9 +30,34 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltConnection : DbConnection
     {
-        private FireboltConnectionState _connectionState;
 
-        public LoginRequest _connectionString;
+        /// <summary>
+        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
+        /// </summary>
+        /// <param name="connectionString">The connection string.</param>
+        public FireboltConnection(string connectionString)
+            : this(new FireboltConnectionStringBuilder(connectionString))
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
+        /// </summary>
+        /// <param name="stringBuilder">The connection string builder which will be used for building the connection settings.</param>
+        public FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
+        {
+            if (stringBuilder == null)
+                throw new ArgumentNullException(nameof(stringBuilder));
+
+            var connectionSettings = stringBuilder.BuildSettings();
+
+            _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings);
+            Client = new FireboltClient(Endpoint);
+        }
+
+        private readonly FireboltConnectionState _connectionState;
+
+        public LoginRequest? _connectionString;
 
         public readonly FireboltClient Client;
 
@@ -69,7 +94,6 @@ namespace FireboltDotNetSdk.Client
             set => throw new NotImplementedException();
         }
 
-
         /// <summary>
         /// Gets the state of the connection.
         /// </summary>
@@ -81,30 +105,6 @@ namespace FireboltDotNetSdk.Client
         public override string DataSource => throw new NotImplementedException();
 
         public override string ConnectionString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
-        /// </summary>
-        /// <param name="connectionString">The connection string.</param>
-        public FireboltConnection(string connectionString)
-            : this(new FireboltConnectionStringBuilder(connectionString))
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
-        /// </summary>
-        /// <param name="stringBuilder">The connection string builder which will be used for building the connection settings.</param>
-        public FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
-        {
-            if (stringBuilder == null)
-                throw new ArgumentNullException(nameof(stringBuilder));
-
-            var connectionSettings = stringBuilder.BuildSettings();
-
-            _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
-            Client = new FireboltClient(Endpoint);
-        }
 
         /// <summary>
         /// Not supported. The database cannot be changed while the connection is open.

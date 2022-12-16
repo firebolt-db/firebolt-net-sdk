@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -16,9 +11,8 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public sealed class FireboltParameterCollection : DbParameterCollection, IList<FireboltParameter>, IReadOnlyList<FireboltParameter>
     {
-        private readonly List<string> _parameterNames = new List<string>();
-
-        private readonly Dictionary<string, FireboltParameter> _parameters = new Dictionary<string, FireboltParameter>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<string> _parameterNames = new();
+        private readonly Dictionary<string, FireboltParameter> _parameters = new(StringComparer.OrdinalIgnoreCase);
 
         /// <inheritdoc/>
         public override int Count => _parameters.Count;

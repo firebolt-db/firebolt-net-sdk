@@ -19,7 +19,6 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Reflection;
@@ -41,11 +40,27 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public sealed class FireboltCommand : DbCommand
     {
+        public FireboltCommand(FireboltConnection connection) => Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+        
+        public FireboltCommand(string baseUrl)
+        {
+            BaseUrl = baseUrl;
+            _settings = new Lazy<JsonSerializerSettings>(CreateSerializerSettings);
+        }
+
         private string? _commandText;
 
         public string? Response { get; set; }
 
         public readonly HashSet<string> SetParamList = new();
+        public string? Token { get; set; }
+        public string? RefreshToken { get; set; }
+        public string? TokenExpired { get; set; }
+
+        private readonly Lazy<JsonSerializerSettings>? _settings;
+        private string BaseUrl { get; } = "";
+        private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
+
 
         /// <summary>
         /// Gets or sets the SQL statement to execute at the data source.
@@ -112,8 +127,10 @@ namespace FireboltDotNetSdk.Client
 
         public override int CommandTimeout { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        internal FireboltCommand(FireboltConnection connection) => Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-
+        /// <summary>
+        /// Gets the <see cref="QueryResult"/>.
+        /// </summary>
+        /// <returns>Collection data after execute query</returns>
         public QueryResult Execute(string commandText)
         {
             var engineUrl = Connection?.Engine?.engine?.endpoint ?? Connection?.DefaultEngine?.Engine_url;
@@ -259,11 +276,14 @@ namespace FireboltDotNetSdk.Client
             return ((int)data.Rows)!;
         }
 
+        /// <summary>
+        /// Clear current list of set parameters.
+        /// </summary>
+        /// <returns><b>null</b></returns>
         public void ClearSetList()
         {
             SetParamList.Clear();
         }
-
 
         /// <summary>
         /// Not supported. To cancel a command execute it asynchronously with an appropriate cancellation token.
@@ -274,22 +294,22 @@ namespace FireboltDotNetSdk.Client
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Set specific user agent
+        /// </summary>
+        /// <returns><b>null</b></returns>
         public void PrepareRequest(HttpClient client)
         {
             //Added to avoid 403 Forbidden error
             var version = Assembly.GetEntryAssembly().GetName().Version.ToString();
             var specificUserAgent = $".NETSDK/{version} (.NET {Environment.Version.ToString()}; {Environment.OSVersion})";
-            client.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_" + version);
+            client.DefaultRequestHeaders.Add("User-Agent", specificUserAgent);//".NETSDK/.NET6_" + version);
 
             if (!string.IsNullOrEmpty(Token))
             {
                 client.DefaultRequestHeaders.Add("Authorization", "Bearer " + Token);
             }
         }
-
-        public string? Token { get; set; }
-        public string RefreshToken { get; set; }
-        public string TokenExpired { get; set; }
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -367,14 +387,6 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private readonly Lazy<JsonSerializerSettings> _settings;
-
-        public FireboltCommand(string baseUrl)
-        {
-            BaseUrl = baseUrl;
-            _settings = new Lazy<JsonSerializerSettings>(CreateSerializerSettings);
-        }
-
         public static JsonSerializerSettings CreateSerializerSettings()
         {
             var settings = new JsonSerializerSettings();
@@ -382,9 +394,6 @@ namespace FireboltDotNetSdk.Client
             return settings;
         }
 
-        private string BaseUrl { get; } = "";
-
-        private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
         private static void UpdateJsonSerializerSettings() { }
         private static void PrepareRequest() { }
         private static void ProcessResponse() { }
@@ -489,7 +498,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        /// <param name="engine"></param>
+        /// <param name="databaseName"></param>
         /// <param name="account"></param>
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
@@ -579,6 +588,15 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <param name="engine"></param>
+        /// <param name="account"></param>
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Returns engine URL by engine name given.
+        /// </summary>
+        /// <param name="engine">Name of the engine.</param>
+        /// <returns>A successful response.</returns>
+        /// <exception cref="FireboltException">A server side error occurred.</exception>
         public async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine, string? account, CancellationToken cancellationToken)
         {
             if (engine == null)
@@ -655,6 +673,15 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <param name="engineId"></param>
+        /// <param name="accountId"></param>
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Returns engine URL by engineId given.
+        /// </summary>
+        /// <param name="engineId">engineId.</param>
+        /// <returns>A successful response.</returns>
+        /// <exception cref="FireboltException">A server side error occurred.</exception>
         public async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string engineId, string accountId, CancellationToken cancellationToken)
         {
             if (engineId == null)
@@ -723,6 +750,7 @@ namespace FireboltDotNetSdk.Client
                     client.Dispose();
             }
         }
+
         /// <param name="account"></param>
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>

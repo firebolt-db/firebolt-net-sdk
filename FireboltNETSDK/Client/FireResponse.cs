@@ -29,17 +29,17 @@ namespace FireboltDotNetSdk.Client
             /// <summary>
             /// Number of seconds after which token will expire.
             /// </summary>
-            public string Expires_in { get; set; }
+            public string? Expires_in { get; set; }
 
             /// <summary>
             /// Refresh token.
             /// </summary>
-            public string Refresh_token { get; set; }
+            public string? Refresh_token { get; set; }
 
             /// <summary>
             /// Type of the token.
             /// </summary>
-            public string Token_type { get; set; }
+            public string? Token_type { get; set; }
 
         }
 
@@ -74,7 +74,7 @@ namespace FireboltDotNetSdk.Client
             /// <summary>
             /// Retrieved record.
             /// </summary>
-            public Engine engine_id { get; set; }
+            public Engine? engine_id { get; set; }
 
         }
 

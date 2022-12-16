@@ -7,7 +7,7 @@ namespace FireboltDotNetSdk.Utils
 {
     internal class FernetEncryptor
     {
-        private byte[] key;
+        private readonly byte[] key;
         public string salt;
 
         private FernetEncryptor(byte[] key, string salt)
@@ -28,33 +28,31 @@ namespace FireboltDotNetSdk.Utils
             this.salt = salt;
         }
 
-        public FernetEncryptor(string password, string salt) : this(generateKey(password, salt), salt)
+        public FernetEncryptor(string password, string salt) : this(GenerateKey(password, salt), salt)
         { }
 
-        public FernetEncryptor(string password) : this(password, generateSalt())
+        public FernetEncryptor(string password) : this(password, GenerateSalt())
         { }
 
         /// <summary>
         /// Generate a random, base64 encoded salt of 32 bytes
         /// </summary>
         /// <returns>Salt</returns>
-        private static string generateSalt()
+        private static string GenerateSalt()
         {
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                var keyBytes = new byte[16];
-                rng.GetBytes(keyBytes);
-                return Convert.ToBase64String(keyBytes);
-            }
+            using var rng = RandomNumberGenerator.Create();
+            var keyBytes = new byte[16];
+            rng.GetBytes(keyBytes);
+            return Convert.ToBase64String(keyBytes);
         }
 
         /// <summary>
         /// Generate a key from password and salt using PBKDF2HMAC algorithm
         /// </summary>
         /// <returns>Key</returns>
-        private static byte[] generateKey(string password, string salt)
+        private static byte[] GenerateKey(string password, string salt)
         {
-            Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.UTF8.GetBytes(password), Convert.FromBase64String(salt), iterations: 39000, System.Security.Cryptography.HashAlgorithmName.SHA256);
+            Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.UTF8.GetBytes(password), Convert.FromBase64String(salt), iterations: 39000, HashAlgorithmName.SHA256);
             return pbkdf2.GetBytes(32);
         }
 

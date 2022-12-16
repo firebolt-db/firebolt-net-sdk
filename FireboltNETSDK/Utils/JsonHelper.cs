@@ -5,34 +5,34 @@ namespace FireboltDotNetSdk.Utils
     public class QueryResult
     {
         [JsonProperty("query", NullValueHandling = NullValueHandling.Ignore)]
-        public Query Query { get; set; }
+        public Query? Query { get; set; }
 
         [JsonProperty("meta", NullValueHandling = NullValueHandling.Ignore)]
-        public List<Meta> Meta { get; set; }
+        public List<Meta>? Meta { get; set; }
 
         [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
-        public List<List<object>> Data { get; set; }
+        public List<List<object>>? Data { get; set; }
 
         [JsonProperty("rows", NullValueHandling = NullValueHandling.Ignore)]
         public long? Rows { get; set; }
 
         [JsonProperty("statistics", NullValueHandling = NullValueHandling.Ignore)]
-        public Statistics Statistics { get; set; }
+        public Statistics? Statistics { get; set; }
     }
 
     public class Meta
     {
         [JsonProperty("name", NullValueHandling = NullValueHandling.Ignore)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         [JsonProperty("type", NullValueHandling = NullValueHandling.Ignore)]
-        public string Type { get; set; }
+        public string? Type { get; set; }
     }
 
     public class Query
     {
         [JsonProperty("query_id", NullValueHandling = NullValueHandling.Ignore)]
-        public string QueryId { get; set; }
+        public string? QueryId { get; set; }
     }
 
     public class Statistics

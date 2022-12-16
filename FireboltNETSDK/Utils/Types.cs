@@ -18,7 +18,7 @@ namespace FireboltDoNetSdk.Utils
     }
     public static class TypesConverter
     {
-        private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+        private static readonly DateTime UnixEpoch = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
         internal static object ConvertToCSharpVal(string? val, string destType)
         {
             // Create an UTF8Buffer with an offset to get better testing
@@ -184,7 +184,7 @@ namespace FireboltDoNetSdk.Utils
             }
         }
 
-        private static Int64 FastParseInt64(byte[] s, int offset, int len)
+        private static long FastParseInt64(byte[] s, int offset, int len)
         {
             long result = 0;
             var i = offset;
@@ -310,8 +310,8 @@ namespace FireboltDoNetSdk.Utils
 }
 public class NewMeta
 {
-    public ArrayList Data { get; set; }
-    public string Meta { get; set; }
+    public ArrayList? Data { get; set; }
+    public string? Meta { get; set; }
 }
 
 public class Utf8Buffer

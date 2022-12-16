@@ -133,8 +133,8 @@ namespace FireboltDotNetSdk.Utils
 
     public class CachedJSONData
     {
-        public string token { get; set; }
-        public string salt { get; set; }
+        public string? token { get; set; }
+        public string? salt { get; set; }
         public int expiration { get; set; }
     }
 }
