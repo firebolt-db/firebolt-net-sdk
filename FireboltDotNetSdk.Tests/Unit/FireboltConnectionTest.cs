@@ -66,7 +66,7 @@ namespace FireboltDotNetSdk.Tests
             }
             catch (FireboltException ex)
             {
-                That(ex.Message, Is.EqualTo("Cannot get engine: default_Engine from testdb.ib database"));
+                That(ex.Message, Does.StartWith("Cannot get engine: default_Engine from testdb.ib database"));
             }
         }
 
