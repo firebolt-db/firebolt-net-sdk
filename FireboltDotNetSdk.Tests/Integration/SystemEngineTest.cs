@@ -102,37 +102,6 @@ namespace FireboltDotNetSdk.Tests
 
         }
 
-        public void CheckEngineExistsWithDB(FireboltCommand cursor, string engineName, string dbName)
-        {
-            var res = cursor.Execute("SHOW ENGINES");
-
-            Assert.That(
-        res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
-        "Engine {engineName} is missing in SHOW ENGINES"
-        );
-            Assert.That(
-        res.Data.Select(item => new object[] { item[0], item[5] }), Has.Exactly(1).EqualTo(new object[] { engineName, dbName }),
-        "Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
-        );
-        }
-
-        [Test]
-        public void AttachDetachEngineTest()
-        {
-            var cursor = Connection.CreateCursor();
-
-            CheckEngineExistsWithDB(cursor, EngineName, DatabaseName);
-
-            cursor.Execute($"DETACH ENGINE {EngineName} FROM {DatabaseName}");
-
-            CheckEngineExistsWithDB(cursor, EngineName, "-");
-
-            cursor.Execute($"ATTACH ENGINE {EngineName} TO {DatabaseName}");
-
-            CheckEngineExistsWithDB(cursor, EngineName, DatabaseName);
-
-        }
-
         private void VerifyEngineSpec(FireboltCommand cursor, string engineName, string spec)
         {
             var res = cursor.Execute($"SHOW ENGINES");
