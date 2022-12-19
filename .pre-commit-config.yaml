@@ -4,17 +4,17 @@ repos:
       hooks:
       -   id: dotnet-format-whitespace
           name: dotnet-format-whitespace
-          entry: dotnet-format whitespace --verify-no-changes
+          entry: dotnet-format whitespace --verify-no-changes --no-restore
           language: system
           pass_filenames: false
       -   id: dotnet-format-style
           name: dotnet-format-style
-          entry: dotnet-format style --severity warn --verify-no-changes
+          entry: dotnet-format style --severity warn --verify-no-changes --no-restore
           language: system
           pass_filenames: false
       -   id: dotnet-format-analyzers
           name: dotnet-format-analyzers
-          entry: dotnet-format analyzers --severity warn --verify-no-changes
+          entry: dotnet-format analyzers --severity warn --verify-no-changes --no-restore
           language: system
           pass_filenames: false
 
