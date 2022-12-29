@@ -6,7 +6,6 @@ name: Unit tests
 on:
   workflow_call:
   push:
-    branches: [ main ]
 
 jobs:
   unit-tests:
