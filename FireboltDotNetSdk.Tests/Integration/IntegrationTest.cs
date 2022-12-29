@@ -1,6 +1,4 @@
-﻿using System;
-using FireboltDotNetSdk.Client;
-using FireboltDotNetSdk.Exception;
+﻿using FireboltDotNetSdk.Exception;
 
 namespace FireboltDotNetSdk.Tests
 {

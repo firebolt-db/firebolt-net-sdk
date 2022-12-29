@@ -12,40 +12,8 @@ namespace FireboltDotNetSdk.Tests
         private FireboltConnection? Connection;
         private static string EngineName = "system_engine_dotnet_test";
         private static string DatabaseName = "system_engine_dotnet_test";
-
-        private void CreateDatabase(FireboltCommand cursor, string dbName, string? attachedEngine = null)
-        {
-            try
-            {
-                cursor.Execute($"DROP DATABASE {dbName}");
-            }
-            catch (FireboltException) { };
-
-            string sql = $"CREATE DATABASE IF NOT EXISTS {dbName}";
-            if (attachedEngine != null)
-            {
-                sql += $" WITH ATTACHED_ENGINES = ('{attachedEngine}')";
-            }
-            cursor.Execute(sql);
-        }
-
-        private void CreateEngine(FireboltCommand cursor, string engineName, string? spec = null)
-        {
-            try
-            {
-                cursor.Execute($"DROP ENGINE {engineName}");
-            }
-            catch (FireboltException) { };
-
-            var create_engine_sql = $"CREATE ENGINE IF NOT EXISTS {engineName}";
-            if (spec != null)
-            {
-                create_engine_sql += $" WITH {spec}";
-            }
-            cursor.Execute(create_engine_sql);
-        }
-
-        [SetUp]
+        
+        [OneTimeSetUp]
         public void Init()
         {
             var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};";
@@ -58,8 +26,8 @@ namespace FireboltDotNetSdk.Tests
             CreateEngine(cursor, EngineName, "SPEC = B1");
             CreateDatabase(cursor, DatabaseName, EngineName);
         }
-
-        [TearDown]
+        
+        [OneTimeTearDown]
         public void Cleanup()
         {
             if (Connection != null)
@@ -77,7 +45,40 @@ namespace FireboltDotNetSdk.Tests
                 catch (FireboltException) { };
             }
         }
+        
+        private void CreateDatabase(FireboltCommand cursor, string dbName, string? attachedEngine = null)
+        {
+            try
+            {
+                cursor.Execute($"DROP DATABASE {dbName}");
+            }
+            catch (FireboltException) { };
 
+            string sql = $"CREATE DATABASE IF NOT EXISTS {dbName}";
+            if (attachedEngine != null)
+            {
+                sql += $" WITH ATTACHED_ENGINES = ('{attachedEngine}')";
+            }
+            cursor.Execute(sql);
+        }
+        private void CreateEngine(FireboltCommand cursor, string engineName, string? spec = null)
+        {
+            try
+            {
+                cursor.Execute($"DROP ENGINE {engineName}");
+            }
+            catch (FireboltException ex)
+            {
+            };
+
+            var create_engine_sql = $"CREATE ENGINE IF NOT EXISTS {engineName}";
+            if (spec != null)
+            {
+                create_engine_sql += $" WITH {spec}";
+            }
+            cursor.Execute(create_engine_sql);
+        }
+        
         [TestCase("SELECT 1")]
         [TestCase("CREATE DIMENSION TABLE dummy(id INT)")]
         [TestCase("SHOW TABLES")]
@@ -112,7 +113,7 @@ namespace FireboltDotNetSdk.Tests
         );
             Assert.That(
         res.Data.Select(item => new object[] { item[0], item[5] }), Has.Exactly(1).EqualTo(new object[] { engineName, dbName }),
-        "Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
+        $"Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
         );
         }
 
@@ -132,14 +133,13 @@ namespace FireboltDotNetSdk.Tests
             CheckEngineExistsWithDB(cursor, EngineName, DatabaseName);
 
         }
-
         private void VerifyEngineSpec(FireboltCommand cursor, string engineName, string spec)
         {
             var res = cursor.Execute($"SHOW ENGINES");
 
             Assert.That(
         res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
-        "Engine {engineName} is missing in SHOW ENGINES"
+        $"Engine {engineName} is missing in SHOW ENGINES"
         );
             Assert.That(
             res.Data.Select(item => new object[] { item[0], item[2] }), Has.Exactly(1).EqualTo(new object[] { EngineName, spec }),

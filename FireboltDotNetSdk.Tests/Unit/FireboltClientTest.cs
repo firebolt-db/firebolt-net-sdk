@@ -1,64 +1,86 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using FireboltDotNetSdk.Client;
-using FireboltDotNetSdk.Exception;
+﻿using FireboltDotNetSdk.Exception;
 
-namespace FireboltDotNetSdk.Tests
+namespace FireboltDotNetSdk.Tests;
+
+[TestFixture]
+public class FireboltClientTest
 {
-    [TestFixture]
-    public class FireboltClientTest
+    [Test]
+    public void InitSingletonOnlyOnce()
     {
+        var fireboltClient = FireboltClient.GetInstance();
+        var fireboltClient2 = FireboltClient.GetInstance();
+        Assert.True(ReferenceEquals(fireboltClient, fireboltClient2));
+    }
 
-        [Test]
-        public void SetTokenTest()
-        {
-            var token = new FireResponse.LoginResponse()
-            {
-                Access_token = "randomNumber",
-                Token_type = "JWT"
-            };
-            var client = new FireboltClient("test.api.firebolt.io");
-            client.SetToken(token);
-            Assert.That(client.Token.ToString(), Is.EqualTo("randomNumber"));
-            Assert.That(token.Token_type, Is.EqualTo("JWT"));
-        }
+    [Test]
+    public void SetDefaultRequestHeaders()
+    {
+        var client = FireboltClient.GetInstance();
+        Assert.That(client.HttpClient.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, Is.EqualTo(".NETSDK"));
+    }
 
-        [Test]
-        public void ClearTokenTest()
+    [Test]
+    public void ExecuteQueryAsyncNullDataTest()
+    {
+        try
         {
-            var token = new FireResponse.LoginResponse()
-            {
-                Access_token = "randomNumber"
-            };
-            var client = new FireboltClient("test.api.firebolt.io");
-            client.SetToken(token);
-            client.ClearToken();
-            Assert.IsNull(client.Token);
+            var client = FireboltClient.GetInstance();
+            client.ExecuteQueryAsync("", "databaseName", "commandText", CancellationToken.None, new HashSet<string>(),
+                    "")
+                .GetAwaiter().GetResult();
         }
+        catch (System.Exception e)
+        {
+            Assert.That(e.Message,
+                Is.EqualTo(
+                    "Something parameters are null or empty: engineEndpoint: , databaseName: databaseName or query: commandText"));
+        }
+    }
 
-        [Test]
-        public void GetEngineUrlByDatabaseNameTest()
-        {
-            var client = new FireboltClient("test.api.firebolt.io");
-            var status = client.GetEngineUrlByDatabaseName("DBName", "AccountName");
-            Assert.That(status.Status.ToString(), Is.EqualTo("Faulted"));
-        }
+    [Test]
+    public void GetAccountIdByNameAsyncTest()
+    {
+        var client = FireboltClient.GetInstance();
 
-        [Test]
-        public void ExecuteQueryExceptionTest()
+        try
         {
-            var client = new FireboltClient("test.api.firebolt.io");
-            Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("DBName", "EngineURL", "Select 1").GetAwaiter().GetResult(); return Task.CompletedTask; });
+            client.GetAccountIdByNameAsync(null, CancellationToken.None, "base.url", "accessToken").GetAwaiter()
+                .GetResult();
         }
+        catch (FireboltException e)
+        {
+            Assert.That(e.Message, Is.EqualTo("Account name is empty"));
+        }
+    }
 
-        [Test]
-        public void ExecuteQueryTest()
+    [Test]
+    public void GetEngineUrlByDatabaseNameTest()
+    {
+        var client = FireboltClient.GetInstance();
+        var status = client.GetEngineUrlByDatabaseName("DBName", "AccountName", "test.api.firebolt.io", "aToken");
+        Assert.That(status.Status.ToString(), Is.EqualTo("Faulted"));
+    }
+
+    [Test]
+    public void ExecuteQueryExceptionTest()
+    {
+        var client = FireboltClient.GetInstance();
+        Assert.ThrowsAsync<HttpRequestException>(() =>
         {
-            var client = new FireboltClient("test.api.firebolt.io");
-            Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("endpoint_url", "DBName", "Select 1").GetAwaiter().GetResult(); return Task.CompletedTask; });
-        }
+            client.ExecuteQuery("DBName", "EngineURL", "Select 1", "aToken").GetAwaiter().GetResult();
+            return Task.CompletedTask;
+        });
+    }
+
+    [Test]
+    public void ExecuteQueryTest()
+    {
+        var client = FireboltClient.GetInstance();
+        Assert.ThrowsAsync<HttpRequestException>(() =>
+        {
+            client.ExecuteQuery("endpoint_url", "DBName", "Select 1", "aToken").GetAwaiter().GetResult();
+            return Task.CompletedTask;
+        });
     }
 }
