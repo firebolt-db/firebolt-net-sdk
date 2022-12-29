@@ -1,32 +1,24 @@
 ﻿using FireboltDotNetSdk.Exception;
 
-namespace FireboltDotNetSdk.Tests
+namespace FireboltDotNetSdk.Tests;
+
+[TestFixture]
+[Category("Integration")]
+[Parallelizable]
+internal class IntegrationTest
 {
-
-    [TestFixture]
-    [Category("Integration")]
-    [Parallelizable]
-    internal class IntegrationTest
+    public static string EnvWithDefault(string env_var, string? default_value = null)
     {
-        public static string EnvWithDefault(string env_var, string? default_value = null)
-        {
-            string? env_value = Environment.GetEnvironmentVariable(env_var);
-            if (env_value != null)
-            {
-                return env_value;
-            }
-            if (default_value == null)
-            {
-                throw new FireboltException($"Missing {env_var} environment value");
-            }
-            return default_value;
-        }
-
-        protected static string Database = EnvWithDefault("FIREBOLT_DATABASE");
-        protected static string Username = EnvWithDefault("FIREBOLT_USERNAME");
-        protected static string Password = EnvWithDefault("FIREBOLT_PASSWORD");
-        protected static string Endpoint = EnvWithDefault("FIREBOLT_ENDPOINT", "https://api.dev.firebolt.io");
-        protected static string Account = EnvWithDefault("FIREBOLT_ACCOUNT", "firebolt");
-        protected static string Engine = EnvWithDefault("FIREBOLT_ENGINE_URL");
+        var env_value = Environment.GetEnvironmentVariable(env_var);
+        if (env_value != null) return env_value;
+        if (default_value == null) throw new FireboltException($"Missing {env_var} environment value");
+        return default_value;
     }
+
+    protected static string Database = EnvWithDefault("FIREBOLT_DATABASE");
+    protected static string Username = EnvWithDefault("FIREBOLT_USERNAME");
+    protected static string Password = EnvWithDefault("FIREBOLT_PASSWORD");
+    protected static string Endpoint = EnvWithDefault("FIREBOLT_ENDPOINT", "https://api.dev.firebolt.io");
+    protected static string Account = EnvWithDefault("FIREBOLT_ACCOUNT", "firebolt");
+    protected static string Engine = EnvWithDefault("FIREBOLT_ENGINE_URL");
 }
