@@ -12,7 +12,7 @@ public class FireboltTokenCachingTest
         var connString = $"database=any;username=any;password=any;endpoint=any;account=any";
         var client = A.Fake<IFireboltClient>(x => x.Wrapping(new FireboltClientMock()));
         Type type = typeof(FireboltConnection);
-        FieldInfo field = type.GetField("_client");
+        FieldInfo field = type.GetField("_client", BindingFlags.NonPublic | BindingFlags.Instance);
         var conn = new FireboltConnection(connString);
         field.SetValue(conn, client);
         conn.Open();
