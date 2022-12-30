@@ -18,7 +18,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT -30000000000 as int64")]
         public void ExecuteTest(string commandText)
         {
-            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};";
+            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -33,8 +33,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select sleepEachRow(1) from numbers(5)")]
         public void ExecuteSetTest(string commandText)
         {
-            var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -79,5 +78,3 @@ namespace FireboltDotNetSdk.Tests
         }
     }
 }
-
-
