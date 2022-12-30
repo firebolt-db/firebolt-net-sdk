@@ -27,7 +27,7 @@ namespace FireboltDotNetSdk.Tests
             try
             {
                 FireboltClient client = FireboltClient.GetInstance();
-                client.ExecuteQueryAsync("", "databaseName", "commandText", CancellationToken.None, new HashSet<string>(), "")
+                client.ExecuteQueryAsync("", "databaseName", "commandText", new HashSet<string>(), "", CancellationToken.None)
                     .GetAwaiter().GetResult();
             }
             catch (System.Exception e)
@@ -43,7 +43,7 @@ namespace FireboltDotNetSdk.Tests
         
             try
             {
-                client.GetAccountIdByNameAsync(null, CancellationToken.None, "base.url", "accessToken").GetAwaiter().GetResult();
+                client.GetAccountIdByNameAsync(null, "base.url", "accessToken", CancellationToken.None).GetAwaiter().GetResult();
             }
             catch (FireboltException e)
             {
