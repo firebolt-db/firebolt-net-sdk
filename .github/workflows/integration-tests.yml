@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
   workflow_call:
     secrets:
-      FIREBOLT_USERNAME:
+      FIREBOLT_USERNAME_DEV:
         required: true
-      FIREBOLT_PASSWORD:
+      FIREBOLT_PASSWORD_DEV:
         required: true
 jobs:
   tests:
@@ -27,18 +27,19 @@ jobs:
         id: setup
         uses: firebolt-db/integration-testing-setup@master
         with:
-          firebolt-username: ${{ secrets.FIREBOLT_USERNAME }}
-          firebolt-password: ${{ secrets.FIREBOLT_PASSWORD }}
-          api-endpoint: "api.staging.firebolt.io"
+          firebolt-username: ${{ secrets.FIREBOLT_USERNAME_DEV }}
+          firebolt-password: ${{ secrets.FIREBOLT_PASSWORD_DEV }}
+          api-endpoint: "api.dev.firebolt.io"
           region: "us-east-1"
 
       - name: Run integration tests
         env:
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
-          FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_USERNAME }}
-          FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_PASSWORD }}
-          API_ENDPOINT: "api.staging.firebolt.io"
+          FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_USERNAME_DEV }}
+          FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_PASSWORD_DEV }}
+          API_ENDPOINT: "api.dev.firebolt.io"
           ACCOUNT_NAME: "firebolt"
           FIREBOLT_ENGINE_URL: ${{ steps.setup.outputs.engine_url }}
+          FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
         run: |
           dotnet test --filter "Category=Integration"        
