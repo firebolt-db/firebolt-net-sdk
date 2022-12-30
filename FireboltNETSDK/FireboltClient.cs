@@ -200,7 +200,7 @@ public class FireboltClient : IFireboltClient
             }
             else
             {
-                throw new FireboltException("Response was null which was not expected with status: " + (int)response.StatusCode +
+                throw new FireboltException("The query failed with the status code: " + (int)response.StatusCode +
                                             ", body: " + objectResponse);
             }
         }
