@@ -72,8 +72,5 @@ namespace FireboltDotNetSdk.Tests
             var client = FireboltClient.GetInstance();
             Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("endpoint_url", "DBName", "Select 1", "aToken").GetAwaiter().GetResult(); return Task.CompletedTask; });
         }
-
-
-
     }
 }
