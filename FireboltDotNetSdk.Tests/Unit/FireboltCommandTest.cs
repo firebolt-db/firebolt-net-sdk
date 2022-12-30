@@ -1,6 +1,5 @@
 ﻿using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
-using Newtonsoft.Json;
 
 namespace FireboltDotNetSdk.Tests
 {

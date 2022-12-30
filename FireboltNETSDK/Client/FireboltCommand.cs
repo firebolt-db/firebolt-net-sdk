@@ -128,10 +128,13 @@ namespace FireboltDotNetSdk.Client
                         newCommandText = GetParamQuery(commandText);
                     }
 
-                    Response = FireboltClient.GetInstance()
-                        .ExecuteQuery(engineUrl, Connection.Database, newCommandText, Connection.GetAccessToken())
-                        .GetAwaiter().GetResult();
-                    //return FormDataForResponse(Response);
+                    if (Connection != null)
+                    {
+                        Response = FireboltClient.GetInstance()
+                            .ExecuteQuery(engineUrl, Connection.Database, newCommandText, Connection.GetAccessToken())
+                            .GetAwaiter().GetResult();
+                        //return FormDataForResponse(Response); 
+                    }
                     return GetOriginalJsonData();
                 }
                 catch (FireboltException ex)

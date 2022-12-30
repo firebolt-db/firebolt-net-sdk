@@ -17,9 +17,9 @@ public class FireboltTokenCachingTest
         field.SetValue(conn, client);
         conn.Open();
         conn.Open();
-        A.CallTo(() => client.Login(null,"")).WithAnyArguments().MustHaveHappenedOnceExactly();
+        A.CallTo(() => client.Login(null, "")).WithAnyArguments().MustHaveHappenedOnceExactly();
     }
-    
+
     public class FireboltClientMock : IFireboltClient
     {
         public Task<FireResponse.LoginResponse> Login(FireRequest.LoginRequest loginRequest, string baseUrl)
