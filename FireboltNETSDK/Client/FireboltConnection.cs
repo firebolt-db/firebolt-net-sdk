@@ -32,13 +32,13 @@ namespace FireboltDotNetSdk.Client
     public class FireboltConnection : DbConnection
     {
         private readonly FireboltConnectionState _connectionState;
-        
+
         private Token? _loginToken;
-        
-        public readonly FireboltClient Client;
-        
+
+        private IFireboltClient _client;
+
         public GetEngineUrlByDatabaseNameResponse? DefaultEngine;
-        
+
         public GetEngineUrlByEngineNameResponse? Engine;
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace FireboltDotNetSdk.Client
             var connectionSettings = stringBuilder.BuildSettings();
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
-            Client = FireboltClient.GetInstance();
+            _client = FireboltClient.GetInstance();
         }
 
         /// <summary>
@@ -179,7 +179,7 @@ namespace FireboltDotNetSdk.Client
                         Password = Password,
                         Username = UserName
                     };
-                    token = await Client.Login(credentials, Endpoint);
+                    token = await _client.Login(credentials, Endpoint);
                     await TokenSecureStorage.CacheToken(token, UserName, Password);
                 }
 
@@ -201,7 +201,7 @@ namespace FireboltDotNetSdk.Client
         ///     Sets the token used for authentication.
         /// </summary>
         /// <param name="token"></param>
-        internal string? GetAccessToken()
+        public string? GetAccessToken()
         {
             return _loginToken?.AccessToken;
         }
@@ -210,7 +210,7 @@ namespace FireboltDotNetSdk.Client
         {
             try
             {
-                DefaultEngine = Client
+                DefaultEngine = _client
                     .GetEngineUrlByDatabaseName(
                         _connectionState.Settings?.Database ??
                         throw new FireboltException("Missing database parameter"), _connectionState.Settings?.Account,
@@ -232,11 +232,11 @@ namespace FireboltDotNetSdk.Client
         {
             // try
             // {
-            var enginevalue = Client
+            var enginevalue = _client
                 .GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account, Endpoint, GetAccessToken())
                 .GetAwaiter()
                 .GetResult();
-            var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
+            var result = _client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
                     enginevalue.engine_id.account_id, Endpoint, GetAccessToken()).GetAwaiter()
                 .GetResult();
             Engine = result;

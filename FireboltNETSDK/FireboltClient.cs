@@ -30,7 +30,7 @@ using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk;
 
-public class FireboltClient
+public class FireboltClient : IFireboltClient
 {
     private static FireboltClient? _instance;
     private static readonly object Mutex = new();

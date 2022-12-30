@@ -128,7 +128,7 @@ namespace FireboltDotNetSdk.Client
                         newCommandText = GetParamQuery(commandText);
                     }
 
-                    Response = Connection?.Client
+                    Response = FireboltClient.GetInstance()
                         .ExecuteQuery(engineUrl, Connection.Database, newCommandText, Connection.GetAccessToken())
                         .GetAwaiter().GetResult();
                     //return FormDataForResponse(Response);
