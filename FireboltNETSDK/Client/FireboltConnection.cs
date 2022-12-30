@@ -31,37 +31,15 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltConnection : DbConnection
     {
-        public readonly FireboltClient Client;
         private readonly FireboltConnectionState _connectionState;
-
+        
+        private Token? _loginToken;
+        
+        public readonly FireboltClient Client;
+        
         public GetEngineUrlByDatabaseNameResponse? DefaultEngine;
+        
         public GetEngineUrlByEngineNameResponse? Engine;
-
-        /// <summary>
-        ///     Initializes a new instance of <see cref="FireBoltConnection" /> with the settings.
-        /// </summary>
-        /// <param name="connectionString">The connection string.</param>
-        public FireboltConnection(string connectionString)
-            : this(new FireboltConnectionStringBuilder(connectionString))
-        {
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of <see cref="FireBoltConnection" /> with the settings.
-        /// </summary>
-        /// <param name="stringBuilder">The connection string builder which will be used for building the connection settings.</param>
-        public FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
-        {
-            if (stringBuilder == null)
-                throw new ArgumentNullException(nameof(stringBuilder));
-
-            var connectionSettings = stringBuilder.BuildSettings();
-
-            _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
-            Client = FireboltClient.GetInstance();
-        }
-
-        private Token? LoginToken { get; set; }
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -105,6 +83,30 @@ namespace FireboltDotNetSdk.Client
         public override string DataSource => throw new NotImplementedException();
 
         public override string ConnectionString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        /// <summary>
+        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
+        /// </summary>
+        /// <param name="connectionString">The connection string.</param>
+        public FireboltConnection(string connectionString)
+            : this(new FireboltConnectionStringBuilder(connectionString))
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
+        /// </summary>
+        /// <param name="stringBuilder">The connection string builder which will be used for building the connection settings.</param>
+        public FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
+        {
+            if (stringBuilder == null)
+                throw new ArgumentNullException(nameof(stringBuilder));
+
+            var connectionSettings = stringBuilder.BuildSettings();
+
+            _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
+            Client = FireboltClient.GetInstance();
+        }
 
         /// <summary>
         /// Not supported. The database cannot be changed while the connection is open.
@@ -181,7 +183,7 @@ namespace FireboltDotNetSdk.Client
                     await TokenSecureStorage.CacheToken(token, UserName, Password);
                 }
 
-                LoginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
+                _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
 
                 DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
@@ -199,9 +201,9 @@ namespace FireboltDotNetSdk.Client
         ///     Sets the token used for authentication.
         /// </summary>
         /// <param name="token"></param>
-        internal string GetAccessToken()
+        internal string? GetAccessToken()
         {
-            return LoginToken?.AccessToken;
+            return _loginToken?.AccessToken;
         }
 
         public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineUrl)
@@ -285,7 +287,7 @@ namespace FireboltDotNetSdk.Client
         public override void Close()
         {
             _connectionState.State = ConnectionState.Closed;
-            LoginToken = null;
+            _loginToken = null;
         }
 
         /// <summary>
@@ -301,7 +303,7 @@ namespace FireboltDotNetSdk.Client
             throw new NotImplementedException();
         }
 
-        public class Token
+        private class Token
         {
             public Token(string? accessToken, string? refreshToken, string? tokenExpired)
             {

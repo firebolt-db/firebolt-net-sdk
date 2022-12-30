@@ -90,7 +90,7 @@ public class FireboltClient
     /// <param name="accessToken"></param>
     /// <returns>A successful response.</returns>
     public Task<GetEngineUrlByDatabaseNameResponse> GetEngineUrlByDatabaseName(string? databaseName,
-        string? account, string baseUrl, string accessToken)
+        string? account, string baseUrl, string? accessToken)
     {
         return CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, account, baseUrl, accessToken, CancellationToken.None);
     }
@@ -118,7 +118,7 @@ public class FireboltClient
     /// <param name="accessToken"></param>
     /// <returns>An Engine url response.</returns>
     public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string engineId, string accountId,
-        string baseUrl, string accessToken)
+        string baseUrl, string? accessToken)
     {
         return CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None, baseUrl, accessToken);
     }
@@ -499,7 +499,7 @@ public class FireboltClient
     /// <exception cref="FireboltException">A server side error occurred.</exception>
     private async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName,
         string? account, string baseUrl,
-        string accessToken, CancellationToken cancellationToken)
+        string? accessToken, CancellationToken cancellationToken)
     {
         var urlBuilder = new StringBuilder();
 
