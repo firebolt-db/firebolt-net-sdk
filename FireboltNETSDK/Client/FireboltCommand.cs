@@ -39,7 +39,7 @@ namespace FireboltDotNetSdk.Client
         public string? Response { get; set; }
 
         public readonly HashSet<string> SetParamList = new();
-        
+
         public FireboltCommand()
         { }
 
@@ -270,7 +270,7 @@ namespace FireboltDotNetSdk.Client
         {
             throw new NotImplementedException();
         }
-        
+
         public override UpdateRowSource UpdatedRowSource { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public override bool DesignTimeVisible { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 

@@ -36,13 +36,13 @@ public class FireboltClient
     private static readonly object Mutex = new();
     private readonly Lazy<JsonSerializerSettings> _settings;
     public HttpClient HttpClient { get; }
-    
+
     private FireboltClient()
     {
         HttpClient = CreateClient();
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
     }
-    
+
     /// <summary>
     ///     Returns a shared instance of the Firebolt client.
     /// </summary>
@@ -55,7 +55,7 @@ public class FireboltClient
             }
         return _instance;
     }
-    
+
     private HttpClient CreateClient()
     {
         var client = new HttpClient();
@@ -69,7 +69,7 @@ public class FireboltClient
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
-    
+
     /// <summary>
     ///     Authenticates the user with Firebolt.
     /// </summary>
@@ -180,16 +180,16 @@ public class FireboltClient
         var response = await HttpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
-        
+
         try
         {
             var headers = response.Headers.ToDictionary(header => header.Key, header => header.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
-            
+
             var objectResponse =
                 await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 if (objectResponse == null)
@@ -207,10 +207,10 @@ public class FireboltClient
         finally
         {
 
-                response.Dispose();
+            response.Dispose();
         }
     }
-    
+
     private async Task<ObjectResponseResult<T?>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
         IReadOnlyDictionary<string, IEnumerable<string>> headers, bool readResponseAsString, CancellationToken cancellationToken)
     {
@@ -315,7 +315,7 @@ public class FireboltClient
             response.Dispose();
         }
     }
-    
+
 
 
     /// <param name="cancellationToken">
@@ -355,7 +355,7 @@ public class FireboltClient
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var objectResponse =
@@ -390,36 +390,36 @@ public class FireboltClient
         switch (value)
         {
             case Enum:
-            {
-                var name = Enum.GetName(value.GetType(), value);
-                if (name != null)
                 {
-                    var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
-                    if (field != null)
-                        if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
-                            return attribute.Value ?? name;
+                    var name = Enum.GetName(value.GetType(), value);
+                    if (name != null)
+                    {
+                        var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
+                        if (field != null)
+                            if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
+                                return attribute.Value ?? name;
 
-                    var converted = Convert.ToString(Convert.ChangeType(value,
-                        Enum.GetUnderlyingType(value.GetType()), cultureInfo));
-                    return converted ?? string.Empty;
+                        var converted = Convert.ToString(Convert.ChangeType(value,
+                            Enum.GetUnderlyingType(value.GetType()), cultureInfo));
+                        return converted ?? string.Empty;
+                    }
+
+                    break;
                 }
-
-                break;
-            }
             case bool b:
                 return Convert.ToString(b, cultureInfo).ToLowerInvariant();
             case byte[] bytes:
                 return Convert.ToBase64String(bytes);
             default:
-            {
-                if (value?.GetType().IsArray ?? false)
                 {
-                    IEnumerable<object?> array = ((Array)value).OfType<object>();
-                    return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
-                }
+                    if (value?.GetType().IsArray ?? false)
+                    {
+                        IEnumerable<object?> array = ((Array)value).OfType<object>();
+                        return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
+                    }
 
-                break;
-            }
+                    break;
+                }
         }
 
         var result = Convert.ToString(value, cultureInfo);
@@ -451,7 +451,7 @@ public class FireboltClient
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var objectResponse =
@@ -537,7 +537,7 @@ public class FireboltClient
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var objectResponse =

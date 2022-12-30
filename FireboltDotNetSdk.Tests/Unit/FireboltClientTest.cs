@@ -13,14 +13,14 @@ namespace FireboltDotNetSdk.Tests
             FireboltClient fireboltClient2 = FireboltClient.GetInstance();
             Assert.True(ReferenceEquals(fireboltClient, fireboltClient2));
         }
-        
+
         [Test]
         public void SetDefaultRequestHeaders()
         {
             FireboltClient client = FireboltClient.GetInstance();
             Assert.That(client.HttpClient.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, Is.EqualTo(".NETSDK"));
         }
-        
+
         [Test]
         public void ExecuteQueryAsyncNullDataTest()
         {
@@ -34,13 +34,13 @@ namespace FireboltDotNetSdk.Tests
             {
                 Assert.That(e.Message, Is.EqualTo("Something parameters are null or empty: engineEndpoint: , databaseName: databaseName or query: commandText"));
             }
-        
+
         }
         [Test]
         public void GetAccountIdByNameAsyncTest()
         {
             FireboltClient client = FireboltClient.GetInstance();
-        
+
             try
             {
                 client.GetAccountIdByNameAsync(null, "base.url", "accessToken", CancellationToken.None).GetAwaiter().GetResult();
@@ -50,7 +50,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(e.Message, Is.EqualTo("Account name is empty"));
             }
         }
-        
+
         [Test]
         public void GetEngineUrlByDatabaseNameTest()
         {
@@ -63,7 +63,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteQueryExceptionTest()
         {
             var client = FireboltClient.GetInstance();
-            Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("DBName", "EngineURL", "Select 1","aToken").GetAwaiter().GetResult(); return Task.CompletedTask; });
+            Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("DBName", "EngineURL", "Select 1", "aToken").GetAwaiter().GetResult(); return Task.CompletedTask; });
         }
 
         [Test]
@@ -72,8 +72,8 @@ namespace FireboltDotNetSdk.Tests
             var client = FireboltClient.GetInstance();
             Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("endpoint_url", "DBName", "Select 1", "aToken").GetAwaiter().GetResult(); return Task.CompletedTask; });
         }
-        
 
-        
+
+
     }
 }

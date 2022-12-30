@@ -12,7 +12,7 @@ namespace FireboltDotNetSdk.Tests
         private FireboltConnection? Connection;
         private static string EngineName = "system_engine_dotnet_test";
         private static string DatabaseName = "system_engine_dotnet_test";
-        
+
         [OneTimeSetUp]
         public void Init()
         {
@@ -26,7 +26,7 @@ namespace FireboltDotNetSdk.Tests
             CreateEngine(cursor, EngineName, "SPEC = B1");
             CreateDatabase(cursor, DatabaseName, EngineName);
         }
-        
+
         [OneTimeTearDown]
         public void Cleanup()
         {
@@ -45,7 +45,7 @@ namespace FireboltDotNetSdk.Tests
                 catch (FireboltException) { };
             }
         }
-        
+
         private void CreateDatabase(FireboltCommand cursor, string dbName, string? attachedEngine = null)
         {
             try
@@ -78,7 +78,7 @@ namespace FireboltDotNetSdk.Tests
             }
             cursor.Execute(create_engine_sql);
         }
-        
+
         [TestCase("SELECT 1")]
         [TestCase("CREATE DIMENSION TABLE dummy(id INT)")]
         [TestCase("SHOW TABLES")]

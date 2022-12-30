@@ -230,15 +230,15 @@ namespace FireboltDotNetSdk.Client
         {
             // try
             // {
-                var enginevalue = Client
-                    .GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account, Endpoint, GetAccessToken())
-                    .GetAwaiter()
-                    .GetResult();
-                var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
-                        enginevalue.engine_id.account_id, Endpoint, GetAccessToken()).GetAwaiter()
-                    .GetResult();
-                Engine = result;
-                return result;
+            var enginevalue = Client
+                .GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account, Endpoint, GetAccessToken())
+                .GetAwaiter()
+                .GetResult();
+            var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
+                    enginevalue.engine_id.account_id, Endpoint, GetAccessToken()).GetAwaiter()
+                .GetResult();
+            Engine = result;
+            return result;
             // }
             // catch (System.Exception ex)
             // {

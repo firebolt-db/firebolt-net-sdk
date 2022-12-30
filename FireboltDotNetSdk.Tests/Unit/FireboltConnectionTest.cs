@@ -48,7 +48,7 @@ namespace FireboltDotNetSdk.Tests
                 That(cs.UserName, Is.EqualTo("test_user"));
             });
         }
-        
+
         [Test]
         [Ignore("GetEngineUrlByEngineNameResponse does not throw the exception with this message for the moment")]
         public void SetEngineTest()
