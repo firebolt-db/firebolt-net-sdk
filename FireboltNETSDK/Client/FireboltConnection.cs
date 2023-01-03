@@ -33,9 +33,7 @@ namespace FireboltDotNetSdk.Client
     {
         private readonly FireboltConnectionState _connectionState;
 
-        private Token? _loginToken;
-
-        private IFireboltClient _client;
+        public FireboltClient Client { get; private set; }
 
         public GetEngineUrlByDatabaseNameResponse? DefaultEngine;
 
@@ -105,7 +103,6 @@ namespace FireboltDotNetSdk.Client
             var connectionSettings = stringBuilder.BuildSettings();
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
-            _client = FireboltClient.GetInstance();
         }
 
         /// <summary>
@@ -162,29 +159,8 @@ namespace FireboltDotNetSdk.Client
         {
             try
             {
-                LoginResponse token;
-                var storedToken = await TokenSecureStorage.GetCachedToken(UserName, Password);
-                if (storedToken != null)
-                {
-                    token = new LoginResponse
-                    {
-                        Access_token = storedToken.token,
-                        Expires_in = storedToken.expiration.ToString()
-                    };
-                }
-                else
-                {
-                    var credentials = new LoginRequest
-                    {
-                        Password = Password,
-                        Username = UserName
-                    };
-                    token = await _client.Login(credentials, Endpoint);
-                    await TokenSecureStorage.CacheToken(token, UserName, Password);
-                }
-
-                _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
-
+                Client = new FireboltClient(UserName, Password, Endpoint);
+                await Client.EstablishConnection();
                 DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
                 if (DefaultEngine != null) return true;
@@ -197,24 +173,15 @@ namespace FireboltDotNetSdk.Client
             return false;
         }
 
-        /// <summary>
-        ///     Sets the token used for authentication.
-        /// </summary>
-        /// <param name="token"></param>
-        public string? GetAccessToken()
-        {
-            return _loginToken?.AccessToken;
-        }
 
         public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineUrl)
         {
             try
             {
-                DefaultEngine = _client
+                DefaultEngine = Client
                     .GetEngineUrlByDatabaseName(
                         _connectionState.Settings?.Database ??
-                        throw new FireboltException("Missing database parameter"), _connectionState.Settings?.Account,
-                        Endpoint, GetAccessToken())
+                        throw new FireboltException("Missing database parameter"), _connectionState.Settings?.Account)
                     .GetAwaiter().GetResult();
                 return DefaultEngine;
             }
@@ -232,12 +199,12 @@ namespace FireboltDotNetSdk.Client
         {
             // try
             // {
-            var enginevalue = _client
-                .GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account, Endpoint, GetAccessToken())
+            var enginevalue = Client
+                .GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account)
                 .GetAwaiter()
                 .GetResult();
-            var result = _client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
-                    enginevalue.engine_id.account_id, Endpoint, GetAccessToken()).GetAwaiter()
+            var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
+                    enginevalue.engine_id.account_id).GetAwaiter()
                 .GetResult();
             Engine = result;
             return result;
@@ -287,7 +254,6 @@ namespace FireboltDotNetSdk.Client
         public override void Close()
         {
             _connectionState.State = ConnectionState.Closed;
-            _loginToken = null;
         }
 
         /// <summary>
@@ -301,20 +267,6 @@ namespace FireboltDotNetSdk.Client
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
             throw new NotImplementedException();
-        }
-
-        private class Token
-        {
-            public Token(string? accessToken, string? refreshToken, string? tokenExpired)
-            {
-                AccessToken = accessToken;
-                RefreshToken = refreshToken;
-                TokenExpired = tokenExpired;
-            }
-
-            public string? AccessToken { get; }
-            public string? RefreshToken { get; }
-            public string? TokenExpired { get; }
         }
     }
 }

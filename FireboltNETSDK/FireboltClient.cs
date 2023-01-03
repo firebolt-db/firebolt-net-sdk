@@ -24,48 +24,31 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using static FireboltDotNetSdk.Client.FireRequest;
 using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk;
 
-public class FireboltClient : IFireboltClient
+public class FireboltClient
 {
-    private static FireboltClient? _instance;
-    private static readonly object Mutex = new();
+
     private readonly Lazy<JsonSerializerSettings> _settings;
-    public HttpClient HttpClient { get; }
+    private HttpClient _httpClient;
 
-    private FireboltClient()
+    private Token? _loginToken;
+    private String _endpoint;
+    private String _username;
+    private String _password;
+
+    public FireboltClient(String username, String password, String endpoint)
     {
-        HttpClient = CreateClient();
+        _httpClient = HttpClientSingleton.GetInstance();
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
-    }
-
-    /// <summary>
-    ///     Returns a shared instance of the Firebolt client.
-    /// </summary>
-    public static FireboltClient GetInstance()
-    {
-        if (_instance == null)
-            lock (Mutex)
-            {
-                _instance ??= new FireboltClient();
-            }
-        return _instance;
-    }
-
-    private HttpClient CreateClient()
-    {
-        var client = new HttpClient();
-
-        // Disable timeouts
-        client.Timeout = TimeSpan.FromMilliseconds(-1);
-
-        var version = Assembly.GetEntryAssembly()?.GetName()?.Version?.ToString();
-        client.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_" + version);
-        return client;
+        _endpoint = endpoint;
+        _username = username;
+        _password = password;
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
@@ -86,13 +69,11 @@ public class FireboltClient : IFireboltClient
     /// </summary>
     /// <param name="databaseName">Name of the database.</param>
     /// <param name="account"></param>
-    /// <param name="baseUrl"></param>
-    /// <param name="accessToken"></param>
     /// <returns>A successful response.</returns>
     public Task<GetEngineUrlByDatabaseNameResponse> GetEngineUrlByDatabaseName(string? databaseName,
-        string? account, string baseUrl, string? accessToken)
+        string? account)
     {
-        return CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, account, baseUrl, accessToken, CancellationToken.None);
+        return CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, account, CancellationToken.None);
     }
 
     /// <summary>
@@ -100,13 +81,10 @@ public class FireboltClient : IFireboltClient
     /// </summary>
     /// <param name="engine">Name of the engine.</param>
     /// <param name="account">Name of the account</param>
-    /// <param name="baseUrl"></param>
-    /// <param name="accessToken"></param>
     /// <returns>A successful response.</returns>
-    public Task<GetEngineNameByEngineIdResponse> GetEngineUrlByEngineName(string engine, string? account,
-        string baseUrl, string accessToken)
+    public Task<GetEngineNameByEngineIdResponse> GetEngineUrlByEngineName(string engine, string? account)
     {
-        return CoreV1GetEngineUrlByEngineNameAsync(engine, account, baseUrl, accessToken, CancellationToken.None);
+        return CoreV1GetEngineUrlByEngineNameAsync(engine, account, CancellationToken.None);
     }
 
     /// <summary>
@@ -114,13 +92,10 @@ public class FireboltClient : IFireboltClient
     /// </summary>
     /// <param name="engineId">Name of the database.</param>
     /// <param name="accountId"></param>
-    /// <param name="baseUrl"></param>
-    /// <param name="accessToken"></param>
     /// <returns>An Engine url response.</returns>
-    public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string engineId, string accountId,
-        string baseUrl, string? accessToken)
+    public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string engineId, string accountId)
     {
-        return CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None, baseUrl, accessToken);
+        return CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None);
     }
 
     /// <summary>
@@ -129,19 +104,17 @@ public class FireboltClient : IFireboltClient
     /// <param name="engineEndpoint">Engine endpoint (URL)</param>
     /// <param name="databaseName">Database name</param>
     /// <param name="query">SQL query to execute</param>
-    /// <param name="accessToken">an access token</param>
     /// <returns>A successful response.</returns>
-    public Task<string?> ExecuteQuery(string? engineEndpoint, string databaseName, string query, string accessToken)
+    public Task<string?> ExecuteQuery(string? engineEndpoint, string databaseName, string query)
     {
         return ExecuteQueryAsync(engineEndpoint, databaseName, query,
-            new HashSet<string>(), accessToken, CancellationToken.None);
+            new HashSet<string>(), CancellationToken.None);
     }
 
     /// <param name="engineEndpoint">Engine endpoint (URL)</param>
     /// <param name="databaseName">Database name</param>
     /// <param name="query">SQL query to execute</param>
     /// <param name="setParamList"></param>
-    /// <param name="accessToken"></param>
     /// <param name="cancellationToken">
     ///     A cancellation token that can be used by other objects or threads to receive notice of
     ///     cancellation.
@@ -152,13 +125,12 @@ public class FireboltClient : IFireboltClient
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
     public async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string databaseName, string query,
-        HashSet<string> setParamList, string accessToken,
-        CancellationToken cancellationToken)
+        HashSet<string> setParamList, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(databaseName) ||
             string.IsNullOrEmpty(query))
             throw new FireboltException(
-                $"Something parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
+                $"Some parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
 
         var urlBuilder = new StringBuilder();
         var setParam = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
@@ -175,9 +147,9 @@ public class FireboltClient : IFireboltClient
         var url = urlBuilder.ToString();
         request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
 
-        AddAccessToken(request, accessToken);
+        AddAccessToken(request);
 
-        var response = await HttpClient
+        var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
@@ -249,8 +221,6 @@ public class FireboltClient : IFireboltClient
     }
 
     /// <param name="account"></param>
-    /// <param name="baseUrl"></param>
-    /// <param name="accessToken"></param>
     /// <param name="cancellationToken">
     ///     A cancellation token that can be used by other objects or threads to receive notice of
     ///     cancellation.
@@ -261,13 +231,13 @@ public class FireboltClient : IFireboltClient
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
     public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account,
-        string baseUrl, string? accessToken, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         if (account == null) throw new FireboltException("Account name is empty");
 
         //Get на /iam/v2/accounts:getIdByName
         var urlBuilder = new StringBuilder();
-        urlBuilder.Append(baseUrl.TrimEnd('/')).Append("/iam/v2/accounts:getIdByName?");
+        urlBuilder.Append(_endpoint.TrimEnd('/')).Append("/iam/v2/accounts:getIdByName?");
         urlBuilder.Append(Uri.EscapeDataString("account_name") + "=")
             .Append(Uri.EscapeDataString(ConvertToString(account,
                 CultureInfo.InvariantCulture)));
@@ -278,9 +248,9 @@ public class FireboltClient : IFireboltClient
         var url = urlBuilder.ToString();
         request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
 
-        AddAccessToken(request, accessToken);
+        AddAccessToken(request);
 
-        var response = await HttpClient
+        var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
@@ -306,7 +276,7 @@ public class FireboltClient : IFireboltClient
             else
             {
                 var objectResponse = ReadObjectResponseAsync<Error>(response, headers, false, cancellationToken)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false); // TODO: What is the point of this ?
                 throw new FireboltException("An unexpected error response");
             }
         }
@@ -347,7 +317,7 @@ public class FireboltClient : IFireboltClient
         var url = urlBuilder.ToString();
         request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
 
-        var response = await HttpClient
+        var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
         try
@@ -427,12 +397,12 @@ public class FireboltClient : IFireboltClient
     }
 
     private async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string engineId,
-        string accountId, CancellationToken cancellationToken, string baseUrl, string? accessToken)
+        string accountId, CancellationToken cancellationToken)
     {
         if (engineId == null) throw new FireboltException("Engine name is incorrect or missing");
 
         var urlBuilder = new StringBuilder();
-        urlBuilder.Append(baseUrl.TrimEnd('/'))
+        urlBuilder.Append(_endpoint.TrimEnd('/'))
             .Append("/core/v1/accounts/" + accountId + "/engines/" + engineId);
 
         using var request = new HttpRequestMessage();
@@ -441,9 +411,9 @@ public class FireboltClient : IFireboltClient
         var url = urlBuilder.ToString();
         request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
 
-        AddAccessToken(request, accessToken);
+        AddAccessToken(request);
 
-        var response = await HttpClient
+        var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         var disposeResponse = true;
         try
@@ -485,8 +455,6 @@ public class FireboltClient : IFireboltClient
 
     /// <param name="databaseName">Name of the database.</param>
     /// <param name="account"></param>
-    /// <param name="baseUrl"></param>
-    /// <param name="accessToken"></param>
     /// <param name="cancellationToken">
     ///     A cancellation token that can be used by other objects or threads to receive notice of
     ///     cancellation.
@@ -498,23 +466,22 @@ public class FireboltClient : IFireboltClient
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
     private async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName,
-        string? account, string baseUrl,
-        string? accessToken, CancellationToken cancellationToken)
+        string? account, CancellationToken cancellationToken)
     {
         var urlBuilder = new StringBuilder();
 
         if (account == null)
         {
-            urlBuilder.Append(baseUrl.TrimEnd('/'))
+            urlBuilder.Append(_endpoint.TrimEnd('/'))
                 .Append("/core/v1/account/engines:" + "getURLByDatabaseName" + "?")
                 .Append(Uri.EscapeDataString("database_name") + "=")
                 .Append(Uri.EscapeDataString(ConvertToString(databaseName, CultureInfo.InvariantCulture)));
         }
         else
         {
-            var accountId = await GetAccountIdByNameAsync(account, baseUrl, accessToken, cancellationToken);
+            var accountId = await GetAccountIdByNameAsync(account, cancellationToken);
             if (accountId == null) throw new FireboltException("Account id is missing");
-            urlBuilder.Append(baseUrl.TrimEnd('/'))
+            urlBuilder.Append(_endpoint.TrimEnd('/'))
                 .Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getURLByDatabaseName" + "?")
                 .Append(Uri.EscapeDataString("database_name") + "=").Append(Uri.EscapeDataString(
                 ConvertToString(databaseName, CultureInfo.InvariantCulture)));
@@ -523,13 +490,13 @@ public class FireboltClient : IFireboltClient
         using var request = new HttpRequestMessage();
         request.Method = new HttpMethod("GET");
         request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
-        AddAccessToken(request, accessToken);
+        AddAccessToken(request);
 
         var url = urlBuilder.ToString();
         request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
 
 
-        var response = await HttpClient
+        var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         var disposeResponse = true;
         try
@@ -570,15 +537,15 @@ public class FireboltClient : IFireboltClient
     }
 
     private async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine,
-        string? account, string baseUrl, string accessToken, CancellationToken cancellationToken)
+        string? account, CancellationToken cancellationToken)
     {
         if (engine == null) throw new FireboltException("Engine name is incorrect or missing");
 
         var urlBuilder = new StringBuilder();
         var accountName = account ?? "firebolt";
-        var accountId = await GetAccountIdByNameAsync(accountName, baseUrl, accessToken, cancellationToken);
+        var accountId = await GetAccountIdByNameAsync(accountName, cancellationToken);
         if (accountId == null) throw new FireboltException("Account id is missing");
-        urlBuilder.Append(baseUrl.TrimEnd('/'))
+        urlBuilder.Append(_endpoint.TrimEnd('/'))
             .Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getIdByName" + "?")
             .Append(Uri.EscapeDataString("engine_name") + "=").Append(Uri.EscapeDataString(ConvertToString(
                 engine,
@@ -592,9 +559,9 @@ public class FireboltClient : IFireboltClient
         var url = urlBuilder.ToString();
         request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
 
-        AddAccessToken(request, accessToken);
+        AddAccessToken(request);
 
-        var response = await HttpClient
+        var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
         try
@@ -633,9 +600,13 @@ public class FireboltClient : IFireboltClient
         }
     }
 
-    private static void AddAccessToken(HttpRequestMessage request, string? accessToken)
+    private void AddAccessToken(HttpRequestMessage request)
     {
-        if (!string.IsNullOrEmpty(accessToken)) request.Headers.Add("Authorization", "Bearer " + accessToken);
+        if (string.IsNullOrEmpty(_loginToken?.AccessToken))
+        {
+            throw new FireboltException("The Access token is null or empty - EstablishConnection must be called");
+        }
+        request.Headers.Add("Authorization", "Bearer " + _loginToken.AccessToken);
     }
 
     private struct ObjectResponseResult<T>
@@ -649,5 +620,51 @@ public class FireboltClient : IFireboltClient
         public T Object { get; }
 
         public string Text { get; }
+    }
+
+    public async Task EstablishConnection()
+    {
+        try
+        {
+            LoginResponse token;
+            var storedToken = await TokenSecureStorage.GetCachedToken(_username, _password);
+            if (storedToken != null)
+            {
+                token = new LoginResponse
+                {
+                    Access_token = storedToken.token,
+                    Expires_in = storedToken.expiration.ToString()
+                };
+            }
+            else
+            {
+                var credentials = new LoginRequest
+                {
+                    Password = _password,
+                    Username = _username
+                };
+                token = await Login(credentials, _endpoint);
+                await TokenSecureStorage.CacheToken(token, _username, _password);
+            }
+            _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
+        }
+        catch (FireboltException ex)
+        {
+            throw new FireboltException(ex.Message);
+        }
+    }
+
+    public class Token
+    {
+        public Token(string? accessToken, string? refreshToken, string? tokenExpired)
+        {
+            AccessToken = accessToken;
+            RefreshToken = refreshToken;
+            TokenExpired = tokenExpired;
+        }
+
+        public string? AccessToken { get; }
+        public string? RefreshToken { get; }
+        public string? TokenExpired { get; }
     }
 }
