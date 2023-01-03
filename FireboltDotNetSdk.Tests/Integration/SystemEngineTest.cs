@@ -79,7 +79,7 @@ namespace FireboltDotNetSdk.Tests
             cursor.Execute(create_engine_sql);
         }
 
-       // [TestCase("SELECT 1")]
+        // [TestCase("SELECT 1")]
         [TestCase("CREATE DIMENSION TABLE dummy(id INT)")]
         [TestCase("SHOW TABLES")]
         [TestCase("SHOW INDEXES")]
