@@ -205,7 +205,7 @@ public class FireboltClient
 
         return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
     }
-    
+
     /// <param name="cancellationToken">
     ///     A cancellation token that can be used by other objects or threads to receive notice of
     ///     cancellation.
@@ -284,7 +284,7 @@ public class FireboltClient
 
         return await SendAsync<GetEngineNameByEngineIdResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
     }
-    
+
     private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
         CancellationToken cancellationToken)
     {
@@ -310,7 +310,7 @@ public class FireboltClient
         {
             AddAccessToken(request);
         }
-        
+
         var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
@@ -349,7 +349,7 @@ public class FireboltClient
             response.Dispose();
         }
     }
-    
+
     private void AddAccessToken(HttpRequestMessage request)
     {
         if (string.IsNullOrEmpty(_loginToken?.AccessToken))
@@ -358,42 +358,42 @@ public class FireboltClient
         }
         request.Headers.Add("Authorization", "Bearer " + _loginToken.AccessToken);
     }
-    
+
     private static string ConvertToString(object? value, CultureInfo cultureInfo)
     {
         switch (value)
         {
             case Enum:
-            {
-                var name = Enum.GetName(value.GetType(), value);
-                if (name != null)
                 {
-                    var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
-                    if (field != null)
-                        if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
-                            return attribute.Value ?? name;
+                    var name = Enum.GetName(value.GetType(), value);
+                    if (name != null)
+                    {
+                        var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
+                        if (field != null)
+                            if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
+                                return attribute.Value ?? name;
 
-                    var converted = Convert.ToString(Convert.ChangeType(value,
-                        Enum.GetUnderlyingType(value.GetType()), cultureInfo));
-                    return converted ?? string.Empty;
+                        var converted = Convert.ToString(Convert.ChangeType(value,
+                            Enum.GetUnderlyingType(value.GetType()), cultureInfo));
+                        return converted ?? string.Empty;
+                    }
+
+                    break;
                 }
-
-                break;
-            }
             case bool b:
                 return Convert.ToString(b, cultureInfo).ToLowerInvariant();
             case byte[] bytes:
                 return Convert.ToBase64String(bytes);
             default:
-            {
-                if (value?.GetType().IsArray ?? false)
                 {
-                    IEnumerable<object?> array = ((Array)value).OfType<object>();
-                    return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
-                }
+                    if (value?.GetType().IsArray ?? false)
+                    {
+                        IEnumerable<object?> array = ((Array)value).OfType<object>();
+                        return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
+                    }
 
-                break;
-            }
+                    break;
+                }
         }
 
         var result = Convert.ToString(value, cultureInfo);
