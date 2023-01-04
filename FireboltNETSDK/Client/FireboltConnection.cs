@@ -20,7 +20,6 @@ using System.Data.Common;
 using System.Transactions;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
-using static FireboltDotNetSdk.Client.FireRequest;
 using static FireboltDotNetSdk.Client.FireResponse;
 using IsolationLevel = System.Data.IsolationLevel;
 
@@ -174,7 +173,7 @@ namespace FireboltDotNetSdk.Client
         }
 
 
-        public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineUrl)
+        public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineName)
         {
             try
             {
@@ -191,16 +190,16 @@ namespace FireboltDotNetSdk.Client
                 if (ex.Message.Contains("404")) return null;
 
                 throw new FireboltException(
-                    $"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database");
+                    $"Cannot get engine url for engine: {engineName} from {_connectionState.Settings?.Database} database");
             }
         }
 
-        public GetEngineUrlByEngineNameResponse SetEngine(string? engineUrl)
+        public GetEngineUrlByEngineNameResponse SetEngine(string? engineName)
         {
             // try
             // {
             var enginevalue = Client
-                .GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account)
+                .GetEngineUrlByEngineName(engineName, _connectionState.Settings?.Account)
                 .GetAwaiter()
                 .GetResult();
             var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,

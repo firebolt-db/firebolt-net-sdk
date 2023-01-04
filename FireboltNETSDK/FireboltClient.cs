@@ -57,11 +57,10 @@ public class FireboltClient
     ///     Authenticates the user with Firebolt.
     /// </summary>
     /// <param name="loginRequest"></param>
-    /// <param name="baseUrl"></param>
     /// <returns></returns>
-    public Task<LoginResponse> Login(LoginRequest loginRequest, string baseUrl)
+    private Task<LoginResponse> Login(LoginRequest loginRequest)
     {
-        return AuthV1LoginAsync(loginRequest, CancellationToken.None, baseUrl);
+        return AuthV1LoginAsync(loginRequest, CancellationToken.None);
     }
 
     /// <summary>
@@ -132,61 +131,22 @@ public class FireboltClient
             throw new FireboltException(
                 $"Some parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
 
-        var urlBuilder = new StringBuilder();
         var setParam = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
+        var urlBuilder = new StringBuilder();
         urlBuilder.Append("https://").Append(engineEndpoint).Append("?database=").Append(databaseName)
             .Append(setParam).Append("&output_format=JSONCompact");
-
-        using var request = new HttpRequestMessage();
-        var content = new StringContent(query);
-        content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-        request.Content = content;
-        request.Method = new HttpMethod("POST");
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("text/plain"));
-
-        var url = urlBuilder.ToString();
-        request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
-
-        AddAccessToken(request);
-
-        var response = await _httpClient
-            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-            .ConfigureAwait(false);
-
-        try
-        {
-            var headers = response.Headers.ToDictionary(header => header.Key, header => header.Value);
-            foreach (var item in response.Content.Headers)
-                headers[item.Key] = item.Value;
-
-            var objectResponse =
-                await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            if (response.IsSuccessStatusCode)
-            {
-                if (objectResponse == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse ?? string.Empty, headers, null);
-
-                return objectResponse;
-            }
-            else
-            {
-                throw new FireboltException("The query failed with the status code: " + (int)response.StatusCode +
-                                            ", body: " + objectResponse);
-            }
-        }
-        finally
-        {
-
-            response.Dispose();
-        }
+        return await SendAsync<string>(HttpMethod.Post, urlBuilder.ToString(), query, "text/plain", true, cancellationToken);
     }
 
     private async Task<ObjectResponseResult<T?>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
         IReadOnlyDictionary<string, IEnumerable<string>> headers, bool readResponseAsString, CancellationToken cancellationToken)
     {
         if (response == null) return new ObjectResponseResult<T?>(default, string.Empty);
+        if (typeof(T) == typeof(string))
+        {
+            var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            return new ObjectResponseResult<T?>((T)(object)text, text);
+        }
 
         if (readResponseAsString)
         {
@@ -202,21 +162,23 @@ public class FireboltClient
                 throw new FireboltException(message, (int)response.StatusCode, responseText, headers, exception);
             }
         }
-
-        try
+        else
         {
-            await using var responseStream =
-                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var streamReader = new StreamReader(responseStream);
-            using var jsonTextReader = new JsonTextReader(streamReader);
-            var serializer = JsonSerializer.Create(JsonSerializerSettings);
-            var typedBody = serializer.Deserialize<T>(jsonTextReader);
-            return new ObjectResponseResult<T?>(typedBody, string.Empty);
-        }
-        catch (JsonException exception)
-        {
-            var message = "Could not deserialize the response body stream as " + typeof(T).FullName + ".";
-            throw new FireboltException(message, (int)response.StatusCode, string.Empty, headers, exception);
+            try
+            {
+                await using var responseStream =
+                    await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                using var streamReader = new StreamReader(responseStream);
+                using var jsonTextReader = new JsonTextReader(streamReader);
+                var serializer = JsonSerializer.Create(JsonSerializerSettings);
+                var typedBody = serializer.Deserialize<T>(jsonTextReader);
+                return new ObjectResponseResult<T?>(typedBody, string.Empty);
+            }
+            catch (JsonException exception)
+            {
+                var message = "Could not deserialize the response body stream as " + typeof(T).FullName + ".";
+                throw new FireboltException(message, (int)response.StatusCode, string.Empty, headers, exception);
+            }
         }
     }
 
@@ -235,59 +197,15 @@ public class FireboltClient
     {
         if (account == null) throw new FireboltException("Account name is empty");
 
-        //Get на /iam/v2/accounts:getIdByName
         var urlBuilder = new StringBuilder();
-        urlBuilder.Append(_endpoint.TrimEnd('/')).Append("/iam/v2/accounts:getIdByName?");
-        urlBuilder.Append(Uri.EscapeDataString("account_name") + "=")
-            .Append(Uri.EscapeDataString(ConvertToString(account,
-                CultureInfo.InvariantCulture)));
-        using var request = new HttpRequestMessage();
-        request.Method = new HttpMethod("GET");
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+        urlBuilder.Append(_endpoint)
+            .Append("/iam/v2/accounts:getIdByName?");
+        urlBuilder.Append(Uri.EscapeDataString("accountName") + "=")
+            .Append(Uri.EscapeDataString(ConvertToString(account, CultureInfo.InvariantCulture)));
 
-        var url = urlBuilder.ToString();
-        request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
-
-        AddAccessToken(request);
-
-        var response = await _httpClient
-            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-            .ConfigureAwait(false);
-
-
-        try
-        {
-            var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
-            foreach (var item in response.Content.Headers)
-                headers[item.Key] = item.Value;
-
-            if (response.IsSuccessStatusCode)
-            {
-                var objectResponse =
-                    await ReadObjectResponseAsync<GetAccountIdByNameResponse>(response, headers, false,
-                        cancellationToken).ConfigureAwait(false);
-
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse.Text, headers, null);
-
-                return objectResponse.Object;
-            }
-            else
-            {
-                var objectResponse = ReadObjectResponseAsync<Error>(response, headers, false, cancellationToken)
-                    .ConfigureAwait(false); // TODO: What is the point of this ?
-                throw new FireboltException("An unexpected error response");
-            }
-        }
-        finally
-        {
-            response.Dispose();
-        }
+        return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
     }
-
-
-
+    
     /// <param name="cancellationToken">
     ///     A cancellation token that can be used by other objects or threads to receive notice of
     ///     cancellation.
@@ -298,102 +216,12 @@ public class FireboltClient
     /// <param name="body">Login credentials</param>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    private async Task<LoginResponse> AuthV1LoginAsync(LoginRequest body, CancellationToken cancellationToken,
-        string baseUrl)
+    private async Task<LoginResponse> AuthV1LoginAsync(LoginRequest body, CancellationToken cancellationToken)
     {
         if (body == null)
             throw new ArgumentNullException(nameof(body));
 
-        var urlBuilder = new StringBuilder();
-        urlBuilder.Append(baseUrl.TrimEnd('/')).Append("/auth/v1/login");
-
-        using var request = new HttpRequestMessage();
-        var content = new StringContent(JsonConvert.SerializeObject(body, _settings.Value));
-        content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-        request.Content = content;
-        request.Method = new HttpMethod("POST");
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
-
-        var url = urlBuilder.ToString();
-        request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
-
-        var response = await _httpClient
-            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-
-        try
-        {
-            var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
-            foreach (var item in response.Content.Headers)
-                headers[item.Key] = item.Value;
-
-            if (response.IsSuccessStatusCode)
-            {
-                var objectResponse =
-                    await ReadObjectResponseAsync<LoginResponse>(response, headers, false, cancellationToken)
-                        .ConfigureAwait(false);
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)HttpStatusCode.OK,
-                        objectResponse.Text, headers, null);
-
-                return objectResponse.Object;
-            }
-            else
-            {
-                var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, false, cancellationToken)
-                    .ConfigureAwait(false);
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse.Text, headers, null);
-
-                throw new FireboltException<Error>("An unexpected error response", (int)response.StatusCode, objectResponse.Text,
-                    headers, objectResponse.Object, null);
-            }
-        }
-        finally
-        {
-            response.Dispose();
-        }
-    }
-
-    private static string ConvertToString(object? value, CultureInfo cultureInfo)
-    {
-        switch (value)
-        {
-            case Enum:
-                {
-                    var name = Enum.GetName(value.GetType(), value);
-                    if (name != null)
-                    {
-                        var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
-                        if (field != null)
-                            if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
-                                return attribute.Value ?? name;
-
-                        var converted = Convert.ToString(Convert.ChangeType(value,
-                            Enum.GetUnderlyingType(value.GetType()), cultureInfo));
-                        return converted ?? string.Empty;
-                    }
-
-                    break;
-                }
-            case bool b:
-                return Convert.ToString(b, cultureInfo).ToLowerInvariant();
-            case byte[] bytes:
-                return Convert.ToBase64String(bytes);
-            default:
-                {
-                    if (value?.GetType().IsArray ?? false)
-                    {
-                        IEnumerable<object?> array = ((Array)value).OfType<object>();
-                        return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
-                    }
-
-                    break;
-                }
-        }
-
-        var result = Convert.ToString(value, cultureInfo);
-        return result ?? "";
+        return await SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + "/auth/v1/login", JsonConvert.SerializeObject(body, _settings.Value), false, cancellationToken);
     }
 
     private async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string engineId,
@@ -402,55 +230,8 @@ public class FireboltClient
         if (engineId == null) throw new FireboltException("Engine name is incorrect or missing");
 
         var urlBuilder = new StringBuilder();
-        urlBuilder.Append(_endpoint.TrimEnd('/'))
-            .Append("/core/v1/accounts/" + accountId + "/engines/" + engineId);
-
-        using var request = new HttpRequestMessage();
-        request.Method = new HttpMethod("GET");
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
-        var url = urlBuilder.ToString();
-        request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
-
-        AddAccessToken(request);
-
-        var response = await _httpClient
-            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-        var disposeResponse = true;
-        try
-        {
-            var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
-            foreach (var item in response.Content.Headers)
-                headers[item.Key] = item.Value;
-
-            if (response.IsSuccessStatusCode)
-            {
-                var objectResponse =
-                    await ReadObjectResponseAsync<GetEngineUrlByEngineNameResponse>(response, headers, false,
-                        cancellationToken).ConfigureAwait(false);
-
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse.Text, headers, null);
-
-                return objectResponse.Object;
-            }
-            else
-            {
-                var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, false, cancellationToken)
-                    .ConfigureAwait(false);
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse.Text, headers, null);
-
-                throw new FireboltException<Error>("An unexpected error response", (int)response.StatusCode, objectResponse.Text,
-                    headers, objectResponse.Object, null);
-            }
-        }
-        finally
-        {
-            if (disposeResponse)
-                response.Dispose();
-        }
+        urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId + "/engines/" + engineId);
+        return await SendAsync<GetEngineUrlByEngineNameResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
     }
 
     /// <param name="databaseName">Name of the database.</param>
@@ -459,7 +240,6 @@ public class FireboltClient
     ///     A cancellation token that can be used by other objects or threads to receive notice of
     ///     cancellation.
     /// </param>
-    /// <param name="engine"></param>
     /// <summary>
     ///     Returns engine URL by database name given.
     /// </summary>
@@ -472,8 +252,7 @@ public class FireboltClient
 
         if (account == null)
         {
-            urlBuilder.Append(_endpoint.TrimEnd('/'))
-                .Append("/core/v1/account/engines:" + "getURLByDatabaseName" + "?")
+            urlBuilder.Append(_endpoint).Append("/core/v1/account/engines:" + "getURLByDatabaseName" + "?")
                 .Append(Uri.EscapeDataString("database_name") + "=")
                 .Append(Uri.EscapeDataString(ConvertToString(databaseName, CultureInfo.InvariantCulture)));
         }
@@ -481,59 +260,11 @@ public class FireboltClient
         {
             var accountId = await GetAccountIdByNameAsync(account, cancellationToken);
             if (accountId == null) throw new FireboltException("Account id is missing");
-            urlBuilder.Append(_endpoint.TrimEnd('/'))
-                .Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getURLByDatabaseName" + "?")
+            urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getURLByDatabaseName" + "?")
                 .Append(Uri.EscapeDataString("database_name") + "=").Append(Uri.EscapeDataString(
                 ConvertToString(databaseName, CultureInfo.InvariantCulture)));
         }
-
-        using var request = new HttpRequestMessage();
-        request.Method = new HttpMethod("GET");
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
-        AddAccessToken(request);
-
-        var url = urlBuilder.ToString();
-        request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
-
-
-        var response = await _httpClient
-            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-        var disposeResponse = true;
-        try
-        {
-            var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
-            foreach (var item in response.Content.Headers)
-                headers[item.Key] = item.Value;
-
-            if (response.IsSuccessStatusCode)
-            {
-                var objectResponse =
-                    await ReadObjectResponseAsync<GetEngineUrlByDatabaseNameResponse>(response, headers, false,
-                        cancellationToken).ConfigureAwait(false);
-
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse.Text, headers, null);
-
-                return objectResponse.Object;
-            }
-            else
-            {
-                var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, false, cancellationToken)
-                    .ConfigureAwait(false);
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse.Text, headers, null);
-
-                throw new FireboltException<Error>("An unexpected error response", (int)response.StatusCode, objectResponse.Text,
-                    headers, objectResponse.Object, null);
-            }
-        }
-        finally
-        {
-            if (disposeResponse)
-                response.Dispose();
-        }
+        return await SendAsync<GetEngineUrlByDatabaseNameResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
     }
 
     private async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine,
@@ -541,29 +272,49 @@ public class FireboltClient
     {
         if (engine == null) throw new FireboltException("Engine name is incorrect or missing");
 
-        var urlBuilder = new StringBuilder();
         var accountName = account ?? "firebolt";
         var accountId = await GetAccountIdByNameAsync(accountName, cancellationToken);
         if (accountId == null) throw new FireboltException("Account id is missing");
-        urlBuilder.Append(_endpoint.TrimEnd('/'))
-            .Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getIdByName" + "?")
+
+        var urlBuilder = new StringBuilder();
+        urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getIdByName" + "?")
             .Append(Uri.EscapeDataString("engine_name") + "=").Append(Uri.EscapeDataString(ConvertToString(
                 engine,
                 CultureInfo.InvariantCulture)));
 
+        return await SendAsync<GetEngineNameByEngineIdResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
+    }
+    
+    private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
+        CancellationToken cancellationToken)
+    {
+        return await SendAsync<T>(method, uri, body, "application/json", requiresAuth, cancellationToken);
+    }
 
+    private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, string bodyType, bool needsAccessToken, CancellationToken cancellationToken)
+    {
         using var request = new HttpRequestMessage();
-        request.Method = new HttpMethod("GET");
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+        request.Method = method;
+        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(bodyType));
 
-        var url = urlBuilder.ToString();
-        request.RequestUri = new Uri(url, UriKind.RelativeOrAbsolute);
+        if (body != null)
+        {
+            var content = new StringContent(body);
+            content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
+            request.Content = content;
+        }
 
-        AddAccessToken(request);
+        request.RequestUri = new Uri(uri, UriKind.RelativeOrAbsolute);
 
+        if (needsAccessToken)
+        {
+            AddAccessToken(request);
+        }
+        
         var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
+
         try
         {
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
@@ -572,26 +323,25 @@ public class FireboltClient
 
             if (response.IsSuccessStatusCode)
             {
-                var objectResponse =
-                    await ReadObjectResponseAsync<GetEngineNameByEngineIdResponse>(response, headers, false,
-                        cancellationToken).ConfigureAwait(false);
-
+                var objectResponse = await ReadObjectResponseAsync<T>(response, headers, false, cancellationToken).ConfigureAwait(false);
                 if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
+                    throw new FireboltException("Response was null which was not expected.", (int)HttpStatusCode.OK,
                         objectResponse.Text, headers, null);
 
                 return objectResponse.Object;
             }
             else
             {
-                var objectResponse = await ReadObjectResponseAsync<Error>(response, headers, false, cancellationToken)
+                var objectResponse = await ReadObjectResponseAsync<ResponseError>(response, headers, false, cancellationToken)
                     .ConfigureAwait(false);
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", (int)response.StatusCode,
-                        objectResponse.Text, headers, null);
-
-                throw new FireboltException<Error>("An unexpected error response", (int)response.StatusCode, objectResponse.Text,
-                    headers, objectResponse.Object, null);
+                if (objectResponse.Object != null)
+                {
+                    throw new FireboltException($"Received an unexpected status code {(int)response.StatusCode} with the response: {objectResponse.Object.message} ");
+                }
+                else
+                {
+                    throw new FireboltException($"Received an unexpected status code {(int)response.StatusCode}");
+                }
             }
         }
         finally
@@ -599,7 +349,7 @@ public class FireboltClient
             response.Dispose();
         }
     }
-
+    
     private void AddAccessToken(HttpRequestMessage request)
     {
         if (string.IsNullOrEmpty(_loginToken?.AccessToken))
@@ -607,6 +357,47 @@ public class FireboltClient
             throw new FireboltException("The Access token is null or empty - EstablishConnection must be called");
         }
         request.Headers.Add("Authorization", "Bearer " + _loginToken.AccessToken);
+    }
+    
+    private static string ConvertToString(object? value, CultureInfo cultureInfo)
+    {
+        switch (value)
+        {
+            case Enum:
+            {
+                var name = Enum.GetName(value.GetType(), value);
+                if (name != null)
+                {
+                    var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
+                    if (field != null)
+                        if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
+                            return attribute.Value ?? name;
+
+                    var converted = Convert.ToString(Convert.ChangeType(value,
+                        Enum.GetUnderlyingType(value.GetType()), cultureInfo));
+                    return converted ?? string.Empty;
+                }
+
+                break;
+            }
+            case bool b:
+                return Convert.ToString(b, cultureInfo).ToLowerInvariant();
+            case byte[] bytes:
+                return Convert.ToBase64String(bytes);
+            default:
+            {
+                if (value?.GetType().IsArray ?? false)
+                {
+                    IEnumerable<object?> array = ((Array)value).OfType<object>();
+                    return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
+                }
+
+                break;
+            }
+        }
+
+        var result = Convert.ToString(value, cultureInfo);
+        return result ?? "";
     }
 
     private struct ObjectResponseResult<T>
@@ -643,7 +434,7 @@ public class FireboltClient
                     Password = _password,
                     Username = _username
                 };
-                token = await Login(credentials, _endpoint);
+                token = await Login(credentials);
                 await TokenSecureStorage.CacheToken(token, _username, _password);
             }
             _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
