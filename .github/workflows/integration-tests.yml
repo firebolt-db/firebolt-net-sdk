@@ -58,7 +58,6 @@ jobs:
           FIREBOLT_PASSWORD: ${{ env.PASSWORD }}
           FIREBOLT_ENDPOINT: "https://api.${{ github.event.inputs.environment }}.firebolt.io"
           ACCOUNT_NAME: "firebolt"
-          FIREBOLT_ENGINE_URL: ${{ steps.setup.outputs.engine_url }}
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
         run: |
           dotnet test --filter "Category=Integration"        
