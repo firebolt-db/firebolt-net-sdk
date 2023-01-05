@@ -35,12 +35,12 @@ public class FireboltClient
 {
 
     private readonly Lazy<JsonSerializerSettings> _settings;
-    private HttpClient _httpClient;
+    private readonly HttpClient _httpClient;
 
     private Token? _loginToken;
-    private String _endpoint;
-    private String _username;
-    private String _password;
+    private readonly string _endpoint;
+    private readonly string _username;
+    private readonly string _password;
 
     public FireboltClient(String username, String password, String endpoint)
     {

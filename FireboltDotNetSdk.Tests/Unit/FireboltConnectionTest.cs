@@ -53,7 +53,7 @@ namespace FireboltDotNetSdk.Tests
         [Ignore("GetEngineUrlByEngineNameResponse does not throw the exception with this message for the moment")]
         public void SetEngineTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=lol;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             try
             {
@@ -82,6 +82,7 @@ namespace FireboltDotNetSdk.Tests
             var conState = new FireboltConnectionState();
             cs.Close();
             That(conState.State, Is.EqualTo(ConnectionState.Closed));
+            That(cs.Client, Is.EqualTo(null));
         }
 
         [TestCase("test")]

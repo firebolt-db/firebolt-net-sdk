@@ -18,7 +18,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT -30000000000 as int64")]
         public void ExecuteTest(string commandText)
         {
-            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -60,7 +60,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void ExecuteTestInvalidCreds()
+        public void ExecuteTestInvalidCredentials()
         {
             var connString = $"database={Database};username={Username};password=wrongPassword;endpoint={Endpoint};";
 

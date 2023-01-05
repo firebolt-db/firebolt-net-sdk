@@ -32,7 +32,7 @@ namespace FireboltDotNetSdk.Client
     {
         private readonly FireboltConnectionState _connectionState;
 
-        public FireboltClient Client { get; private set; }
+        public FireboltClient? Client { get; private set; }
 
         public GetEngineUrlByDatabaseNameResponse? DefaultEngine;
 
@@ -91,7 +91,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
+        /// Initializes a new instance of <see cref="FireboltConnection"/> with the settings.
         /// </summary>
         /// <param name="stringBuilder">The connection string builder which will be used for building the connection settings.</param>
         public FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
@@ -253,6 +253,7 @@ namespace FireboltDotNetSdk.Client
         public override void Close()
         {
             _connectionState.State = ConnectionState.Closed;
+            Client = null;
         }
 
         /// <summary>
