@@ -29,7 +29,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteWrongWaySelectTest(string commandText)
         {
             var cs = new FireboltCommand();
-            FireboltException exception = Assert.Throws<FireboltException>(() =>  cs.Execute(commandText));
+            FireboltException exception = Assert.Throws<FireboltException>(() => cs.Execute(commandText));
             Assert.That(exception.Message, Is.EqualTo("Response is empty while GetOriginalJSONData"));
         }
 
@@ -37,7 +37,7 @@ namespace FireboltDotNetSdk.Tests
         public void GetOriginalJsonDataExceptionTest()
         {
             var cs = new FireboltCommand();
-            FireboltException exception = Assert.Throws<FireboltException>(() =>  cs.GetOriginalJsonData());
+            FireboltException exception = Assert.Throws<FireboltException>(() => cs.GetOriginalJsonData());
             Assert.That(exception.Message, Is.EqualTo("Response is empty while GetOriginalJSONData"));
         }
 
@@ -59,7 +59,7 @@ namespace FireboltDotNetSdk.Tests
         public void RowCountExcecptionTest()
         {
             var cs = new FireboltCommand();
-            FireboltException exception = Assert.Throws<FireboltException>(() =>  cs.RowCount());
+            FireboltException exception = Assert.Throws<FireboltException>(() => cs.RowCount());
             Assert.That(exception.Message, Is.EqualTo("RowCount is missing"));
         }
 
@@ -84,7 +84,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void FormDataForResponseInvalidTest()
         {
-            FireboltException exception = Assert.Throws<FireboltException>(() =>   FireboltCommand.FormDataForResponse(null));
+            FireboltException exception = Assert.Throws<FireboltException>(() => FireboltCommand.FormDataForResponse(null));
             Assert.That(exception.Message, Is.EqualTo("JSON data is missing"));
         }
 
