@@ -25,6 +25,7 @@ namespace FireboltDotNetSdk.Tests
 
             CreateEngine(cursor, EngineName, "SPEC = B1");
             CreateDatabase(cursor, DatabaseName, EngineName);
+            Thread.Sleep(10000);
         }
 
         [OneTimeTearDown]
