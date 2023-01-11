@@ -21,7 +21,7 @@ namespace FireboltDotNetSdk.Exception
     {
         private int StatusCode { get; set; }
 
-        private string Response { get; set; }
+        internal string Response { get; set; }
 
         private IReadOnlyDictionary<string, IEnumerable<string>> Headers { get; set; }
 

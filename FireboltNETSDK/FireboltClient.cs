@@ -332,10 +332,10 @@ public class FireboltClient
             }
             else
             {
-                String? message;
+                String? errorMessage;
                 try
                 {
-                    message = (await ReadObjectResponseAsync<ResponseError?>(response, headers, true, cancellationToken)
+                    errorMessage = (await ReadObjectResponseAsync<ResponseError?>(response, headers, true, cancellationToken)
                             .ConfigureAwait(false)).Object?.message;
                 }
                 catch (FireboltException exception)
@@ -347,14 +347,13 @@ public class FireboltClient
                     }
                     else
                     {
-                        message = (await ReadObjectResponseAsync<string?>(response, headers, true, cancellationToken)
-                            .ConfigureAwait(false)).Object;
+                        errorMessage = exception.Response;
                     }
                 }
 
-                if (message != null)
+                if (errorMessage != null)
                 {
-                    throw new FireboltException($"Received an unexpected status code from the server: {(int)response.StatusCode} with the response: {message} ");
+                    throw new FireboltException($"Received an unexpected status code from the server: {(int)response.StatusCode} with the response: {errorMessage} ");
                 }
                 else
                 {
