@@ -335,7 +335,7 @@ public class FireboltClient
                 String? message;
                 try
                 {
-                    message = (await ReadObjectResponseAsync<ResponseError?>(response, headers, false, cancellationToken)
+                    message = (await ReadObjectResponseAsync<ResponseError?>(response, headers, true, cancellationToken)
                             .ConfigureAwait(false)).Object?.message;
                 }
                 catch (FireboltException exception)
