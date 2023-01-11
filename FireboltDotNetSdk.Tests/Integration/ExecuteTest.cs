@@ -1,4 +1,5 @@
 using FireboltDotNetSdk.Client;
+using FireboltDotNetSdk.Exception;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -63,18 +64,9 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteTestInvalidCredentials()
         {
             var connString = $"database={Database};username={Username};password=wrongPassword;endpoint={Endpoint};";
-
             using var conn = new FireboltConnection(connString);
-
-            try
-            {
-                conn.Open();
-                Assert.Fail("This test should fail");
-            }
-            catch (System.Exception e)
-            {
-                Assert.IsTrue(e.Message.Contains("403") || e.Message.Contains("429"));
-            }
+            FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.IsTrue(exception.Message.Contains("403") || exception.Message.Contains("429"));
         }
     }
 }

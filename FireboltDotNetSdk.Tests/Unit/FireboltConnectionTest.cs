@@ -55,14 +55,9 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
-            try
-            {
-                cs.SetEngine("default_Engine");
-            }
-            catch (FireboltException ex)
-            {
-                That(ex.Message, Does.StartWith("Cannot get engine: default_Engine from testdb.ib database"));
-            }
+            
+            FireboltException exception = Throws<FireboltException>(() =>  cs.SetEngine("default_Engine"));
+            That(exception.Message, Does.StartWith("Cannot get engine: default_Engine from testdb.ib database"));
         }
 
         [Test]
@@ -98,14 +93,8 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
-            try
-            {
-                cs.OpenAsync();
-            }
-            catch (FireboltException ex)
-            {
-                That(ex.Message, Is.EqualTo("Password is missing"));
-            }
+            FireboltException exception = ThrowsAsync<FireboltException>(() =>  cs.OpenAsync());
+            That(exception.Message, Is.EqualTo("Password is missing"));
         }
 
         [Test]
@@ -122,14 +111,8 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=password;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
-            try
-            {
-                cs.OpenAsync();
-            }
-            catch (System.Exception ex)
-            {
-                That(ex.Message, Is.EqualTo("An invalid request URI was provided. Either the request URI must be an absolute URI or BaseAddress must be set."));
-            }
+            InvalidOperationException exception = ThrowsAsync<InvalidOperationException>(() =>  cs.OpenAsync());
+            That(exception.Message, Is.EqualTo("An invalid request URI was provided. Either the request URI must be an absolute URI or BaseAddress must be set."));
         }
 
         [Test]
@@ -137,14 +120,8 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
-            try
-            {
-                cs.Open();
-            }
-            catch (System.Exception ex)
-            {
-                That(ex.Message, Is.EqualTo("An invalid request URI was provided. Either the request URI must be an absolute URI or BaseAddress must be set."));
-            }
+            InvalidOperationException exception = Throws<InvalidOperationException>(() =>  cs.Open());
+            That(exception.Message, Is.EqualTo("An invalid request URI was provided. Either the request URI must be an absolute URI or BaseAddress must be set."));
         }
 
         [Test]
