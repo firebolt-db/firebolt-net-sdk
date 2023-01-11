@@ -332,15 +332,32 @@ public class FireboltClient
             }
             else
             {
-                var objectResponse = await ReadObjectResponseAsync<ResponseError>(response, headers, false, cancellationToken)
-                    .ConfigureAwait(false);
-                if (objectResponse.Object != null)
+                ObjectResponseResult<ResponseError?> objectResponseResult;
+                try
                 {
-                    throw new FireboltException($"Received an unexpected status code {(int)response.StatusCode} with the response: {objectResponse.Object.message} ");
+                    objectResponseResult = await ReadObjectResponseAsync<ResponseError?>(response, headers, false, cancellationToken)
+                            .ConfigureAwait(false);
+                }
+                catch (FireboltException exception)
+                {
+                    //If we are unable to parse the exception then we return an error containing only the status code from the server
+                    if (exception.GetBaseException().GetType() != typeof(JsonReaderException))
+                    {
+                        throw exception;
+                    }
+                    else
+                    {
+                        objectResponseResult = new ObjectResponseResult<ResponseError>();
+                    }
+                }
+
+                if (objectResponseResult.Object != null)
+                {
+                    throw new FireboltException($"Received an unexpected status code from the server: {(int)response.StatusCode} with the response: {objectResponseResult.Object.message} ");
                 }
                 else
                 {
-                    throw new FireboltException($"Received an unexpected status code {(int)response.StatusCode}");
+                    throw new FireboltException($"Received an unexpected status code from the server: {(int)response.StatusCode}");
                 }
             }
         }
@@ -349,6 +366,8 @@ public class FireboltClient
             response.Dispose();
         }
     }
+    
+    
 
     private void AddAccessToken(HttpRequestMessage request)
     {
@@ -402,15 +421,15 @@ public class FireboltClient
 
     private struct ObjectResponseResult<T>
     {
-        public ObjectResponseResult(T responseObject, string responseText)
+        public ObjectResponseResult(T? responseObject, string? responseText)
         {
             Object = responseObject;
             Text = responseText;
         }
 
-        public T Object { get; }
+        public T? Object { get; }
 
-        public string Text { get; }
+        public string? Text { get; }
     }
 
     public async Task EstablishConnection()
