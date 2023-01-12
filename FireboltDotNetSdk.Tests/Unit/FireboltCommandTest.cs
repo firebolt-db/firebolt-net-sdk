@@ -209,7 +209,7 @@ namespace FireboltDotNetSdk.Tests
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
             DateTime expectedTimestampNtz = new DateTime(2022, 5, 10, 23, 1, 2, 0);
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNz"));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
         }
 
         [Test]
