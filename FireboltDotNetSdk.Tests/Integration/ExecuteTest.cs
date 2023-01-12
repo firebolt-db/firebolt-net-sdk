@@ -67,7 +67,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.IsTrue(exception.Message.Contains("403") || exception.Message.Contains("429"));
         }
-        
+
         [Test]
         public void ExecuteSelectTimestampNtz()
         {
@@ -80,11 +80,11 @@ namespace FireboltDotNetSdk.Tests
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10 23:01:02.0'::timestampntz");
             DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0);
-            NewMeta newMeta = getFirstRow(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.AreEqual("TimestampNtz", newMeta.Meta);
             Assert.AreEqual(dt, newMeta.Data[0]);
         }
-        
+
         [Test]
         public void ExecuteSelectTimestampPgDate()
         {
@@ -96,12 +96,12 @@ namespace FireboltDotNetSdk.Tests
             conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10'::pgdate");
-            DateTime dt = new DateTime(2022, 5, 10,0,0, 0);
-            NewMeta newMeta = getFirstRow(command.Response);
+            DateTime dt = new DateTime(2022, 5, 10, 0, 0, 0);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.AreEqual("Date", newMeta.Meta);
             Assert.AreEqual(DateOnly.FromDateTime(dt), newMeta.Data[0]);
         }
-        
+
         [Test]
         public void ExecuteSelectTimestampTz()
         {
@@ -113,19 +113,12 @@ namespace FireboltDotNetSdk.Tests
             conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10 23:01:02.0 Europe/Berlin'::timestamptz");
-           
+
             DateTime dt = new DateTime(2022, 5, 10, 22, 1, 2, 0);
-            NewMeta newMeta = getFirstRow(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.AreEqual(dt, newMeta.Data[0]);
             Assert.AreEqual("TimestampTz", newMeta.Meta);
 
-        }
-
-        private NewMeta getFirstRow(string response)
-        {
-            var enumerator = FireboltCommand.FormDataForResponse(response).GetEnumerator();
-            enumerator.MoveNext();
-            return enumerator.Current;
         }
     }
 }

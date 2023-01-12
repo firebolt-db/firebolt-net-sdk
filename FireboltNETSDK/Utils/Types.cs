@@ -43,7 +43,7 @@ namespace FireboltDoNetSdk.Utils
                     case "string": return srcVal.ToString();
                     case "DateTime":
                     case "TimestampNtz":
-                    case "TimestampTz":       
+                    case "TimestampTz":
                         return ConvertToDateTime(srcVal, FireBoltDataType.DateTime);
                     case "Date":
                         return ConvertToDate(srcVal, FireBoltDataType.Date);
@@ -66,7 +66,7 @@ namespace FireboltDoNetSdk.Utils
                     case "Boolean":
                         return srcVal.Buffer[srcVal.Offset] == '1';
                     default:
-                        throw new FireboltException("Invalid destination type: " +destType);
+                        throw new FireboltException("Invalid destination type: " + destType);
                 }
             }
             catch (FireboltException e)
@@ -223,7 +223,7 @@ namespace FireboltDoNetSdk.Utils
 
         private static DateTime ConvertToDateTime(Utf8Buffer srcVal, FireBoltDataType srcType)
         {
-            if (srcType != FireBoltDataType.DateTime 
+            if (srcType != FireBoltDataType.DateTime
                 && srcType != FireBoltDataType.TimestampNtz
                 && srcType != FireBoltDataType.Timestamptz
                )
@@ -232,7 +232,7 @@ namespace FireboltDoNetSdk.Utils
             }
             return DateTime.Parse(srcVal.ToString());
         }
-        
+
         private static DateOnly ConvertToDate(Utf8Buffer srcVal, FireBoltDataType srcType)
         {
             if (srcType != FireBoltDataType.Date)
