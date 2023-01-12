@@ -36,10 +36,10 @@ namespace FireboltDoNetSdk.Utils
                 switch (destType)
                 {
                     case "long":
-                    case "ulong": 
+                    case "ulong":
                         return FastParseInt64(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case "int": 
-                    case "uint": 
+                    case "int":
+                    case "uint":
                         return FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
                     case "decimal": return FastParseDecimal(srcVal.Buffer, srcVal.Offset, srcVal.Length);
                     case "string": return srcVal.ToString();
