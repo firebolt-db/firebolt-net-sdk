@@ -15,13 +15,13 @@
  */
 #endregion
 
-using FireboltDotNetSdk.Exception;
-using FireboltDotNetSdk.Utils;
 using System.Data;
 using System.Data.Common;
 using System.Transactions;
-using static FireboltDotNetSdk.Client.FireRequest;
+using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Utils;
 using static FireboltDotNetSdk.Client.FireResponse;
+using IsolationLevel = System.Data.IsolationLevel;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -30,13 +30,12 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltConnection : DbConnection
     {
-        private FireboltConnectionState _connectionState;
+        private readonly FireboltConnectionState _connectionState;
 
-        public LoginRequest _connectionString;
-
-        public readonly FireboltClient Client;
+        public FireboltClient? Client { get; private set; }
 
         public GetEngineUrlByDatabaseNameResponse? DefaultEngine;
+
         public GetEngineUrlByEngineNameResponse? Engine;
 
         /// <summary>
@@ -92,7 +91,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
+        /// Initializes a new instance of <see cref="FireboltConnection"/> with the settings.
         /// </summary>
         /// <param name="stringBuilder">The connection string builder which will be used for building the connection settings.</param>
         public FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
@@ -103,7 +102,6 @@ namespace FireboltDotNetSdk.Client
             var connectionSettings = stringBuilder.BuildSettings();
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
-            Client = new FireboltClient(Endpoint);
         }
 
         /// <summary>
@@ -158,36 +156,13 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
         public override async Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
-            var credentials = new LoginRequest()
-            {
-                Password = Password,
-                Username = UserName
-            };
             try
             {
-                LoginResponse token;
-                var storedToken = await TokenSecureStorage.GetCachedToken(UserName, Password);
-                if (storedToken != null)
-                {
-                    token = new LoginResponse()
-                    {
-                        Access_token = storedToken.token,
-                        Expires_in = storedToken.expiration.ToString()
-                    };
-                }
-                else
-                {
-                    token = await Client.Login(credentials);
-                    await TokenSecureStorage.CacheToken(token, UserName, Password);
-                }
-
-                Client.SetToken(token);
+                Client = new FireboltClient(UserName, Password, Endpoint);
+                await Client.EstablishConnection();
                 DefaultEngine = SetDefaultEngine(null);
                 OnSessionEstablished();
-                if (DefaultEngine != null)
-                {
-                    return true;
-                }
+                if (DefaultEngine != null) return true;
             }
             catch (FireboltException ex)
             {
@@ -197,7 +172,8 @@ namespace FireboltDotNetSdk.Client
             return false;
         }
 
-        public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineUrl)
+
+        public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineName)
         {
             try
             {
@@ -211,36 +187,31 @@ namespace FireboltDotNetSdk.Client
 
             catch (System.Exception ex)
             {
-                if (ex.Message.Contains("404"))
-                {
-                    return null;
-                }
+                if (ex.Message.Contains("404")) return null;
 
                 throw new FireboltException(
-                    $"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database");
+                    $"Cannot get engine url for engine: {engineName} from {_connectionState.Settings?.Database} database");
             }
-
         }
 
-        public GetEngineUrlByEngineNameResponse SetEngine(string? engineUrl)
+        public GetEngineUrlByEngineNameResponse SetEngine(string? engineName)
         {
-            //            try
-            //            {
-            var enginevalue = Client.GetEngineUrlByEngineName(engineUrl, _connectionState.Settings?.Account).GetAwaiter()
+            // try
+            // {
+            var enginevalue = Client
+                .GetEngineUrlByEngineName(engineName, _connectionState.Settings?.Account)
+                .GetAwaiter()
                 .GetResult();
-            var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id, enginevalue.engine_id.account_id).GetAwaiter()
+            var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
+                    enginevalue.engine_id.account_id).GetAwaiter()
                 .GetResult();
             Engine = result;
             return result;
-
-            //            }
+            // }
             // catch (System.Exception ex)
             // {
-            //     if (ex.Message.Contains("404"))
-            //     {
-            //         return null;
-            //     }
-
+            //     if (ex.Message.Contains("404")) return null;
+            //
             //     throw new FireboltException(
             //         $"Cannot get engine: {engineUrl} from {_connectionState.Settings?.Database} database: {ex.Message}");
             // }
@@ -281,8 +252,8 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public override void Close()
         {
-            Client.ClearToken();
             _connectionState.State = ConnectionState.Closed;
+            Client = null;
         }
 
         /// <summary>
@@ -293,7 +264,7 @@ namespace FireboltDotNetSdk.Client
             OpenAsync().GetAwaiter().GetResult();
         }
 
-        protected override DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)
+        protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
             throw new NotImplementedException();
         }

@@ -1,6 +1,4 @@
-﻿using System;
-using FireboltDotNetSdk.Client;
-using FireboltDotNetSdk.Exception;
+﻿using FireboltDotNetSdk.Exception;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -29,6 +27,6 @@ namespace FireboltDotNetSdk.Tests
         protected static string Password = EnvWithDefault("FIREBOLT_PASSWORD");
         protected static string Endpoint = EnvWithDefault("FIREBOLT_ENDPOINT", "https://api.dev.firebolt.io");
         protected static string Account = EnvWithDefault("FIREBOLT_ACCOUNT", "firebolt");
-        protected static string Engine = EnvWithDefault("FIREBOLT_ENGINE_URL");
+        protected static string Engine = EnvWithDefault("FIREBOLT_ENGINE_NAME");
     }
 }

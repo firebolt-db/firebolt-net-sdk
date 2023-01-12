@@ -1,4 +1,5 @@
 using FireboltDotNetSdk.Client;
+using FireboltDotNetSdk.Exception;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -18,7 +19,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT -30000000000 as int64")]
         public void ExecuteTest(string commandText)
         {
-            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};";
+            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -48,7 +49,8 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select * from information_schema.tables")]
         public void ExecuteSetEngineTest(string commandText)
         {
-            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+            var connString =
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -56,6 +58,15 @@ namespace FireboltDotNetSdk.Tests
 
             var value = conn.CreateCursor().Execute(commandText);
             Assert.IsNotEmpty(value.Data);
+        }
+
+        [Test]
+        public void ExecuteTestInvalidCredentials()
+        {
+            var connString = $"database={Database};username={Username};password=wrongPassword;endpoint={Endpoint};";
+            using var conn = new FireboltConnection(connString);
+            FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.IsTrue(exception.Message.Contains("403") || exception.Message.Contains("429"));
         }
     }
 }

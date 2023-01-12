@@ -21,11 +21,11 @@ namespace FireboltDotNetSdk.Exception
     {
         private int StatusCode { get; set; }
 
-        private string Response { get; set; }
+        internal string Response { get; set; }
 
         private IReadOnlyDictionary<string, IEnumerable<string>> Headers { get; set; }
 
-        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, System.Exception innerException)
+        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, System.Exception? innerException)
             : base(message + "\n\nStatus: " + statusCode + "\nResponse: \n" + ((response == null) ? "(null)" : response.Substring(0, response.Length >= 512 ? 512 : response.Length)), innerException)
         {
             StatusCode = statusCode;
@@ -47,7 +47,7 @@ namespace FireboltDotNetSdk.Exception
     {
         private TResult Result { get; set; }
 
-        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, TResult result, System.Exception innerException)
+        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, TResult result, System.Exception? innerException)
             : base(message, statusCode, response, headers, innerException)
         {
             Result = result;
@@ -56,6 +56,14 @@ namespace FireboltDotNetSdk.Exception
     public abstract class Error
     {
         public int? StatusCode { get; set; }
+
+    }
+
+    public class ResponseError
+    {
+        public string? error { get; set; }
+        public int? code { get; set; }
+        public string? message { get; set; }
 
     }
 

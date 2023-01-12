@@ -1,12 +1,21 @@
 name: Integration tests
 on:
-  workflow_dispatch:
   workflow_call:
-    secrets:
-      FIREBOLT_USERNAME:
+    inputs:
+      environment:
+        default: 'staging'
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run the tests against'
+        type: choice
         required: true
-      FIREBOLT_PASSWORD:
-        required: true
+        default: 'staging'
+        options:
+          - dev
+          - staging
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -22,23 +31,33 @@ jobs:
       - name: Install dependencies
         run: |
           dotnet restore
-
+      - name: Determine env variables
+        run: |
+          if [ "${{ github.event.inputs.environment }}" == 'staging' ]; then
+             echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_STAGING }}" >> "$GITHUB_ENV"
+             echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_STAGING }}" >> "$GITHUB_ENV"
+          else
+             echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_DEV }}" >> "$GITHUB_ENV"
+             echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_DEV }}" >> "$GITHUB_ENV"
+          fi
+      - name: Keep environment name in the summary
+        run: echo '### Ran integration tests against ${{ github.event.inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
       - name: Setup database and engine
         id: setup
         uses: firebolt-db/integration-testing-setup@master
         with:
-          firebolt-username: ${{ secrets.FIREBOLT_USERNAME }}
-          firebolt-password: ${{ secrets.FIREBOLT_PASSWORD }}
-          api-endpoint: "api.staging.firebolt.io"
+          firebolt-username: ${{ env.USERNAME }}
+          firebolt-password: ${{ env.PASSWORD }}
+          api-endpoint: "api.${{ github.event.inputs.environment }}.firebolt.io"
           region: "us-east-1"
 
       - name: Run integration tests
         env:
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
-          FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_USERNAME }}
-          FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_PASSWORD }}
-          API_ENDPOINT: "api.staging.firebolt.io"
+          FIREBOLT_USERNAME: ${{ env.USERNAME }}
+          FIREBOLT_PASSWORD: ${{ env.PASSWORD }}
+          FIREBOLT_ENDPOINT: "https://api.${{ github.event.inputs.environment }}.firebolt.io"
           ACCOUNT_NAME: "firebolt"
-          FIREBOLT_ENGINE_URL: ${{ steps.setup.outputs.engine_url }}
+          FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
         run: |
           dotnet test --filter "Category=Integration"        
