@@ -196,9 +196,9 @@ namespace FireboltDotNetSdk.Tests
             var responseWithTimestampTz =
                 "{\"query\":{\"query_id\": \"1739956EA85D7645\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.0 Europe\\/Berlin' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"2022-05-10 21:01:02+00\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001312549,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000553908,\"time_to_execute\": 0.000173431,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
-            DateTime expectedTimestampTz = new DateTime(2022, 5, 10, 22, 1, 2, 0);
-            Assert.AreEqual(expectedTimestampTz, newMeta.Data[0]);
-            Assert.AreEqual("TimestampTz", newMeta.Meta);
+            DateTime expectedTimestampTz = DateTime.Parse("2022-05-10 21:01:02Z");
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
 
         [Test]
@@ -207,9 +207,9 @@ namespace FireboltDotNetSdk.Tests
             var responseWithTimestampNtz =
                 "{\"query\":{\"query_id\": \"1739956EA85D7646\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.0' AS timestampntz)\",\"type\": \"TimestampNtz\"}],\"data\":[[\"2022-05-10 23:01:02\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001318462,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000547007,\"time_to_execute\": 0.000249659,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
-            DateTime expectedTimestampTz = new DateTime(2022, 5, 10, 23, 1, 2, 0);
-            Assert.AreEqual(expectedTimestampTz, newMeta.Data[0]);
-            Assert.AreEqual("TimestampTz", newMeta.Meta);
+            DateTime expectedTimestampNtz = new DateTime(2022, 5, 10, 23, 1, 2, 0);
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNz"));
         }
 
         [Test]
@@ -219,8 +219,8 @@ namespace FireboltDotNetSdk.Tests
                 "{\"query\":{\"query_id\": \"1739956EA85D7647\"},\"meta\":[{\"name\": \"CAST('2022-05-10' AS pgdate)\",\"type\": \"PGDate\"}],\"data\":[[\"2022-05-10\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001887076,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000528582,\"time_to_execute\": 0.000203717,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
             DateOnly expectedDate = DateOnly.FromDateTime(new DateTime(2022, 5, 10, 23, 1, 2, 0));
-            Assert.AreEqual(expectedDate, newMeta.Data[0]);
-            Assert.AreEqual("Date", newMeta.Meta);
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedDate));
+            Assert.That(newMeta.Meta, Is.EqualTo("Date"));
         }
     }
 }

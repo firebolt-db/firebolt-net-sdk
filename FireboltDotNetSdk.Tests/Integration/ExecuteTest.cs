@@ -81,8 +81,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("SELECT '2022-05-10 23:01:02.0'::timestampntz");
             DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0);
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
-            Assert.AreEqual("TimestampNtz", newMeta.Meta);
-            Assert.AreEqual(dt, newMeta.Data[0]);
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
+            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
         }
 
         [Test]
@@ -98,8 +98,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("SELECT '2022-05-10'::pgdate");
             DateTime dt = new DateTime(2022, 5, 10, 0, 0, 0);
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
-            Assert.AreEqual("Date", newMeta.Meta);
-            Assert.AreEqual(DateOnly.FromDateTime(dt), newMeta.Data[0]);
+            Assert.That(newMeta.Meta, Is.EqualTo("Date"));
+            Assert.That(newMeta.Data[0], Is.EqualTo(DateOnly.FromDateTime(dt)));
         }
 
         [Test]
@@ -114,10 +114,10 @@ namespace FireboltDotNetSdk.Tests
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10 23:01:02.0 Europe/Berlin'::timestamptz");
 
-            DateTime dt = new DateTime(2022, 5, 10, 22, 1, 2, 0);
+            DateTime dt = DateTime.Parse("2022-05-10 21:01:02Z");
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
-            Assert.AreEqual(dt, newMeta.Data[0]);
-            Assert.AreEqual("TimestampTz", newMeta.Meta);
+            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
 
         }
     }
