@@ -69,9 +69,9 @@ namespace FireboltDoNetSdk.Utils
                         throw new FireboltException("Invalid destination type: " + destType);
                 }
             }
-            catch (FireboltException e)
+            catch (FireboltException)
             {
-                throw new FireboltException($"Error converting ' to '. Use GetString() to handle very large values"+ e.ToString());
+                throw new FireboltException($"Error converting ' to '. Use GetString() to handle very large values");
             }
         }
 
