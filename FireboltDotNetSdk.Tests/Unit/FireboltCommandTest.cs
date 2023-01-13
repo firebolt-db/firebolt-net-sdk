@@ -202,7 +202,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
-        
+
         [Test]
         public void TimestampTzWithoutMicrosecondsTest()
         {
