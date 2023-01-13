@@ -234,7 +234,8 @@ namespace FireboltDoNetSdk.Utils
             }
             return DateTime.ParseExact(srcVal.ToString(), new[] {
                 "yyyy-MM-dd HH:mm:ss.FFFFFF", // dateTime without timezone
-                "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone
+                "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone in format +00
+                "yyyy-MM-dd HH:mm:ss.FFFFFFzzz", // date with timezone in format +00:00
                 "yyyy-MM-dd" // date only
             }, CultureInfo.InvariantCulture);
         }

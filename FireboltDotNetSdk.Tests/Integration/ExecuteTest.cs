@@ -122,18 +122,19 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void ExecuteSelectTimestampTzWithUnusualTz()
+        public void ExecuteSelectTimestampTzWithDifferentFormatTz()
         {
             var connString =
                 $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
-
             using var conn = new FireboltConnection(connString);
             conn.Open();
             conn.SetEngine(Engine);
             var command = conn.CreateCursor();
-            command.Execute("SELECT '2022-05-10 23:01:02.123456 Asia/Calcutta'::timestamptz");
+            command.Execute("SET advanced_mode=1");
+            command.Execute("SET time_zone=Asia/Calcutta");
+            command.Execute("SELECT '2022-05-11 23:01:02.123123 Europe/Berlin'::timestamptz");
 
-            DateTime dt = DateTime.Parse("2022-05-10 17:31:02.123456Z");
+            DateTime dt = DateTime.Parse("2022-05-11 21:01:02.123123Z");
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));

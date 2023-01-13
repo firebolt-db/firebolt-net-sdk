@@ -131,7 +131,7 @@ namespace FireboltDotNetSdk.Client
                     if (Connection != null)
                     {
                         Response = Connection.Client
-                            .ExecuteQuery(engineUrl, Connection.Database, newCommandText)
+                            .ExecuteQuery(engineUrl, Connection.Database, SetParamList, newCommandText)
                             .GetAwaiter().GetResult();
                         //return FormDataForResponse(Response); 
                     }

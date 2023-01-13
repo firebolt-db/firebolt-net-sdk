@@ -110,6 +110,20 @@ public class FireboltClient
             new HashSet<string>(), CancellationToken.None);
     }
 
+    /// <summary>
+    ///     Executes a SQL query
+    /// </summary>
+    /// <param name="engineEndpoint">Engine endpoint (URL)</param>
+    /// <param name="databaseName">Database name</param>
+    /// <param name="setParamList">parameters</param>
+    /// <param name="query">SQL query to execute</param>
+    /// <returns>A successful response.</returns>
+    public Task<string?> ExecuteQuery(string? engineEndpoint, string databaseName, HashSet<string> setParamList, string query)
+    {
+        return ExecuteQueryAsync(engineEndpoint, databaseName, query,
+            setParamList, CancellationToken.None);
+    }
+
     /// <param name="engineEndpoint">Engine endpoint (URL)</param>
     /// <param name="databaseName">Database name</param>
     /// <param name="query">SQL query to execute</param>
