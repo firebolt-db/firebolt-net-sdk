@@ -78,8 +78,8 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             conn.SetEngine(Engine);
             var command = conn.CreateCursor();
-            command.Execute("SELECT '2022-05-10 23:01:02.0'::timestampntz");
-            DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0);
+            command.Execute("SELECT '2022-05-10 23:01:02.123455'::timestampntz");
+            DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0).AddTicks(1234550);
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
@@ -112,9 +112,9 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             conn.SetEngine(Engine);
             var command = conn.CreateCursor();
-            command.Execute("SELECT '2022-05-10 23:01:02.0 Europe/Berlin'::timestamptz");
+            command.Execute("SELECT '2022-05-10 23:01:02.123456 Europe/Berlin'::timestamptz");
 
-            DateTime dt = DateTime.Parse("2022-05-10 21:01:02Z");
+            DateTime dt = DateTime.Parse("2022-05-10 21:01:02.123456Z");
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
