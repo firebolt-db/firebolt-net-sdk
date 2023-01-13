@@ -237,5 +237,16 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedDate));
             Assert.That(newMeta.Meta, Is.EqualTo("Date"));
         }
+
+        [Test]
+        public void TimestampNtzWithNonUnixDate()
+        {
+            var responseWithTimestampNtz =
+                "{\"query\":{\"query_id\": \"1739956EA85D7646\"},\"meta\":[{\"name\": \"CAST('0001-05-10 23:01:02.123' AS timestampntz)\",\"type\": \"TimestampNtz\"}],\"data\":[[\"0001-05-10 23:01:02.123\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001318462,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000547007,\"time_to_execute\": 0.000249659,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
+            DateTime expectedTimestampNtz = new DateTime(1, 5, 10, 23, 1, 2, 123);
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
+        }
     }
 }
