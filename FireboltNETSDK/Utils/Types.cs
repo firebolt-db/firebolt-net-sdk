@@ -232,7 +232,11 @@ namespace FireboltDoNetSdk.Utils
             {
                 throw new FireboltException("Cannot convert to DateTime object - wrong timestamp type: " + srcType);
             }
-            return DateTime.Parse(srcVal.ToString());
+            return DateTime.ParseExact(srcVal.ToString(), new[] {
+                "yyyy-MM-dd HH:mm:ss.FFFFFF", // dateTime without timezone
+                "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone
+                "yyyy-MM-dd" // date only
+            }, CultureInfo.InvariantCulture);
         }
 
         private static DateOnly ConvertToDate(Utf8Buffer srcVal, FireBoltDataType srcType)

@@ -194,9 +194,23 @@ namespace FireboltDotNetSdk.Tests
         public void TimestampTzTest()
         {
             var responseWithTimestampTz =
-                "{\"query\":{\"query_id\": \"1739956EA85D7645\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.0 Europe\\/Berlin' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"2022-05-10 21:01:02+00\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001312549,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000553908,\"time_to_execute\": 0.000173431,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+                "{\"query\":{\"query_id\": \"1739956EA85D7645\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.12345 Europe\\/Berlin' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"2022-05-10 21:01:02.12345+00\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001312549,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000553908,\"time_to_execute\": 0.000173431,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
             DateTime expectedTimestampTz = DateTime.Parse("2022-05-10 21:01:02Z");
+            expectedTimestampTz = expectedTimestampTz.AddTicks(1234500);
+
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+        
+        [Test]
+        public void TimestampTzWithoutMicrosecondsTest()
+        {
+            var responseWithTimestampTz =
+                "{\"query\":{\"query_id\": \"1739956EA85D7645\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.0 Europe\\/Berlin' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"2022-05-10 21:01:02.0+00\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001312549,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000553908,\"time_to_execute\": 0.000173431,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
+            DateTime expectedTimestampTz = DateTime.Parse("2022-05-10 21:01:02Z");
+
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
@@ -205,9 +219,10 @@ namespace FireboltDotNetSdk.Tests
         public void TimestampNtzTest()
         {
             var responseWithTimestampNtz =
-                "{\"query\":{\"query_id\": \"1739956EA85D7646\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.0' AS timestampntz)\",\"type\": \"TimestampNtz\"}],\"data\":[[\"2022-05-10 23:01:02\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001318462,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000547007,\"time_to_execute\": 0.000249659,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+                "{\"query\":{\"query_id\": \"1739956EA85D7646\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.123456' AS timestampntz)\",\"type\": \"TimestampNtz\"}],\"data\":[[\"2022-05-10 23:01:02.123456\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001318462,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000547007,\"time_to_execute\": 0.000249659,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
             DateTime expectedTimestampNtz = new DateTime(2022, 5, 10, 23, 1, 2, 0);
+            expectedTimestampNtz = expectedTimestampNtz.AddTicks(1234560);
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
         }
