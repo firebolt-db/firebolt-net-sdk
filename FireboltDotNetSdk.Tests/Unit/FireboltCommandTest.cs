@@ -216,6 +216,41 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void TimestampTzWithoutMicrosecondsWithSecondsInTzTest()
+        {
+            var responseWithTimestampTz =
+                "{\n\t\"query\":\n\t{\n\t\t\"query_id\": \"173ACEC4A4AD8DDD\"\n\t},\n\t\"meta\":\n\t[\n\t\t{\n\t\t\t\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\n\t\t\t\"type\": \"TimestampTz\"\n\t\t}\n\t],\n\n\t\"data\":\n\t[\n\t\t[\"1111-01-05 17:04:42+05:53:28\"]\n\t],\n\n\t\"rows\": 1,\n\n\t\"statistics\":\n\t{\n\t\t\"elapsed\": 0.001197308,\n\t\t\"rows_read\": 1,\n\t\t\"bytes_read\": 1,\n\t\t\"time_before_execution\": 0.000535819,\n\t\t\"time_to_execute\": 0.000163099,\n\t\t\"scanned_bytes_cache\": 0,\n\t\t\"scanned_bytes_storage\": 0\n\t}\n}\n";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
+            DateTime expectedTimestampTz = DateTime.Parse("1111-01-05 11:11:14Z");
+
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+
+        [Test]
+        public void TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest()
+        {
+            var responseWithTimestampTz =
+                "{\n\t\"query\":\n\t{\n\t\t\"query_id\": \"173ACEC4A4AD8DDD\"\n\t},\n\t\"meta\":\n\t[\n\t\t{\n\t\t\t\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\n\t\t\t\"type\": \"TimestampTz\"\n\t\t}\n\t],\n\n\t\"data\":\n\t[\n\t\t[\"1111-01-05 17:04:42.123+05:53:28\"]\n\t],\n\n\t\"rows\": 1,\n\n\t\"statistics\":\n\t{\n\t\t\"elapsed\": 0.001197308,\n\t\t\"rows_read\": 1,\n\t\t\"bytes_read\": 1,\n\t\t\"time_before_execution\": 0.000535819,\n\t\t\"time_to_execute\": 0.000163099,\n\t\t\"scanned_bytes_cache\": 0,\n\t\t\"scanned_bytes_storage\": 0\n\t}\n}\n";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
+            DateTime expectedTimestampTz = DateTime.Parse("1111-01-05 11:11:14.123Z");
+
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+
+        [Test]
+        public void TimestampTzWithNonUnixTimestamp()
+        {
+            var responseWithTimestampTz =
+                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DA0\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42.123456' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42.123456+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001270414,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000541517,\"time_to_execute\": 0.000200035,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
+            DateTime expectedDateTime = DateTime.Parse("1111-01-05 11:11:14.123456Z");
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedDateTime));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+
+        [Test]
         public void TimestampNtzTest()
         {
             var responseWithTimestampNtz =
@@ -248,19 +283,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
         }
-
-        [Test]
-        public void TimestampTzWithNonUnixTimestamp()
-        {
-            var responseWithTimestampTz =
-                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DA0\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42.123456' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42.123456+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001270414,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000541517,\"time_to_execute\": 0.000200035,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
-            DateTime expectedDateTime = DateTime.Parse("1111-01-05 11:11:14.123456Z");
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedDateTime));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
-        }
-
-
 
     }
 }
