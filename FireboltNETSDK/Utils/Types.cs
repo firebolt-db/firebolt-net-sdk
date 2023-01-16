@@ -6,8 +6,10 @@ using System.Collections;
 using System.Data;
 using System.Globalization;
 using System.Text;
+using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using NodaTime.Text;
 
 namespace FireboltDoNetSdk.Utils
 {
@@ -232,12 +234,23 @@ namespace FireboltDoNetSdk.Utils
             {
                 throw new FireboltException("Cannot convert to DateTime object - wrong timestamp type: " + srcType);
             }
-            return DateTime.ParseExact(srcVal.ToString(), new[] {
-                "yyyy-MM-dd HH:mm:ss.FFFFFF", // dateTime without timezone
-                "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone in format +00
-                "yyyy-MM-dd HH:mm:ss.FFFFFFzzz", // date with timezone in format +00:00
-                "yyyy-MM-dd" // date only
-            }, CultureInfo.InvariantCulture);
+            try
+            {
+                return DateTime.ParseExact(srcVal.ToString(), new[]
+                {
+                   "yyyy-MM-dd HH:mm:ss.FFFFFF", // dateTime without timezone
+                   "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone in format +00
+                   "yyyy-MM-dd HH:mm:ss.FFFFFFzzz", // dateTime with timezone in format +00:00
+                    "yyyy-MM-dd" // date only
+                }, CultureInfo.InvariantCulture);
+            }
+            catch (FormatException)
+            {
+                //DateTime.ParseExact does not handle timezones with seconds, so why we try with one last format that supports tz +00:00:00 with OffsetDateTimePattern
+                var pattern = OffsetDateTimePattern.CreateWithInvariantCulture("yyyy-MM-dd HH:mm:ss.FFFFFFo<+HH:mm:ss>");
+                return pattern.Parse(srcVal.ToString()).Value.InFixedZone().ToDateTimeUtc().ToLocalTime();
+            }
+
         }
 
         private static DateOnly ConvertToDate(Utf8Buffer srcVal, FireBoltDataType srcType)

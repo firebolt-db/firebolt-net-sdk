@@ -138,7 +138,62 @@ namespace FireboltDotNetSdk.Tests
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
-
         }
+
+        [Test]
+        public void ExecuteSelectTimestampTzWithTzWithSecondsInTz()
+        {
+            var connString =
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            conn.SetEngine(Engine);
+            var command = conn.CreateCursor();
+            command.Execute("SET advanced_mode=1");
+            command.Execute("SET time_zone=Asia/Calcutta");
+            command.Execute("SELECT '1111-01-05 17:04:42.123456'::timestamptz");
+
+            DateTime dt = DateTime.Parse("1111-01-05 11:11:14.123456Z");
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+
+        [Test]
+        public void ExecuteSelectTimestampTzWithTzWithSecondsInTzWithoutMicroseconds()
+        {
+            var connString =
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            conn.SetEngine(Engine);
+            var command = conn.CreateCursor();
+            command.Execute("SET advanced_mode=1");
+            command.Execute("SET time_zone=Asia/Calcutta");
+            command.Execute("SELECT '1111-01-05 17:04:42'::timestamptz");
+
+            DateTime dt = DateTime.Parse("1111-01-05 11:11:14Z");
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+
+        [Test]
+        public void ExecuteSelectTimestampTzWithTzWithDefaultTz()
+        {
+            var connString =
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            conn.SetEngine(Engine);
+            var command = conn.CreateCursor();
+            command.Execute("SELECT '2022-05-01 12:01:02.123456'::timestamptz");
+
+            DateTime dt = DateTime.Parse("2022-05-01 12:01:02.123456Z");
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+
     }
 }
