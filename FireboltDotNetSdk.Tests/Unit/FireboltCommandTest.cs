@@ -239,7 +239,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void TimestampNtzWithNonUnixDate()
+        public void TimestampNtzWithNonUnixTimestamp()
         {
             var responseWithTimestampNtz =
                 "{\"query\":{\"query_id\": \"1739956EA85D7646\"},\"meta\":[{\"name\": \"CAST('0001-05-10 23:01:02.123' AS timestampntz)\",\"type\": \"TimestampNtz\"}],\"data\":[[\"0001-05-10 23:01:02.123\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001318462,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000547007,\"time_to_execute\": 0.000249659,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
@@ -248,5 +248,19 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
         }
+
+        [Test]
+        public void TimestampTzWithNonUnixTimestamp()
+        {
+            var responseWithTimestampTz =
+                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DA0\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42.123456' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42.123456+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001270414,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000541517,\"time_to_execute\": 0.000200035,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
+            DateTime expectedDateTime = DateTime.Parse("1111-01-05 11:11:14.123456Z");
+            Assert.That(newMeta.Data[0], Is.EqualTo(expectedDateTime));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+
+
+
     }
 }

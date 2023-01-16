@@ -84,23 +84,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
         }
-        
-        [Test]
-        public void ExecuteSelectTimestampNtzWithNonUnixTimestamp()
-        {
-            var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            conn.SetEngine(Engine);
-            var command = conn.CreateCursor();
-            command.Execute("SELECT '1111-05-10 23:01:02.123455'::timestampntz");
-            DateTime dt = new DateTime(1111, 5, 10, 23, 1, 2, 0).AddTicks(1234550);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
-            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
-        }
 
         [Test]
         public void ExecuteSelectTimestampPgDate()
