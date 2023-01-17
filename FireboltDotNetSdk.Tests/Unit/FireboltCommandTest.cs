@@ -302,7 +302,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(null));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
-        
+
         [Test]
         public void NullIntTest()
         {
@@ -313,7 +313,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(null));
             Assert.That(newMeta.Meta, Is.EqualTo("int"));
         }
-        
+
         [Test]
         public void NullStringTest()
         {
