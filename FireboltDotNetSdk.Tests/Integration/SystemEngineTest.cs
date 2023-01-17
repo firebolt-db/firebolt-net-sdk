@@ -7,11 +7,9 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class SystemEngineTest : IntegrationTest
     {
-
-
         private FireboltConnection? Connection;
-        private static string EngineName = "system_engine_dotnet_test";
-        private static string DatabaseName = "system_engine_dotnet_test";
+        private static string newEngineName = "system_engine_dotnet_test";
+        private static string newDatabaseName = "system_engine_dotnet_test";
 
         [OneTimeSetUp]
         public void Init()
@@ -20,11 +18,10 @@ namespace FireboltDotNetSdk.Tests
             Connection = new FireboltConnection(connString);
             Connection.Open();
             Connection.SetEngine("system");
-
+            Cleanup();
             var cursor = Connection.CreateCursor();
-
-            CreateEngine(cursor, EngineName, "SPEC = B1");
-            CreateDatabase(cursor, DatabaseName, EngineName);
+            CreateEngine(cursor, newEngineName, "SPEC = B1");
+            CreateDatabase(cursor, newDatabaseName, newEngineName);
         }
 
         [OneTimeTearDown]
@@ -35,12 +32,18 @@ namespace FireboltDotNetSdk.Tests
                 var cursor = Connection.CreateCursor();
                 try
                 {
-                    cursor.Execute($"DROP ENGINE IF EXISTS {EngineName}");
+                    //We first attach the engine to an existing database as it can't be dropped if not attached
+                    cursor.Execute($"ATTACH ENGINE {newEngineName} TO {Database}");
                 }
-                catch (FireboltException) { };
+                catch (System.Exception) { }
                 try
                 {
-                    cursor.Execute($"DROP DATABASE IF EXISTS {DatabaseName}");
+                    cursor.Execute($"DROP ENGINE IF EXISTS {newEngineName}");
+                }
+                catch (System.Exception) { }
+                try
+                {
+                    cursor.Execute($"DROP DATABASE IF EXISTS {newDatabaseName}");
                 }
                 catch (FireboltException) { };
             }
@@ -48,12 +51,6 @@ namespace FireboltDotNetSdk.Tests
 
         private void CreateDatabase(FireboltCommand cursor, string dbName, string? attachedEngine = null)
         {
-            try
-            {
-                cursor.Execute($"DROP DATABASE {dbName}");
-            }
-            catch (FireboltException) { };
-
             string sql = $"CREATE DATABASE IF NOT EXISTS {dbName}";
             if (attachedEngine != null)
             {
@@ -63,14 +60,6 @@ namespace FireboltDotNetSdk.Tests
         }
         private void CreateEngine(FireboltCommand cursor, string engineName, string? spec = null)
         {
-            try
-            {
-                cursor.Execute($"DROP ENGINE {engineName}");
-            }
-            catch (FireboltException ex)
-            {
-            };
-
             var create_engine_sql = $"CREATE ENGINE IF NOT EXISTS {engineName}";
             if (spec != null)
             {
@@ -98,11 +87,11 @@ namespace FireboltDotNetSdk.Tests
 
             var res = cursor.Execute("SHOW DATABASES");
 
-            Assert.That(res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(DatabaseName));
+            Assert.That(res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(newDatabaseName));
 
         }
 
-        public void CheckEngineExistsWithDB(FireboltCommand cursor, string engineName, string dbName)
+        private void CheckEngineExistsWithDB(FireboltCommand cursor, string engineName, string dbName)
         {
             var res = cursor.Execute("SHOW ENGINES");
 
@@ -121,15 +110,15 @@ namespace FireboltDotNetSdk.Tests
         {
             var cursor = Connection.CreateCursor();
 
-            CheckEngineExistsWithDB(cursor, EngineName, DatabaseName);
+            CheckEngineExistsWithDB(cursor, newEngineName, newDatabaseName);
 
-            cursor.Execute($"DETACH ENGINE {EngineName} FROM {DatabaseName}");
+            cursor.Execute($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}");
 
-            CheckEngineExistsWithDB(cursor, EngineName, "-");
+            CheckEngineExistsWithDB(cursor, newEngineName, "-");
 
-            cursor.Execute($"ATTACH ENGINE {EngineName} TO {DatabaseName}");
+            cursor.Execute($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}");
 
-            CheckEngineExistsWithDB(cursor, EngineName, DatabaseName);
+            CheckEngineExistsWithDB(cursor, newEngineName, newDatabaseName);
 
         }
         private void VerifyEngineSpec(FireboltCommand cursor, string engineName, string spec)
@@ -141,7 +130,7 @@ namespace FireboltDotNetSdk.Tests
         $"Engine {engineName} is missing in SHOW ENGINES"
         );
             Assert.That(
-            res.Data.Select(item => new object[] { item[0], item[2] }), Has.Exactly(1).EqualTo(new object[] { EngineName, spec }),
+            res.Data.Select(item => new object[] { item[0], item[2] }), Has.Exactly(1).EqualTo(new object[] { newEngineName, spec }),
             $"Engine {engineName} should have {spec} spec in SHOW ENGINES"
             );
         }
@@ -151,11 +140,11 @@ namespace FireboltDotNetSdk.Tests
         {
             var cursor = Connection.CreateCursor();
 
-            VerifyEngineSpec(cursor, EngineName, "B1");
+            VerifyEngineSpec(cursor, newEngineName, "B1");
 
-            cursor.Execute($"ALTER ENGINE {EngineName} SET SPEC = B2");
+            cursor.Execute($"ALTER ENGINE {newEngineName} SET SPEC = B2");
 
-            VerifyEngineSpec(cursor, EngineName, "B2");
+            VerifyEngineSpec(cursor, newEngineName, "B2");
 
         }
 
@@ -178,15 +167,15 @@ namespace FireboltDotNetSdk.Tests
         {
             var cursor = Connection.CreateCursor();
 
-            VerifyEngineStatus(cursor, EngineName, "Stopped");
+            VerifyEngineStatus(cursor, newEngineName, "Stopped");
 
-            cursor.Execute($"START ENGINE {EngineName}");
+            cursor.Execute($"START ENGINE {newEngineName}");
 
-            VerifyEngineStatus(cursor, EngineName, "Running");
+            VerifyEngineStatus(cursor, newEngineName, "Running");
 
-            cursor.Execute($"STOP ENGINE {EngineName}");
+            cursor.Execute($"STOP ENGINE {newEngineName}");
 
-            VerifyEngineStatus(cursor, EngineName, "Stopped");
+            VerifyEngineStatus(cursor, newEngineName, "Stopped");
 
         }
 
