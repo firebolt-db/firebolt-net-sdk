@@ -6,6 +6,7 @@ using System.Collections;
 using System.Data;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -20,9 +21,17 @@ namespace FireboltDoNetSdk.Utils
     }
     public static class TypesConverter
     {
+
+        //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
+        private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
+
         private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
-        internal static object ConvertToCSharpVal(string? val, string destType)
+        internal static object? ConvertToCSharpVal(string? val, string destType)
         {
+            if (val == null)
+            {
+                return null;
+            }
             // Create an UTF8Buffer with an offset to get better testing
             var b1 = Encoding.UTF8.GetBytes(val);
             var b2 = new byte[b1.Length + 100];
@@ -264,7 +273,9 @@ namespace FireboltDoNetSdk.Utils
 
         public static object ConvertFireBoltMetaTypes(Meta meta)
         {
-            var csharpType = meta.Type switch
+            Match nullableMatch = Regex.Match(meta.Type, NullableTypePattern);
+            var type = nullableMatch.Success ? nullableMatch.Groups[1].Value : meta.Type;
+            var csharpType = type switch
             {
                 "Int8" => "sbyte",
                 "UInt8" => "byte",

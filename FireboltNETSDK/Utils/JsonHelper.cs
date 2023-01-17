@@ -11,7 +11,7 @@ namespace FireboltDotNetSdk.Utils
         public List<Meta> Meta { get; set; }
 
         [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
-        public List<List<object>> Data { get; set; }
+        public List<List<object?>> Data { get; set; }
 
         [JsonProperty("rows", NullValueHandling = NullValueHandling.Ignore)]
         public long? Rows { get; set; }

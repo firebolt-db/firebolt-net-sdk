@@ -319,7 +319,7 @@ namespace FireboltDotNetSdk.Client
                         {
                             Data = new ArrayList
                             {
-                                TypesConverter.ConvertToCSharpVal(t[j].ToString(),
+                                TypesConverter.ConvertToCSharpVal(t[j]?.ToString(),
                                     (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j]))
                             },
                             Meta = (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])

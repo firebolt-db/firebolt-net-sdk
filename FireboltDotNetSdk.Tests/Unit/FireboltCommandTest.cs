@@ -219,7 +219,7 @@ namespace FireboltDotNetSdk.Tests
         public void TimestampTzWithoutMicrosecondsWithSecondsInTzTest()
         {
             var responseWithTimestampTz =
-                "{\n\t\"query\":\n\t{\n\t\t\"query_id\": \"173ACEC4A4AD8DDD\"\n\t},\n\t\"meta\":\n\t[\n\t\t{\n\t\t\t\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\n\t\t\t\"type\": \"TimestampTz\"\n\t\t}\n\t],\n\n\t\"data\":\n\t[\n\t\t[\"1111-01-05 17:04:42+05:53:28\"]\n\t],\n\n\t\"rows\": 1,\n\n\t\"statistics\":\n\t{\n\t\t\"elapsed\": 0.001197308,\n\t\t\"rows_read\": 1,\n\t\t\"bytes_read\": 1,\n\t\t\"time_before_execution\": 0.000535819,\n\t\t\"time_to_execute\": 0.000163099,\n\t\t\"scanned_bytes_cache\": 0,\n\t\t\"scanned_bytes_storage\": 0\n\t}\n}\n";
+                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DDD\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001197308,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000535819,\"time_to_execute\": 0.000163099,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
             DateTime expectedTimestampTz = DateTime.Parse("1111-01-05 11:11:14Z");
 
@@ -231,7 +231,7 @@ namespace FireboltDotNetSdk.Tests
         public void TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest()
         {
             var responseWithTimestampTz =
-                "{\n\t\"query\":\n\t{\n\t\t\"query_id\": \"173ACEC4A4AD8DDD\"\n\t},\n\t\"meta\":\n\t[\n\t\t{\n\t\t\t\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\n\t\t\t\"type\": \"TimestampTz\"\n\t\t}\n\t],\n\n\t\"data\":\n\t[\n\t\t[\"1111-01-05 17:04:42.123+05:53:28\"]\n\t],\n\n\t\"rows\": 1,\n\n\t\"statistics\":\n\t{\n\t\t\"elapsed\": 0.001197308,\n\t\t\"rows_read\": 1,\n\t\t\"bytes_read\": 1,\n\t\t\"time_before_execution\": 0.000535819,\n\t\t\"time_to_execute\": 0.000163099,\n\t\t\"scanned_bytes_cache\": 0,\n\t\t\"scanned_bytes_storage\": 0\n\t}\n}\n";
+                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DDD\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42.123+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001197308,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000535819,\"time_to_execute\": 0.000163099,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
             DateTime expectedTimestampTz = DateTime.Parse("1111-01-05 11:11:14.123Z");
 
@@ -282,6 +282,47 @@ namespace FireboltDotNetSdk.Tests
             DateTime expectedTimestampNtz = new DateTime(1, 5, 10, 23, 1, 2, 123);
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
+        }
+        [Test]
+        public void NullNothingTest()
+        {
+            var responseWithTimestampNtz =
+                "{\"query\":{\"query_id\": \"173B162657CAA798\"},\"meta\":[{\"name\": \"NULL\",\"type\": \"Nullable(Nothing)\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001364262,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001206089,\"time_to_execute\": 0.000155675,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
+            Assert.That(newMeta.Data[0], Is.EqualTo(null));
+            Assert.That(newMeta.Meta, Is.EqualTo("null"));
+        }
+
+        [Test]
+        public void NullTimestampTzTest()
+        {
+            var responseWithTimestampNtz =
+                "{\"query\":{\"query_id\": \"173B1C44D6EB9C1F\"},\"meta\":[{\"name\": \"CAST(NULL AS timestamptz)\",\"type\": \"Nullable(TimestampTz)\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001241091,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000519624,\"time_to_execute\": 0.000231926,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
+            Assert.That(newMeta.Data[0], Is.EqualTo(null));
+            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+        }
+        
+        [Test]
+        public void NullIntTest()
+        {
+            var responseWithTimestampNtz =
+                "{\"query\":{\"query_id\": \"173B1C44D6EB9C32\"},\"meta\":[{\"name\": \"CAST(NULL AS int)\",\"type\": \"Nullable(Int32)\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001383618,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001199649,\"time_to_execute\": 0.000181567,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
+            Assert.That(newMeta.Data[0], Is.EqualTo(null));
+            Assert.That(newMeta.Meta, Is.EqualTo("int"));
+        }
+        
+        [Test]
+        public void NullStringTest()
+        {
+            var responseWithTimestampNtz =
+                "{\"query\":{\"query_id\": \"173B1C44D6EB9C33\"},\"meta\":[{\"name\": \"CAST(NULL AS text)\",\"type\": \"Nullable(String)\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001355843,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001176689,\"time_to_execute\": 0.000176776,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
+            Assert.That(newMeta.Data[0], Is.EqualTo(null));
+            Assert.That(newMeta.Meta, Is.EqualTo("string"));
         }
 
     }
