@@ -33,7 +33,6 @@ jobs:
     
     - name: Version bump
       run: |
-        # Bump version = <number> in version file
         sed -i "s/^    <FileVersion>.*</FileVersion>$/    <FileVersion>${{ inputs.version }}</FileVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
         sed -i "s/^    <AssemblyVersion>.*</AssemblyVersion>$/    <AssemblyVersion>${{ inputs.version }}</AssemblyVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
         sed -i "s/^    <Version>.*</Version>$/    <Version>${{ inputs.version }}</Version>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
