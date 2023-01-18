@@ -1,0 +1,42 @@
+name: Release new version
+
+on:
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    uses: ./.github/workflows/integration-tests.yml
+    secrets:
+      FIREBOLT_USERNAME_STAGING: ${{ secrets.FIREBOLT_USERNAME_STAGING }}
+      FIREBOLT_PASSWORD_STAGING: ${{ secrets.FIREBOLT_PASSWORD_STAGING }}
+      FIREBOLT_USERNAME_DEV: ${{ secrets.FIREBOLT_USERNAME_DEV }}
+      FIREBOLT_PASSWORD_DEV: ${{ secrets.FIREBOLT_PASSWORD_DEV }}
+    with:
+      environment: dev
+
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: integration-tests
+    steps:    
+    - name: Check out code
+      uses: actions/checkout@v2
+    
+    - name: Set up .NET 6.0
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0
+
+    - name: Build package
+      run: |
+        dotnet restore
+        dotnet build
+        dotnet pack
+      shell: bash
+
+    - name: Publish package on Nuget
+      run: |
+        PKG_PATH=$(ls FireboltNETSDK/bin/Debug/FireboltNetSDK.*.nupkg)
+        dotnet nuget push $PKG_PATH --api-key ${{ secrets.PUBLISH_API_KEY }}
+      shell: bash
