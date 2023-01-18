@@ -31,14 +31,22 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.RELEASE_PAT }}
     
+    - name: Setup git config
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "<>"
+      shell: bash
+
     - name: Version bump
       run: |
-        sed -i "s/^    <FileVersion>.*</FileVersion>$/    <FileVersion>${{ inputs.version }}</FileVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <AssemblyVersion>.*</AssemblyVersion>$/    <AssemblyVersion>${{ inputs.version }}</AssemblyVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <Version>.*</Version>$/    <Version>${{ inputs.version }}</Version>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>0.0.994<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>0.0.994<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <Version>.*<\/Version>/    <Version>0.0.994<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        git branch
+        git diff
         git add FireboltNETSDK/FireboltDotNetSdk.csproj
         git commit -m "Automatic version bump to ${{ inputs.version }}"
-        git push origin ci-release-action # TODO: change to main once tested
+        git push origin main
       shell: bash
 
     - name: Publish tag on github
@@ -63,5 +71,5 @@ jobs:
       run: |
         dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.version }}.nupkg \
           --api-key ${{ secrets.PUBLISH_API_KEY }} \
-          --source https://int.nugettest.org/ # TODO: change to real nuget once tested
+          --source https://api.nuget.org/v3/index.json
       shell: bash
