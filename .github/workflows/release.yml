@@ -23,9 +23,9 @@ jobs:
 
     - name: Version bump
       run: |
-        sed -i "s/^    <FileVersion>.*<\/FileVersion>$/    <FileVersion>0.0.999<\/FileVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>$/    <AssemblyVersion>0.0.999<\/AssemblyVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <Version>.*<\/Version>$/    <Version>0.0.999<\/Version>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>0.0.999<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>0.0.999<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <Version>.*<\/Version>/    <Version>0.0.999<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
         git branch
         git diff
         git add FireboltNETSDK/FireboltDotNetSdk.csproj
