@@ -26,6 +26,8 @@ jobs:
         sed -i "s/^    \<FileVersion\>.*\<\/FileVersion\>$/    \<FileVersion\>0.0.999\<\/FileVersion\>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
         sed -i "s/^    \<AssemblyVersion\>.*\<\/AssemblyVersion\>$/    \<AssemblyVersion\>0.0.999\<\/AssemblyVersion\>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
         sed -i "s/^    \<Version\>.*\<\/Version\>$/    \<Version\>0.0.999\<\/Version\>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        git branch
+        git diff
         git add FireboltNETSDK/FireboltDotNetSdk.csproj
         git commit -m "Automatic version bump to 0.0.999"
         git push origin ci-release-action-test # TODO: change to main once tested
