@@ -8,8 +8,9 @@ namespace FireboltDotNetSdk.Tests
     internal class SystemEngineTest : IntegrationTest
     {
         private FireboltConnection? Connection;
-        private static string newEngineName = "system_engine_dotnet_test";
-        private static string newDatabaseName = "system_engine_dotnet_test";
+        private static int suffix = new Random().Next(9999999);
+        private static string newEngineName = "system_engine_dotnet_test_" + suffix;
+        private static string newDatabaseName = "system_engine_dotnet_test_" + suffix;
 
         [OneTimeSetUp]
         public void Init()
@@ -18,7 +19,6 @@ namespace FireboltDotNetSdk.Tests
             Connection = new FireboltConnection(connString);
             Connection.Open();
             Connection.SetEngine("system");
-            Cleanup();
             var cursor = Connection.CreateCursor();
             CreateEngine(cursor, newEngineName, "SPEC = B1");
             CreateDatabase(cursor, newDatabaseName, newEngineName);
