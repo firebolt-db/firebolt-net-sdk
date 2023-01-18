@@ -23,20 +23,20 @@ jobs:
 
     - name: Version bump
       run: |
-        sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>0.0.999<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>0.0.999<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <Version>.*<\/Version>/    <Version>0.0.999<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>0.0.993<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>0.0.993<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <Version>.*<\/Version>/    <Version>0.0.993<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
         git branch
         git diff
         git add FireboltNETSDK/FireboltDotNetSdk.csproj
-        git commit -m "Automatic version bump to 0.0.999"
+        git commit -m "Automatic version bump to 0.0.993"
         git push origin ci-release-action-test # TODO: change to main once tested
       shell: bash
 
     - name: Publish tag on github
       run: |
-        git tag 0.0.999
-        git push origin 0.0.999
+        git tag 0.0.993
+        git push origin 0.0.993
       shell: bash
 
     - name: Set up .NET 6.0
@@ -53,7 +53,7 @@ jobs:
 
     - name: Publish package on Nuget
       run: |
-        dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.0.0.999.nupkg \
+        dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.0.0.993.nupkg \
           --api-key ${{ secrets.PUBLISH_API_KEY }} \
           --source https://int.nugettest.org/ # TODO: change to real nuget once tested
       shell: bash
