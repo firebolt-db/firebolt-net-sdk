@@ -1,29 +1,13 @@
 name: Release new version
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Semantic version to release
-        required: true
-        type: string
+  push:
 
 jobs:
-  integration-tests:
-    uses: ./.github/workflows/integration-tests.yml
-    secrets:
-      FIREBOLT_USERNAME_STAGING: ${{ secrets.FIREBOLT_USERNAME_STAGING }}
-      FIREBOLT_PASSWORD_STAGING: ${{ secrets.FIREBOLT_PASSWORD_STAGING }}
-      FIREBOLT_USERNAME_DEV: ${{ secrets.FIREBOLT_USERNAME_DEV }}
-      FIREBOLT_PASSWORD_DEV: ${{ secrets.FIREBOLT_PASSWORD_DEV }}
-    with:
-      environment: dev
-
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: integration-tests
     steps:    
     - name: Check out code
       uses: actions/checkout@v2
@@ -33,18 +17,18 @@ jobs:
     
     - name: Version bump
       run: |
-        sed -i "s/^    <FileVersion>.*</FileVersion>$/    <FileVersion>${{ inputs.version }}</FileVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <AssemblyVersion>.*</AssemblyVersion>$/    <AssemblyVersion>${{ inputs.version }}</AssemblyVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
-        sed -i "s/^    <Version>.*</Version>$/    <Version>${{ inputs.version }}</Version>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <FileVersion>.*</FileVersion>$/    <FileVersion>0.0.999</FileVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <AssemblyVersion>.*</AssemblyVersion>$/    <AssemblyVersion>0.0.999</AssemblyVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <Version>.*</Version>$/    <Version>0.0.999</Version>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
         git add FireboltNETSDK/FireboltDotNetSdk.csproj
-        git commit -m "Automatic version bump to ${{ inputs.version }}"
-        git push origin ci-release-action # TODO: change to main once tested
+        git commit -m "Automatic version bump to 0.0.999"
+        git push origin ci-release-action-test # TODO: change to main once tested
       shell: bash
 
     - name: Publish tag on github
       run: |
-        git tag ${{ inputs.version }}
-        git push origin ${{ inputs.version }}
+        git tag 0.0.999
+        git push origin 0.0.999
       shell: bash
 
     - name: Set up .NET 6.0
@@ -61,7 +45,7 @@ jobs:
 
     - name: Publish package on Nuget
       run: |
-        dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.version }}.nupkg \
+        dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.0.0.999.nupkg \
           --api-key ${{ secrets.PUBLISH_API_KEY }} \
           --source https://int.nugettest.org/ # TODO: change to real nuget once tested
       shell: bash
