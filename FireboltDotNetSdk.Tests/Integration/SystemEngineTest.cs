@@ -34,10 +34,6 @@ namespace FireboltDotNetSdk.Tests
                 {
                     //We first attach the engine to an existing database as it can't be dropped if not attached
                     cursor.Execute($"ATTACH ENGINE {newEngineName} TO {Database}");
-                }
-                catch (System.Exception) { }
-                try
-                {
                     cursor.Execute($"DROP ENGINE IF EXISTS {newEngineName}");
                 }
                 catch (System.Exception) { }
@@ -163,7 +159,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void StartStopEngineTest()
+        public void StartStopEngineAndDropDbTest()
         {
             var cursor = Connection.CreateCursor();
 
@@ -176,6 +172,7 @@ namespace FireboltDotNetSdk.Tests
             cursor.Execute($"STOP ENGINE {newEngineName}");
 
             VerifyEngineStatus(cursor, newEngineName, "Stopped");
+            cursor.Execute($"DROP DATABASE IF EXISTS {newDatabaseName}");
 
         }
 
