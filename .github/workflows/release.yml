@@ -2,6 +2,11 @@ name: Release new version
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version to release
+        required: true
+        type: string
 
 jobs:
   integration-tests:
@@ -22,7 +27,27 @@ jobs:
     steps:    
     - name: Check out code
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.RELEASE_PAT }}
     
+    - name: Version bump
+      run: |
+        # Bump version = <number> in version file
+        sed -i "s/^    <FileVersion>.*</FileVersion>$/    <FileVersion>${{ inputs.version }}</FileVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <AssemblyVersion>.*</AssemblyVersion>$/    <AssemblyVersion>${{ inputs.version }}</AssemblyVersion>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <Version>.*</Version>$/    <Version>${{ inputs.version }}</Version>$/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        git add FireboltNETSDK/FireboltDotNetSdk.csproj
+        git commit -m "Automatic version bump to ${{ inputs.version }}"
+        git push origin ci-release-action # TODO: change to main once tested
+      shell: bash
+
+    - name: Publish tag on github
+      run: |
+        git tag ${{ inputs.version }}
+        git push origin ${{ inputs.version }}
+      shell: bash
+
     - name: Set up .NET 6.0
       uses: actions/setup-dotnet@v3
       with:
@@ -37,6 +62,7 @@ jobs:
 
     - name: Publish package on Nuget
       run: |
-        PKG_PATH=$(ls FireboltNETSDK/bin/Debug/FireboltNetSDK.*.nupkg)
-        dotnet nuget push $PKG_PATH --api-key ${{ secrets.PUBLISH_API_KEY }}
+        dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.version }}.nupkg \
+          --api-key ${{ secrets.PUBLISH_API_KEY }} \
+          --source https://int.nugettest.org/ # TODO: change to real nuget once tested
       shell: bash
