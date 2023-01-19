@@ -56,11 +56,26 @@ public class FireboltClient
     /// <summary>
     ///     Authenticates the user with Firebolt.
     /// </summary>
-    /// <param name="loginRequest"></param>
+    /// <param name="username"></param>
+    /// <param name="password"></param>
     /// <returns></returns>
-    private Task<LoginResponse> Login(LoginRequest loginRequest)
+    private Task<LoginResponse> Login(string username, string password)
     {
-        return AuthV1LoginAsync(loginRequest, CancellationToken.None);
+        if (IsServiceAccount(username))
+        {
+            var credentials = new UsernamePasswordLoginRequest(username, password);
+            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_USERNAME_PASSWORD_URL, JsonConvert.SerializeObject(credentials, _settings.Value), false, CancellationToken.None);
+        }
+        else
+        {
+            var credentials = new ServiceAccountLoginRequest(username, password);
+            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_SERVICE_ACCOUNT_URL, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
+        }
+    }
+
+    private bool IsServiceAccount(string username)
+    {
+        return username.Contains("@");
     }
 
     /// <summary>
@@ -217,25 +232,7 @@ public class FireboltClient
         urlBuilder.Append(Uri.EscapeDataString("accountName") + "=")
             .Append(Uri.EscapeDataString(ConvertToString(account, CultureInfo.InvariantCulture)));
 
-        return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
-    }
-
-    /// <param name="cancellationToken">
-    ///     A cancellation token that can be used by other objects or threads to receive notice of
-    ///     cancellation.
-    /// </param>
-    /// <summary>
-    ///     Creates new user session
-    /// </summary>
-    /// <param name="body">Login credentials</param>
-    /// <returns>A successful response.</returns>
-    /// <exception cref="FireboltException">A server side error occurred.</exception>
-    private async Task<LoginResponse> AuthV1LoginAsync(LoginRequest body, CancellationToken cancellationToken)
-    {
-        if (body == null)
-            throw new ArgumentNullException(nameof(body));
-
-        return await SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + "/auth/v1/login", JsonConvert.SerializeObject(body, _settings.Value), false, cancellationToken);
+        return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
     }
 
     private async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string engineId,
@@ -245,7 +242,7 @@ public class FireboltClient
 
         var urlBuilder = new StringBuilder();
         urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId + "/engines/" + engineId);
-        return await SendAsync<GetEngineUrlByEngineNameResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
+        return await SendAsync<GetEngineUrlByEngineNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
     }
 
     /// <param name="databaseName">Name of the database.</param>
@@ -278,7 +275,7 @@ public class FireboltClient
                 .Append(Uri.EscapeDataString("database_name") + "=").Append(Uri.EscapeDataString(
                 ConvertToString(databaseName, CultureInfo.InvariantCulture)));
         }
-        return await SendAsync<GetEngineUrlByDatabaseNameResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
+        return await SendAsync<GetEngineUrlByDatabaseNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
     }
 
     private async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine,
@@ -296,7 +293,7 @@ public class FireboltClient
                 engine,
                 CultureInfo.InvariantCulture)));
 
-        return await SendAsync<GetEngineNameByEngineIdResponse>(HttpMethod.Get, urlBuilder.ToString(), null, true, cancellationToken);
+        return await SendAsync<GetEngineNameByEngineIdResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
     }
 
     private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
@@ -305,19 +302,24 @@ public class FireboltClient
         return await SendAsync<T>(method, uri, body, "application/json", requiresAuth, cancellationToken);
     }
 
-    private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, string bodyType, bool needsAccessToken, CancellationToken cancellationToken)
+    private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, string bodyType,
+        bool needsAccessToken, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage();
-        request.Method = method;
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(bodyType));
-
         if (body != null)
         {
             var content = new StringContent(body);
-            content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
-            request.Content = content;
+            content.Headers.ContentType = MediaTypeHeaderValue.Parse(bodyType);
+            return await SendAsync<T>(method, uri, content, needsAccessToken, cancellationToken);
         }
+        return await SendAsync<T>(method, uri, (HttpContent?)null, needsAccessToken, cancellationToken);
+    }
 
+    private async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage();
+        request.Method = method;
+        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+        request.Content = content;
         request.RequestUri = new Uri(uri, UriKind.RelativeOrAbsolute);
 
         if (needsAccessToken)
@@ -462,12 +464,7 @@ public class FireboltClient
             }
             else
             {
-                var credentials = new LoginRequest
-                {
-                    Password = _password,
-                    Username = _username
-                };
-                token = await Login(credentials);
+                token = await Login(_username, _password);
                 await TokenSecureStorage.CacheToken(token, _username, _password);
             }
             _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);

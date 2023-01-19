@@ -195,5 +195,34 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(true));
         }
 
+        [Test]
+        public void ExecuteServiceAccountLogin()
+        {
+            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            var command = conn.CreateCursor();
+            var value = command.Execute("SELECT 1");
+            Assert.That(value.Data[0][0], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ExecuteServiceAccountLoginWithInvalidCredentials()
+        {
+            var connString = $"database={Database};username={ClientId};password=wrongPassword;endpoint={Endpoint};";
+            using var conn = new FireboltConnection(connString);
+            FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.IsTrue(exception.Message.Contains("401"));
+        }
+        [Test]
+        public void ExecuteServiceAccountLoginWithMissingSecret()
+        {
+            var connString = $"database={Database};username={ClientId};password=;endpoint={Endpoint};";
+            using var conn = new FireboltConnection(connString);
+            FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.IsTrue(exception.Message.Contains("Password parameter is missing"));
+        }
+
     }
 }
