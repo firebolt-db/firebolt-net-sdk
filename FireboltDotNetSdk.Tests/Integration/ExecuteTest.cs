@@ -176,5 +176,24 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
 
+        [Test]
+        public void ExecuteSelectBoolean()
+        {
+            var connString =
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            conn.SetEngine(Engine);
+            var command = conn.CreateCursor();
+            command.Execute("SET advanced_mode=1");
+            command.Execute("SET output_format_firebolt_type_names=true");
+            command.Execute("SET bool_output_format=postgres");
+            command.Execute("SELECT true::boolean");
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
+            Assert.That(newMeta.Data[0], Is.EqualTo(true));
+        }
+
     }
 }

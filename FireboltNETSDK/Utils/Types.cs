@@ -17,7 +17,8 @@ namespace FireboltDoNetSdk.Utils
     public enum FireBoltDataType
     {
         Nothing, Nullable, Int8, UInt8, Int16, UInt16, Int32, UInt32, Int64,
-        UInt64, Float32, Float64, String, Date, Date32, DateTime, ARRAY, TimestampNtz, Timestamptz
+        UInt64, Float32, Float64, String, Date, Date32, DateTime, ARRAY, TimestampNtz, Timestamptz,
+        Boolean
     }
     public static class TypesConverter
     {
@@ -77,7 +78,7 @@ namespace FireboltDoNetSdk.Utils
                     case "float":
                         return Convert.ToSingle(srcVal.ToString(), CultureInfo.InvariantCulture);
                     case "Boolean":
-                        return srcVal.Buffer[srcVal.Offset] == '1';
+                        return bool.Parse(srcVal.ToString());
                     default:
                         throw new FireboltException("Invalid destination type: " + destType);
                 }
@@ -297,6 +298,7 @@ namespace FireboltDoNetSdk.Utils
                 "Nothing" => "null",
                 "Nullable" => "null",
                 "decimal" => "decimal",
+                "boolean" => "Boolean",
                 _ => throw new FireboltException("The data type returned from the server is not supported: " + meta.Type),
             };
             return csharpType;
