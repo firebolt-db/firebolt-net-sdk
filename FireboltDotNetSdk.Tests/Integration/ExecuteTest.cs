@@ -221,7 +221,7 @@ namespace FireboltDotNetSdk.Tests
             var connString = $"database={Database};username={ClientId};password=;endpoint={Endpoint};";
             using var conn = new FireboltConnection(connString);
             FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.IsTrue(exception.Message.Contains("Password parameter is missing"));
+            Assert.IsTrue(exception.Message.Contains("Password parameter is missing in the connection string"));
         }
 
     }

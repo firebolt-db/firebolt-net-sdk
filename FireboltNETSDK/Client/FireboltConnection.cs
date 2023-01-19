@@ -46,7 +46,7 @@ namespace FireboltDotNetSdk.Client
 
         public string Password
         {
-            get => _connectionState.Settings?.Password ?? throw new FireboltException("Password parameter is missing");
+            get => _connectionState.Settings?.Password ?? throw new FireboltException("Password parameter is missing in the connection string");
             set => throw new NotImplementedException();
         }
 

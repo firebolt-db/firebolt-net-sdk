@@ -30,8 +30,8 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             var ex = Throws<FireboltException>(
-                delegate { throw new FireboltException("Password parameter is missing"); }) ?? throw new InvalidOperationException();
-            That(ex.Message, Is.EqualTo("Password parameter is missing"));
+                delegate { throw new FireboltException("Password parameter is missing in the connection string"); }) ?? throw new InvalidOperationException();
+            That(ex.Message, Is.EqualTo("Password parameter is missing in the connection string"));
         }
 
         [Test]
@@ -94,7 +94,7 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             FireboltException exception = ThrowsAsync<FireboltException>(() => cs.OpenAsync());
-            That(exception.Message, Is.EqualTo("Password parameter is missing"));
+            That(exception.Message, Is.EqualTo("Password parameter is missing in the connection string"));
         }
 
         [Test]
