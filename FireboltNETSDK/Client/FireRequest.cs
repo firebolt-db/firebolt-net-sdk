@@ -15,21 +15,71 @@
  */
 #endregion
 
+using Newtonsoft.Json;
+
 namespace FireboltDotNetSdk.Client
 {
     public class FireRequest
     {
-        public class LoginRequest
+        public class UsernamePasswordLoginRequest
         {
+            public UsernamePasswordLoginRequest(string username, string password)
+            {
+                Password = password;
+                Username = username;
+            }
+
             /// <summary>
             /// Password.
             /// </summary>
-            public string Password { get; set; }
+            [JsonProperty]
+            private string Password { get; }
 
             /// <summary>
             /// Username.
             /// </summary>
-            public string Username { get; set; }
+            [JsonProperty]
+            private string Username { get; }
+
+        }
+
+        public class ServiceAccountLoginRequest
+        {
+            public ServiceAccountLoginRequest(string clientId, string clientSecret)
+            {
+                ClientId = clientId;
+                ClientSecret = clientSecret;
+                GrantType = "client_credentials";
+            }
+
+            /// <summary>
+            /// Transforms object to a FormUrlEncodedContent object.
+            /// </summary>
+            public FormUrlEncodedContent GetFormUrlEncodedContent()
+            {
+                var values = new Dictionary<string, string>
+                {
+                    { "client_id", ClientId },
+                    { "client_secret", ClientSecret },
+                    { "grant_type", GrantType }
+                };
+                return new FormUrlEncodedContent(values);
+            }
+
+            /// <summary>
+            /// ClientId.
+            /// </summary>
+            private string ClientId { get; }
+
+            /// <summary>
+            /// ClientSecret.
+            /// </summary>
+            private string ClientSecret { get; }
+
+            /// <summary>
+            /// GrantType.
+            /// </summary>
+            private string GrantType { get; }
 
         }
     }

@@ -21,7 +21,8 @@ namespace FireboltDotNetSdk.Utils
     static class Constant
     {
         public static string BaseUrl = "https://api.app.firebolt.io";
-        public static string AUTH_URL = "/auth/v1/login";
+        public static string AUTH_USERNAME_PASSWORD_URL = "/auth/v1/login";
+        public static string AUTH_SERVICE_ACCOUNT_URL = "/auth/v1/token";
 
         public static string DATABASES_URL = "/core/v1/account/databases";
 

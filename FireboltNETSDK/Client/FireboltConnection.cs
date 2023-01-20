@@ -46,7 +46,7 @@ namespace FireboltDotNetSdk.Client
 
         public string Password
         {
-            get => _connectionState.Settings?.Password ?? throw new FireboltException("Password is missing");
+            get => _connectionState.Settings?.Password ?? throw new FireboltException("Password parameter is missing in the connection string");
             set => throw new NotImplementedException();
         }
 
@@ -156,19 +156,11 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
         public override async Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
-            try
-            {
-                Client = new FireboltClient(UserName, Password, Endpoint);
-                await Client.EstablishConnection();
-                DefaultEngine = SetDefaultEngine(null);
-                OnSessionEstablished();
-                if (DefaultEngine != null) return true;
-            }
-            catch (FireboltException ex)
-            {
-                throw new FireboltException(ex.Message);
-            }
-
+            Client = new FireboltClient(UserName, Password, Endpoint);
+            await Client.EstablishConnection();
+            DefaultEngine = SetDefaultEngine(null);
+            OnSessionEstablished();
+            if (DefaultEngine != null) return true;
             return false;
         }
 
