@@ -15,6 +15,14 @@ on:
         required: true
       FIREBOLT_PASSWORD_DEV:
         required: true
+      FIREBOLT_CLIENT_ID_STAGING:
+        required: true
+      FIREBOLT_CLIENT_SECRET_STAGING:
+        required: true
+      FIREBOLT_CLIENT_ID_DEV:
+        required: true
+      FIREBOLT_CLIENT_SECRET_DEV:
+        required: true
   workflow_dispatch:
     inputs:
       environment:
