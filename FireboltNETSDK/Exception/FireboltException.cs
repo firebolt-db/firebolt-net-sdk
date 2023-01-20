@@ -19,14 +19,18 @@ namespace FireboltDotNetSdk.Exception
 {
     public class FireboltException : System.Exception
     {
-        private int StatusCode { get; set; }
+        private int StatusCode { get; }
 
-        internal string Response { get; set; }
+        internal string? Response { get; }
 
-        private IReadOnlyDictionary<string, IEnumerable<string>> Headers { get; set; }
+        private IReadOnlyDictionary<string, IEnumerable<string>>? Headers { get; }
 
-        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, System.Exception? innerException)
-            : base(message + "\n\nStatus: " + statusCode + "\nResponse: \n" + ((response == null) ? "(null)" : response.Substring(0, response.Length >= 512 ? 512 : response.Length)), innerException)
+        public FireboltException(string message, int statusCode, string? response) : this(message, statusCode, response,
+            null, null)
+        { }
+        
+        public FireboltException(string message, int statusCode, string? response, IReadOnlyDictionary<string, IEnumerable<string>>? headers, System.Exception? innerException)
+            : base(FormatServerError(message, statusCode, response), innerException)
         {
             StatusCode = statusCode;
             Response = response;
@@ -39,24 +43,20 @@ namespace FireboltDotNetSdk.Exception
 
         public override string ToString()
         {
-            return $"HTTP Response: \n\n{Response}\n\n{base.ToString()}";
+            return $"HTTP Response: {Environment.NewLine}{Response}{Environment.NewLine}{base.ToString()}";
         }
-    }
 
-    public class FireboltException<TResult> : FireboltException
-    {
-        private TResult Result { get; set; }
-
-        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, TResult result, System.Exception? innerException)
-            : base(message, statusCode, response, headers, innerException)
+        private static string FormatServerError(string error, int statusCode, string? serverError)
         {
-            Result = result;
-        }
-    }
-    public abstract class Error
-    {
-        public int? StatusCode { get; set; }
+            var errorMessage = $"{error}{Environment.NewLine}Status: {statusCode}";
 
+            if (!string.IsNullOrWhiteSpace(serverError))
+            {
+                return $"{errorMessage}\nResponse:\n{serverError.Substring(0, serverError.Length >= 512 ? 512 : serverError.Length)}";
+            }
+
+            return errorMessage;
+        }
     }
 
     public class ResponseError

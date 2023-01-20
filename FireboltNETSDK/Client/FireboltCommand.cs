@@ -120,27 +120,21 @@ namespace FireboltDotNetSdk.Client
             }
             else
             {
-                try
-                {
-                    string newCommandText = commandText;
-                    if (Parameters.Any())
-                    {
-                        newCommandText = GetParamQuery(commandText);
-                    }
 
-                    if (Connection != null)
-                    {
-                        Response = Connection.Client
-                            .ExecuteQuery(engineUrl, Connection.Database, SetParamList, newCommandText)
-                            .GetAwaiter().GetResult();
-                        //return FormDataForResponse(Response); 
-                    }
-                    return GetOriginalJsonData();
-                }
-                catch (FireboltException ex)
+                string newCommandText = commandText;
+                if (Parameters.Any())
                 {
-                    throw new FireboltException(ex.Message);
+                    newCommandText = GetParamQuery(commandText);
                 }
+
+                if (Connection != null)
+                {
+                    Response = Connection.Client
+                        .ExecuteQuery(engineUrl, Connection.Database, SetParamList, newCommandText)
+                        .GetAwaiter().GetResult();
+                    //return FormDataForResponse(Response); 
+                }
+                return GetOriginalJsonData();
             }
         }
 

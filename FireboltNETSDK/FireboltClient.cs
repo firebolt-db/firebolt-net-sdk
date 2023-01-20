@@ -348,33 +348,7 @@ public class FireboltClient
             }
             else
             {
-                String? errorMessage;
-                try
-                {
-                    errorMessage = (await ReadObjectResponseAsync<ResponseError?>(response, headers, true, cancellationToken)
-                            .ConfigureAwait(false)).Object?.message;
-                }
-                catch (FireboltException exception)
-                {
-                    //If we are unable to parse the exception then we return an error containing only the status code from the server
-                    if (exception.GetBaseException().GetType() != typeof(JsonReaderException))
-                    {
-                        throw exception;
-                    }
-                    else
-                    {
-                        errorMessage = exception.Response;
-                    }
-                }
-
-                if (errorMessage != null)
-                {
-                    throw new FireboltException($"Received an unexpected status code from the server: {(int)response.StatusCode} with the response: {errorMessage} ");
-                }
-                else
-                {
-                    throw new FireboltException($"Received an unexpected status code from the server: {(int)response.StatusCode}");
-                }
+                throw await GetFireboltException(cancellationToken, response, headers);
             }
         }
         finally
@@ -383,7 +357,36 @@ public class FireboltClient
         }
     }
 
+    private async Task<FireboltException> GetFireboltException(CancellationToken cancellationToken, HttpResponseMessage response,
+        Dictionary<string, IEnumerable<string>> headers)
+    {
+        String? errorMessage = null;
+        try
+        {
+            errorMessage = (await ReadObjectResponseAsync<ResponseError?>(response, headers, true, cancellationToken)
+                .ConfigureAwait(false)).Object?.message;
+        }
+        catch (FireboltException exception)
+        {
+            if (exception.GetBaseException().GetType() == typeof(JsonReaderException))
+            {
+                errorMessage = exception.Response;
+            }
+        }
 
+        switch (response.StatusCode)
+        {
+            case HttpStatusCode.Forbidden:
+                return new FireboltException(
+                    "The operation is forbidden", (int)response.StatusCode, errorMessage);
+            case HttpStatusCode.Unauthorized:
+                return new FireboltException(
+                    "The operation is unauthorized", (int)response.StatusCode, errorMessage);
+            default:
+                return new FireboltException("Received an unexpected status code from the server",
+                    (int)response.StatusCode, errorMessage);
+        }
+    }
 
     private void AddAccessToken(HttpRequestMessage request)
     {
@@ -450,29 +453,22 @@ public class FireboltClient
 
     public async Task EstablishConnection()
     {
-        try
+        LoginResponse token;
+        var storedToken = await TokenSecureStorage.GetCachedToken(_username, _password);
+        if (storedToken != null)
         {
-            LoginResponse token;
-            var storedToken = await TokenSecureStorage.GetCachedToken(_username, _password);
-            if (storedToken != null)
+            token = new LoginResponse
             {
-                token = new LoginResponse
-                {
-                    Access_token = storedToken.token,
-                    Expires_in = storedToken.expiration.ToString()
-                };
-            }
-            else
-            {
-                token = await Login(_username, _password);
-                await TokenSecureStorage.CacheToken(token, _username, _password);
-            }
-            _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
+                Access_token = storedToken.token,
+                Expires_in = storedToken.expiration.ToString()
+            };
         }
-        catch (FireboltException ex)
+        else
         {
-            throw new FireboltException(ex.Message);
+            token = await Login(_username, _password);
+            await TokenSecureStorage.CacheToken(token, _username, _password);
         }
+        _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
     }
 
     public class Token
