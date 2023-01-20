@@ -15,6 +15,8 @@
  */
 #endregion
 
+using Newtonsoft.Json;
+
 namespace FireboltDotNetSdk.Client
 {
     public class FireRequest
@@ -30,12 +32,14 @@ namespace FireboltDotNetSdk.Client
             /// <summary>
             /// Password.
             /// </summary>
-            public string Password { get; set; }
+            [JsonProperty]
+            private string Password { get;}
 
             /// <summary>
             /// Username.
             /// </summary>
-            public string Username { get; set; }
+            [JsonProperty]
+            private string Username { get;}
 
         }
 
