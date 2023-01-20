@@ -33,13 +33,13 @@ namespace FireboltDotNetSdk.Client
             /// Password.
             /// </summary>
             [JsonProperty]
-            private string Password { get;}
+            private string Password { get; }
 
             /// <summary>
             /// Username.
             /// </summary>
             [JsonProperty]
-            private string Username { get;}
+            private string Username { get; }
 
         }
 
