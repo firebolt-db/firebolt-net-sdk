@@ -325,5 +325,26 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Meta, Is.EqualTo("string"));
         }
 
+        [TestCase("true", true)]
+        [TestCase("false", false)]
+        public void BooleanTest(string data, bool expect)
+        {
+            var responseWithPgDate =
+                "{\"query\":{\"query_id\": \"1739956EA85D7647\"},\"meta\":[{\"name\": \"CAST(1 AS boolean)\",\"type\": \"boolean\"}],\"data\":[[\"" + data + "\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001887076,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000528582,\"time_to_execute\": 0.000203717,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
+            Assert.That(newMeta.Data[0], Is.EqualTo(expect));
+            Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
+        }
+
+        [Test]
+        public void NullBooleanTest()
+        {
+            var responseWithPgDate =
+                "{\"query\":{\"query_id\": \"1739956EA85D7647\"},\"meta\":[{\"name\": \"CAST(1 AS boolean)\",\"type\": \"Nullable(boolean)\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001887076,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000528582,\"time_to_execute\": 0.000203717,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
+            Assert.That(newMeta.Data[0], Is.EqualTo(null));
+            Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
+        }
+
     }
 }
