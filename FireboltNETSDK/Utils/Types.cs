@@ -157,7 +157,7 @@ namespace FireboltDoNetSdk.Utils
                         // Fallback to regular decimal constructor from string instead.
                         return decimal.Parse(Utf8Buffer.Utf8.GetString(s, offset, len));
                     }
-                    throw ex;
+                    throw;
                 }
             }
         }

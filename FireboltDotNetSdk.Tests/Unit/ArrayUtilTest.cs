@@ -103,7 +103,7 @@ public class ArrayUtilTest
         String type = "array(integer)";
         String value = "[1,\n  2,\n  3,NULL\n,  4\n]";
         var arr = ArrayHelper.TransformToSqlArray(value, ColumnType.Of(type));
-        Assert.That(arr, Is.EqualTo(new[] { 1, 2, 3, 4 }));
+        Assert.That(arr, Is.EqualTo(new int?[] { 1, 2, 3, null, 4 }));
     }
 
     [Test]
@@ -114,7 +114,6 @@ public class ArrayUtilTest
         int[][] jaggedArray = new int[1][];
         jaggedArray[0] = new[] { 1, 2, 3, 4 };
         var arr = ArrayHelper.TransformToSqlArray(value, ColumnType.Of(type));
-        jaggedArray[0] = new[] { 1, 2, 3, 4 };
     }
 
 }
