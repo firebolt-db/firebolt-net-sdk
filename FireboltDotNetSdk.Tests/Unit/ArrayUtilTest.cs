@@ -115,7 +115,7 @@ public class ArrayUtilTest
         jaggedArray[0] = new[] { 1, 2, 3, 4 };
         var arr = ArrayHelper.TransformToSqlArray(value, ColumnType.Of(type));
     }
-    
+
     [Test]
     public void CreateArrayOfStringsWithEscapeCharacters()
     {
