@@ -115,5 +115,14 @@ public class ArrayUtilTest
         jaggedArray[0] = new[] { 1, 2, 3, 4 };
         var arr = ArrayHelper.TransformToSqlArray(value, ColumnType.Of(type));
     }
+    
+    [Test]
+    public void CreateArrayOfStringsWithEscapeCharacters()
+    {
+        String type = "array(string NULL)";
+        String value = "['1','\n      2',NULL,'3']";
+        var arr = ArrayHelper.TransformToSqlArray(value, ColumnType.Of(type));
+        Assert.That(arr, Is.EqualTo(new[] { "1", "\n      2", null, "3" }));
+    }
 
 }
