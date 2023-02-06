@@ -233,5 +233,19 @@ namespace FireboltDotNetSdk.Tests
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Data[0], Is.EqualTo(new int?[] { 1, null, 3 }));
         }
+        
+        [Test]
+        public void ExecuteSelectTwoDimensionalArray()
+        {
+            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            var command = conn.CreateCursor();
+            command.Execute("select [[1,NULL,3]]");
+            int?[][] jaggedArray = new int?[1][];
+            jaggedArray[0] = new int?[] { 1, null, 3 };
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Data[0], Is.EqualTo(jaggedArray));
+        }
     }
 }
