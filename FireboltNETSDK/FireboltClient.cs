@@ -163,7 +163,7 @@ public class FireboltClient
         var setParam = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
         var urlBuilder = new StringBuilder();
         urlBuilder.Append("https://").Append(engineEndpoint).Append("?database=").Append(databaseName)
-            .Append(setParam).Append("&output_format=JSONCompact");
+            .Append(setParam).Append("&output_format=JSON_Compact");
         return await SendAsync<string>(HttpMethod.Post, urlBuilder.ToString(), query, "text/plain", true, cancellationToken);
     }
 

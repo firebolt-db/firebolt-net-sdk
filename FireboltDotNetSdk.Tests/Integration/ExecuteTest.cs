@@ -222,6 +222,30 @@ namespace FireboltDotNetSdk.Tests
             FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.IsTrue(exception.Message.Contains("Password parameter is missing in the connection string"));
         }
+        [Test]
+        public void ExecuteSelectArray()
+        {
+            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            var command = conn.CreateCursor();
+            var res = command.Execute("select [1,NULL,3]");
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Data[0], Is.EqualTo(new int?[] { 1, null, 3 }));
+        }
 
+        [Test]
+        public void ExecuteSelectTwoDimensionalArray()
+        {
+            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            var command = conn.CreateCursor();
+            command.Execute("select [[1,NULL,3]]");
+            int?[][] jaggedArray = new int?[1][];
+            jaggedArray[0] = new int?[] { 1, null, 3 };
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Data[0], Is.EqualTo(jaggedArray));
+        }
     }
 }

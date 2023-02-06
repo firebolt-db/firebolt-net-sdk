@@ -14,11 +14,10 @@ using NodaTime.Text;
 
 namespace FireboltDoNetSdk.Utils
 {
-    public enum FireBoltDataType
+    public enum FireboltDataType
     {
-        Nothing, Nullable, Int8, UInt8, Int16, UInt16, Int32, UInt32, Int64,
-        UInt64, Float32, Float64, String, Date, Date32, DateTime, ARRAY, TimestampNtz, Timestamptz,
-        Boolean
+        String, Long, Int, Float, Double, Null, Decimal, Date, DateTime, TimestampNtz, TimestampTz,
+        Boolean, Array, Short
     }
     public static class TypesConverter
     {
@@ -26,8 +25,7 @@ namespace FireboltDoNetSdk.Utils
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
 
-        private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
-        internal static object? ConvertToCSharpVal(string? val, string destType)
+        public static object? ConvertToCSharpVal(string? val, ColumnType columnType)
         {
             if (val == null)
             {
@@ -38,49 +36,41 @@ namespace FireboltDoNetSdk.Utils
             var b2 = new byte[b1.Length + 100];
             Array.Copy(b1, 0, b2, 100, b1.Length);
             var v = new Utf8Buffer(b2, 100, b1.Length);
-            return ToCSharpValues(v, destType);
+            return ToCSharpValues(v, columnType);
         }
 
-        private static object ToCSharpValues(Utf8Buffer srcVal, string destType)
+        private static object ToCSharpValues(Utf8Buffer srcVal, ColumnType columnType)
         {
             try
             {
-                switch (destType)
+                switch (columnType.Type)
                 {
-                    case "long":
-                    case "ulong":
+                    case FireboltDataType.Long:
                         return FastParseInt64(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case "int":
-                    case "uint":
+                    case FireboltDataType.Int:
                         return FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case "decimal": return FastParseDecimal(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case "string": return srcVal.ToString();
-                    case "DateTime":
-                    case "TimestampNtz":
-                    case "TimestampTz":
-                        return ConvertToDateTime(srcVal, FireBoltDataType.DateTime);
-                    case "Date":
-                        return ConvertToDate(srcVal, FireBoltDataType.Date);
-                    case "short":
+                    case FireboltDataType.Decimal:
+                        return FastParseDecimal(srcVal.Buffer, srcVal.Offset, srcVal.Length);
+                    case FireboltDataType.String: return srcVal.ToString();
+                    case FireboltDataType.DateTime:
+                    case FireboltDataType.TimestampTz:
+                    case FireboltDataType.TimestampNtz:
+                        return ConvertToDateTime(srcVal, FireboltDataType.DateTime);
+                    case FireboltDataType.Date:
+                        return ConvertToDate(srcVal, FireboltDataType.Date);
+                    case FireboltDataType.Short:
                         int s = FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
                         return checked((short)s);
-                    case "ushort":
-                        int u = FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                        return checked((ushort)u);
-                    case "sbyte":
-                        int sByte = FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                        return checked((sbyte)sByte);
-                    case "byte":
-                        int b = FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                        return checked((byte)b);
-                    case "double":
+                    case FireboltDataType.Double:
                         return Convert.ToDouble(srcVal.ToString(), CultureInfo.InvariantCulture);
-                    case "float":
+                    case FireboltDataType.Float:
                         return Convert.ToSingle(srcVal.ToString(), CultureInfo.InvariantCulture);
-                    case "Boolean":
+                    case FireboltDataType.Boolean:
                         return bool.Parse(srcVal.ToString());
+                    case FireboltDataType.Array:
+                        return ArrayHelper.TransformToSqlArray(srcVal.ToString(), columnType);
                     default:
-                        throw new FireboltException("Invalid destination type: " + destType);
+                        throw new FireboltException("Invalid destination type: " + columnType.Type);
                 }
             }
             catch (FireboltException)
@@ -122,48 +112,53 @@ namespace FireboltDoNetSdk.Utils
                 decimalPos -= offset;
                 var decimalLen = len - decimalPos - 1;
                 long intPart;
-                long decimalPart = 0;
+                long decimalPart;
                 try
                 {
                     intPart = FastParseInt64(s, offset, decimalPos);
                     decimalPart = FastParseInt64(s, offset + decimalPos + 1, decimalLen);
-                }
-                catch (OverflowException)
-                {
-                    // Fallback to regular decimal constructor from string instead.
-                    return decimal.Parse(Utf8Buffer.Utf8.GetString(s, offset, len));
-                }
 
-                var isMinus = false;
-                if (decimalPart < 0)
-                    throw new FormatException();
-                switch (intPart)
-                {
-                    case < 0:
-                        {
-                            isMinus = true;
-                            intPart = -intPart;
-                            if (intPart < 0)
-                                throw new OverflowException();
-                            break;
-                        }
-                    case 0:
-                        {
-                            // Sign is stripped from the Int64 for value of "-0"
-                            if (s[offset] == '-')
+                    var isMinus = false;
+                    if (decimalPart < 0)
+                        throw new FormatException();
+                    switch (intPart)
+                    {
+                        case < 0:
                             {
                                 isMinus = true;
+                                intPart = -intPart;
+                                if (intPart < 0)
+                                    throw new OverflowException();
+                                break;
                             }
+                        case 0:
+                            {
+                                // Sign is stripped from the Int64 for value of "-0"
+                                if (s[offset] == '-')
+                                {
+                                    isMinus = true;
+                                }
 
-                            break;
-                        }
+                                break;
+                            }
+                    }
+                    var d1 = new decimal(intPart);
+                    var d2 = new decimal((int)(decimalPart & 0xffffffff), (int)((decimalPart >> 32) & 0xffffffff), 0, false, (byte)decimalLen);
+                    var result = d1 + d2;
+                    if (isMinus)
+                        result = -result;
+                    return result;
                 }
-                var d1 = new decimal(intPart);
-                var d2 = new decimal((int)(decimalPart & 0xffffffff), (int)((decimalPart >> 32) & 0xffffffff), 0, false, (byte)decimalLen);
-                var result = d1 + d2;
-                if (isMinus)
-                    result = -result;
-                return result;
+                catch (Exception ex)
+                {
+                    if (ex is OverflowException ||
+                        ex is ArgumentOutOfRangeException)
+                    {
+                        // Fallback to regular decimal constructor from string instead.
+                        return decimal.Parse(Utf8Buffer.Utf8.GetString(s, offset, len));
+                    }
+                    throw;
+                }
             }
         }
 
@@ -235,11 +230,11 @@ namespace FireboltDoNetSdk.Utils
             return result;
         }
 
-        private static DateTime ConvertToDateTime(Utf8Buffer srcVal, FireBoltDataType srcType)
+        private static DateTime ConvertToDateTime(Utf8Buffer srcVal, FireboltDataType srcType)
         {
-            if (srcType != FireBoltDataType.DateTime
-                && srcType != FireBoltDataType.TimestampNtz
-                && srcType != FireBoltDataType.Timestamptz
+            if (srcType != FireboltDataType.DateTime
+                && srcType != FireboltDataType.TimestampNtz
+                && srcType != FireboltDataType.TimestampTz
                )
             {
                 throw new FireboltException("Cannot convert to DateTime object - wrong timestamp type: " + srcType);
@@ -263,45 +258,50 @@ namespace FireboltDoNetSdk.Utils
 
         }
 
-        private static DateOnly ConvertToDate(Utf8Buffer srcVal, FireBoltDataType srcType)
+        private static DateOnly ConvertToDate(Utf8Buffer srcVal, FireboltDataType srcType)
         {
-            if (srcType != FireBoltDataType.Date)
+            if (srcType != FireboltDataType.Date)
             {
                 throw new FireboltException("Cannot convert to DateOnly object - wrong date type: " + srcType);
             }
-            return DateOnly.FromDateTime(ConvertToDateTime(srcVal, FireBoltDataType.DateTime));
+            return DateOnly.FromDateTime(ConvertToDateTime(srcVal, FireboltDataType.DateTime));
         }
 
-        public static object ConvertFireBoltMetaTypes(Meta meta)
+        public static FireboltDataType MapColumnTypeToFireboltDataType(string columnType)
+        {
+            var csharpType = columnType.ToLower() switch
+            {
+                "string" => FireboltDataType.String,
+                "long" => FireboltDataType.Long,
+                "int" => FireboltDataType.Int,
+                "integer" => FireboltDataType.Int,
+                "float" => FireboltDataType.Float,
+                "double" => FireboltDataType.Double,
+                "text" => FireboltDataType.String,
+                "date_ext" => FireboltDataType.Date,
+                "date" => FireboltDataType.Date,
+                "pgdate" => FireboltDataType.Date,
+                "timestamp" => FireboltDataType.DateTime,
+                "timestamp_ext" => FireboltDataType.DateTime,
+                "timestampntz" => FireboltDataType.TimestampNtz,
+                "timestamptz" => FireboltDataType.TimestampTz,
+                "datetime" => FireboltDataType.DateTime,
+                "null" => FireboltDataType.Null,
+                "nothing" => FireboltDataType.Null,
+                "nullable" => FireboltDataType.Null,
+                "decimal" => FireboltDataType.Decimal,
+                "boolean" => FireboltDataType.Boolean,
+                "array" => FireboltDataType.Array,
+                _ => throw new FireboltException("The data type returned from the server is not supported: " + columnType),
+            };
+            return csharpType;
+        }
+
+        public static string GetFullColumnTypeName(Meta meta)
         {
             Match nullableMatch = Regex.Match(meta.Type, NullableTypePattern);
             var type = nullableMatch.Success ? nullableMatch.Groups[1].Value : meta.Type;
-            var csharpType = type switch
-            {
-                "Int8" => "sbyte",
-                "UInt8" => "byte",
-                "Int16" => "short",
-                "UInt16" => "ushort",
-                "Int32" => "int",
-                "UInt32" => "uint",
-                "Int64" => "long",
-                "UInt64" => "ulong",
-                "Float32" => "float",
-                "Float64" => "double",
-                "String" => "string",
-                "Date" => "Date",
-                "Date32" => "Date",
-                "PGDate" => "Date",
-                "DateTime" => "DateTime",
-                "TimestampNtz" => "TimestampNtz",
-                "TimestampTz" => "TimestampTz",
-                "Nothing" => "null",
-                "Nullable" => "null",
-                "decimal" => "decimal",
-                "boolean" => "Boolean",
-                _ => throw new FireboltException("The data type returned from the server is not supported: " + meta.Type),
-            };
-            return csharpType;
+            return type;
         }
     }
 }

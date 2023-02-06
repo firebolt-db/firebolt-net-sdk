@@ -41,7 +41,8 @@ namespace FireboltDotNetSdk.Client
         public readonly HashSet<string> SetParamList = new();
 
         public FireboltCommand()
-        { }
+        {
+        }
 
         /// <summary>
         ///Gets or sets the SQL statement to execute at the data source.
@@ -106,8 +107,14 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc cref="Parameters"/>    
         protected sealed override DbParameterCollection DbParameterCollection => Parameters;
 
-        public override int CommandTimeout { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        internal FireboltCommand(FireboltConnection connection) => Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+        public override int CommandTimeout
+        {
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
+
+        internal FireboltCommand(FireboltConnection connection) =>
+            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
 
         public QueryResult Execute(string commandText)
         {
@@ -274,8 +281,17 @@ namespace FireboltDotNetSdk.Client
             throw new NotImplementedException();
         }
 
-        public override UpdateRowSource UpdatedRowSource { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public override bool DesignTimeVisible { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override UpdateRowSource UpdatedRowSource
+        {
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
+
+        public override bool DesignTimeVisible
+        {
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
@@ -315,15 +331,17 @@ namespace FireboltDotNetSdk.Client
             {
                 foreach (var t in data.Data)
                     for (var j = 0; j < t.Count; j++)
+                    {
+                        var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(data.Meta[j]));
                         newListData.Add(new NewMeta
                         {
                             Data = new ArrayList
                             {
-                                TypesConverter.ConvertToCSharpVal(t[j]?.ToString(),
-                                    (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j]))
+                                TypesConverter.ConvertToCSharpVal(t[j]?.ToString(), columnType)
                             },
-                            Meta = (string)TypesConverter.ConvertFireBoltMetaTypes(data.Meta[j])
+                            Meta = columnType.Type.ToString()
                         });
+                    }
                 return newListData;
             }
             catch (System.Exception e)
