@@ -233,7 +233,7 @@ namespace FireboltDotNetSdk.Tests
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Data[0], Is.EqualTo(new int?[] { 1, null, 3 }));
         }
-        
+
         [Test]
         public void ExecuteSelectTwoDimensionalArray()
         {
