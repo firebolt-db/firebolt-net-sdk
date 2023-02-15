@@ -15,18 +15,29 @@
  */
 #endregion
 
+using System.Net;
+
 namespace FireboltDotNetSdk.Exception
 {
     public class FireboltException : System.Exception
     {
-        private int StatusCode { get; set; }
+        internal Nullable<HttpStatusCode> StatusCode { get; }
 
-        internal string Response { get; set; }
+        internal string? Response { get; }
 
-        private IReadOnlyDictionary<string, IEnumerable<string>> Headers { get; set; }
+        private IReadOnlyDictionary<string, IEnumerable<string>>? Headers { get; }
 
-        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, System.Exception? innerException)
-            : base(message + "\n\nStatus: " + statusCode + "\nResponse: \n" + ((response == null) ? "(null)" : response.Substring(0, response.Length >= 512 ? 512 : response.Length)), innerException)
+
+
+        public FireboltException(HttpStatusCode statusCode, string? response) : this(getErrorMessageFromStatusCode(statusCode), statusCode, response,
+            null, null)
+        { }
+
+        public FireboltException(string message, System.Exception? innerException) : base(message, innerException)
+        { }
+
+        public FireboltException(string message, HttpStatusCode statusCode, string? response, IReadOnlyDictionary<string, IEnumerable<string>>? headers, System.Exception? innerException)
+            : base(FormatServerError(message, statusCode, response), innerException)
         {
             StatusCode = statusCode;
             Response = response;
@@ -37,26 +48,45 @@ namespace FireboltDotNetSdk.Exception
         {
         }
 
+        private static string getErrorMessageFromStatusCode(HttpStatusCode statusCode)
+        {
+            string exceptionMessage;
+            switch (statusCode)
+            {
+                case HttpStatusCode.Unauthorized:
+                    exceptionMessage = "The operation is unauthorized";
+                    break;
+                case HttpStatusCode.Forbidden:
+                    exceptionMessage = "The operation is forbidden";
+                    break;
+                default:
+                    exceptionMessage = "Received an unexpected status code from the server";
+                    break;
+            }
+
+            return exceptionMessage;
+        }
+
         public override string ToString()
         {
-            return $"HTTP Response: \n\n{Response}\n\n{base.ToString()}";
+            if (StatusCode == null || String.IsNullOrEmpty(Response))
+            {
+                return base.ToString();
+            }
+            return $"HTTP Response: {Response}{Environment.NewLine}{base.ToString()}";
         }
-    }
 
-    public class FireboltException<TResult> : FireboltException
-    {
-        private TResult Result { get; set; }
-
-        public FireboltException(string message, int statusCode, string response, IReadOnlyDictionary<string, IEnumerable<string>> headers, TResult result, System.Exception? innerException)
-            : base(message, statusCode, response, headers, innerException)
+        private static string FormatServerError(string error, HttpStatusCode statusCode, string? serverError)
         {
-            Result = result;
-        }
-    }
-    public abstract class Error
-    {
-        public int? StatusCode { get; set; }
+            var errorMessage = $"{error}{Environment.NewLine}Status: {(int)statusCode}";
 
+            if (!string.IsNullOrWhiteSpace(serverError))
+            {
+                return $"{errorMessage}\nResponse:\n{serverError.Substring(0, serverError.Length >= 512 ? 512 : serverError.Length)}";
+            }
+
+            return errorMessage;
+        }
     }
 
     public class ResponseError

@@ -10,6 +10,8 @@ using System.Text.RegularExpressions;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NodaTime.Text;
 
 namespace FireboltDoNetSdk.Utils
@@ -73,9 +75,9 @@ namespace FireboltDoNetSdk.Utils
                         throw new FireboltException("Invalid destination type: " + columnType.Type);
                 }
             }
-            catch (FireboltException)
+            catch (Exception exception)
             {
-                throw new FireboltException($"Error converting ' to '. Use GetString() to handle very large values");
+                throw new FireboltException($"Error converting {srcVal} to {columnType.Type}", exception);
             }
         }
 
@@ -302,6 +304,38 @@ namespace FireboltDoNetSdk.Utils
             Match nullableMatch = Regex.Match(meta.Type, NullableTypePattern);
             var type = nullableMatch.Success ? nullableMatch.Groups[1].Value : meta.Type;
             return type;
+        }
+
+        public static IEnumerable<NewMeta> ParseJsonResponse(string response)
+        {
+            if (response == null)
+            {
+                throw new FireboltException("JSON data is missing");
+            }
+            try
+            {
+                var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
+                var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+                var newListData = new List<NewMeta>();
+                foreach (var t in data.Data)
+                    for (var j = 0; j < t.Count; j++)
+                    {
+                        var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(data.Meta[j]));
+                        newListData.Add(new NewMeta
+                        {
+                            Data = new ArrayList
+                            {
+                                TypesConverter.ConvertToCSharpVal(t[j]?.ToString(), columnType)
+                            },
+                            Meta = columnType.Type.ToString()
+                        });
+                    }
+                return newListData;
+            }
+            catch (System.Exception e)
+            {
+                throw new FireboltException("Error while parsing response", e);
+            }
         }
     }
 }

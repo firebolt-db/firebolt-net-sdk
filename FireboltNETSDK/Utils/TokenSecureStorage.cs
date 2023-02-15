@@ -72,7 +72,7 @@ namespace FireboltDotNetSdk.Utils
             }
             catch (System.Exception ex)
             {
-                throw new FireboltException("Error while reading token cache: " + ex.Message);
+                throw new FireboltException("Error while reading cached token", ex);
             }
         }
 
@@ -104,7 +104,7 @@ namespace FireboltDotNetSdk.Utils
             }
             catch (System.Exception ex)
             {
-                throw new FireboltException("Error while caching token: " + ex.Message);
+                throw new FireboltException("Error while caching token", ex);
             }
         }
 
@@ -126,7 +126,7 @@ namespace FireboltDotNetSdk.Utils
             }
             catch (System.Exception ex)
             {
-                throw new FireboltException("Error while ReadDataJSON " + ex.Message);
+                throw new FireboltException("Error while reading/deserializing JSON data ", ex);
             }
         }
     }

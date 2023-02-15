@@ -65,7 +65,8 @@ namespace FireboltDotNetSdk.Tests
             var connString = $"database={Database};username={Username};password=wrongPassword;endpoint={Endpoint};";
             using var conn = new FireboltConnection(connString);
             FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.IsTrue(exception.Message.Contains("403") || exception.Message.Contains("429"));
+            Assert.IsTrue(exception.Message.Contains("The operation is forbidden\nStatus: 403") || exception.Message.Contains("429"));
+            Assert.IsTrue(exception.ToString().Contains("HTTP Response: \nFireboltDotNetSdk.Exception.FireboltException: The operation is forbidden\nStatus: 403") || exception.Message.Contains("429"));
         }
 
         [Test]

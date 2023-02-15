@@ -1,5 +1,7 @@
 using FireboltDoNetSdk.Utils;
+using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using Newtonsoft.Json;
 
 namespace FireboltDotNetSdk.Tests;
 
@@ -63,5 +65,54 @@ public class TypesConverterTest
         object result = TypesConverter.ConvertToCSharpVal(value, columnType);
         DateOnly expectedDate = DateOnly.FromDateTime(new DateTime(2022, 5, 10, 23, 1, 2, 0));
         Assert.That(result, Is.EqualTo(expectedDate));
+    }
+
+    [Test]
+    public void ConvertInvalidValue()
+    {
+        ColumnType columnType = ColumnType.Of("integer");
+        var value = "hello";
+        FireboltException exception = Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
+        Assert.That(exception.Message, Is.EqualTo("Error converting hello to Int"));
+        Assert.That(exception.InnerException.GetType(), Is.EqualTo(typeof(FormatException)));
+    }
+
+    [Test]
+    public void ParseJsonResponseWithNullResponse()
+    {
+        FireboltException exception =
+            Assert.Throws<FireboltException>(() => TypesConverter.ParseJsonResponse(null));
+        Assert.That(exception.Message, Is.EqualTo("JSON data is missing"));
+    }
+
+    [Test]
+    public void ParseJsonResponseWithNewTypes()
+    {
+        var responseWithNewTypes =
+                "{\"query\":{\"query_id\": \"174005F13D908A5D\"},\"meta\":[{\"name\": \"uint8\",\"type\": \"int\"},{\"name\": \"int_8\",\"type\": \"int\"},{\"name\": \"uint16\",\"type\": \"int\"},{\"name\": \"int16\",\"type\": \"int\"},{\"name\": \"uint32\",\"type\": \"int\"},{\"name\": \"int32\",\"type\": \"int\"},{\"name\": \"uint64\",\"type\": \"long\"},{\"name\": \"int64\",\"type\": \"long\"},{\"name\": \"float32\",\"type\": \"float\"},{\"name\": \"float64\",\"type\": \"double\"},{\"name\": \"string\",\"type\": \"text\"},{\"name\": \"date\",\"type\": \"date\"},{\"name\": \"array\",\"type\": \"array(int)\"},{\"name\": \"decimal\",\"type\": \"Decimal(38, 30)\"},{\"name\": \"nullable\",\"type\": \"int null\"}],\"data\":[[1, -1, 257, -257, 80000, -80000, 30000000000, -30000000000, 1.23, 1.23456789012, \"text\", \"2021-03-28\", [1,2,3,4], 1231232.123459999990457054844258706536, null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001662899,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001246457,\"time_to_execute\": 0.000166576,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}"
+            ;
+        var res = TypesConverter.ParseJsonResponse(responseWithNewTypes).GetEnumerator();
+        object[] expected =
+        {
+            1, -1, 257, -257, 80000, -80000, 30000000000, -30000000000, 1.23f, 1.23456789012, "text",
+            DateOnly.Parse("2021-03-28"), new [] { 1, 2, 3, 4 }, 1231232.123459999990457054844258706536, null
+        };
+
+        for (int i = 0; i < expected.Length; i++)
+        {
+            res.MoveNext();
+            Assert.That(res.Current.Data[0], Is.EqualTo(expected[i]));
+        }
+
+        Assert.NotNull(res);
+    }
+
+    [Test]
+    public void InvalidResponseParsingTest()
+    {
+        var responseWithNewTypes = "invalid response";
+        FireboltException exception = Assert.Throws<FireboltException>(() => TypesConverter.ParseJsonResponse(responseWithNewTypes));
+        Assert.IsTrue(exception.Message.Contains("Error while parsing response"));
+        Assert.That(exception.InnerException.GetType(), Is.EqualTo(typeof(JsonReaderException)));
     }
 }
