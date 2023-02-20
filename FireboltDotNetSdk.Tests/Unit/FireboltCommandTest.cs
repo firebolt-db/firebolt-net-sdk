@@ -333,8 +333,4 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
         }
     }
-
-
-
-
 }
