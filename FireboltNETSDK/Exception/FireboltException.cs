@@ -21,6 +21,8 @@ namespace FireboltDotNetSdk.Exception
 {
     public class FireboltException : System.Exception
     {
+        
+        private const int MaxDisplayableServerErrorLength = 512;
         internal Nullable<HttpStatusCode> StatusCode { get; }
 
         internal string? Response { get; }
@@ -82,7 +84,7 @@ namespace FireboltDotNetSdk.Exception
 
             if (!string.IsNullOrWhiteSpace(serverError))
             {
-                return $"{errorMessage}\nResponse:\n{serverError.Substring(0, serverError.Length >= 512 ? 512 : serverError.Length)}";
+                return $"{errorMessage}\nResponse:\n{serverError.Substring(0, serverError.Length >= MaxDisplayableServerErrorLength ? MaxDisplayableServerErrorLength : serverError.Length)}";
             }
 
             return errorMessage;
