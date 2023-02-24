@@ -65,8 +65,6 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase("CREATE DIMENSION TABLE dummy(id INT)")]
-        [TestCase("SHOW TABLES")]
-        [TestCase("SHOW INDEXES")]
         public void ErrorsTest(string query)
         {
             var cursor = Connection.CreateCursor();

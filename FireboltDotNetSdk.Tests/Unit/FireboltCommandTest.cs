@@ -74,21 +74,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.IsEmpty(cs.SetParamList);
         }
 
-        [Test]
-        public void FormDataForResponseTest()
-        {
-            var result = FireboltCommand.FormDataForResponse(_fireboltCommand.Response);
-            Assert.IsNotNull(result);
-        }
-
-        [Test]
-        public void FormDataForResponseInvalidTest()
-        {
-            FireboltException exception =
-                Assert.Throws<FireboltException>(() => FireboltCommand.FormDataForResponse(null));
-            Assert.That(exception.Message, Is.EqualTo("JSON data is missing"));
-        }
-
         [TestCase("abcd")]
         public void ExistaramListTest(string commandText)
         {
@@ -346,28 +331,6 @@ namespace FireboltDotNetSdk.Tests
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
             Assert.That(newMeta.Data[0], Is.EqualTo(null));
             Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
-        }
-
-        [Test]
-        public void NewTypesTest()
-        {
-            var responseWithNewTypes =
-                    "{\"query\":{\"query_id\": \"174005F13D908A5D\"},\"meta\":[{\"name\": \"uint8\",\"type\": \"int\"},{\"name\": \"int_8\",\"type\": \"int\"},{\"name\": \"uint16\",\"type\": \"int\"},{\"name\": \"int16\",\"type\": \"int\"},{\"name\": \"uint32\",\"type\": \"int\"},{\"name\": \"int32\",\"type\": \"int\"},{\"name\": \"uint64\",\"type\": \"long\"},{\"name\": \"int64\",\"type\": \"long\"},{\"name\": \"float32\",\"type\": \"float\"},{\"name\": \"float64\",\"type\": \"double\"},{\"name\": \"string\",\"type\": \"text\"},{\"name\": \"date\",\"type\": \"date\"},{\"name\": \"array\",\"type\": \"array(int)\"},{\"name\": \"decimal\",\"type\": \"Decimal(38, 30)\"},{\"name\": \"nullable\",\"type\": \"int null\"}],\"data\":[[1, -1, 257, -257, 80000, -80000, 30000000000, -30000000000, 1.23, 1.23456789012, \"text\", \"2021-03-28\", [1,2,3,4], 1231232.123459999990457054844258706536, null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001662899,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001246457,\"time_to_execute\": 0.000166576,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}"
-                ;
-            var res = FireboltCommand.FormDataForResponse(responseWithNewTypes).GetEnumerator();
-            object[] expected =
-            {
-                1, -1, 257, -257, 80000, -80000, 30000000000, -30000000000, 1.23f, 1.23456789012, "text",
-                DateOnly.Parse("2021-03-28"), new [] { 1, 2, 3, 4 }, 1231232.123459999990457054844258706536, null
-            };
-
-            for (int i = 0; i < expected.Length; i++)
-            {
-                res.MoveNext();
-                Assert.That(res.Current.Data[0], Is.EqualTo(expected[i]));
-            }
-
-            Assert.NotNull(res);
         }
     }
 }

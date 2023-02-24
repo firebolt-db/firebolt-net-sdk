@@ -17,6 +17,7 @@
 
 using System.Data;
 using System.Data.Common;
+using System.Net;
 using System.Transactions;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -179,10 +180,12 @@ namespace FireboltDotNetSdk.Client
 
             catch (System.Exception ex)
             {
-                if (ex.Message.Contains("404")) return null;
-
+                if (ex is FireboltException && ((FireboltException)ex).StatusCode == HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
                 throw new FireboltException(
-                    $"Cannot get engine url for engine: {engineName} from {_connectionState.Settings?.Database} database");
+                    $"Cannot get engine url for engine: {engineName} from {_connectionState.Settings?.Database} database", ex);
             }
         }
 

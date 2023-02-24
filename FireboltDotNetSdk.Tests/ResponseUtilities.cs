@@ -1,4 +1,4 @@
-using FireboltDotNetSdk.Client;
+using FireboltDoNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Tests;
 
@@ -6,7 +6,7 @@ public static class ResponseUtilities
 {
     public static NewMeta getFirstRow(string response)
     {
-        var enumerator = FireboltCommand.FormDataForResponse(response).GetEnumerator();
+        var enumerator = TypesConverter.ParseJsonResponse(response).GetEnumerator();
         enumerator.MoveNext();
         return enumerator.Current;
     }

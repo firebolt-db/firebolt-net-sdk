@@ -125,30 +125,20 @@ namespace FireboltDotNetSdk.Client
                 SetParamList.Add(commandText);
                 return new QueryResult();
             }
-            else
+            string newCommandText = commandText;
+            if (Parameters.Any())
             {
-                try
-                {
-                    string newCommandText = commandText;
-                    if (Parameters.Any())
-                    {
-                        newCommandText = GetParamQuery(commandText);
-                    }
-
-                    if (Connection != null)
-                    {
-                        Response = Connection.Client
-                            .ExecuteQuery(engineUrl, Connection.Database, SetParamList, newCommandText)
-                            .GetAwaiter().GetResult();
-                        //return FormDataForResponse(Response); 
-                    }
-                    return GetOriginalJsonData();
-                }
-                catch (FireboltException ex)
-                {
-                    throw new FireboltException(ex.Message);
-                }
+                newCommandText = GetParamQuery(commandText);
             }
+
+            if (Connection != null)
+            {
+                Response = Connection.Client
+                    .ExecuteQuery(engineUrl, Connection.Database, SetParamList, newCommandText)
+                    .GetAwaiter().GetResult();
+                //return FormDataForResponse(Response); 
+            }
+            return GetOriginalJsonData();
         }
 
         /// <summary>
@@ -228,17 +218,15 @@ namespace FireboltDotNetSdk.Client
                                 var longValue = (long)item.Value;
                                 verifyParameters = longValue.ToString();
                                 break;
-                            default:
-                                break;
                         }
                     }
                     commandText = Regex.Replace(commandText, pattern, verifyParameters.ToString(), regexOptions);
                 }
                 return commandText;
             }
-            catch (System.Exception)
+            catch (System.Exception ex)
             {
-                throw new FireboltException("Error while verify parameters for query");
+                throw new FireboltException("Error while verifying parameters for query", ex);
             }
 
         }
@@ -316,38 +304,6 @@ namespace FireboltDotNetSdk.Client
         public override void Prepare()
         {
             throw new NotImplementedException();
-        }
-
-        public static IEnumerable<NewMeta> FormDataForResponse(string response)
-        {
-            if (response == null)
-            {
-                throw new FireboltException("JSON data is missing");
-            }
-            var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
-            var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
-            var newListData = new List<NewMeta>();
-            try
-            {
-                foreach (var t in data.Data)
-                    for (var j = 0; j < t.Count; j++)
-                    {
-                        var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(data.Meta[j]));
-                        newListData.Add(new NewMeta
-                        {
-                            Data = new ArrayList
-                            {
-                                TypesConverter.ConvertToCSharpVal(t[j]?.ToString(), columnType)
-                            },
-                            Meta = columnType.Type.ToString()
-                        });
-                    }
-                return newListData;
-            }
-            catch (System.Exception e)
-            {
-                throw new FireboltException(e.Message);
-            }
         }
     }
 }
