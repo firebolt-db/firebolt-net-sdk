@@ -116,7 +116,7 @@ namespace FireboltDotNetSdk.Client
         internal FireboltCommand(FireboltConnection connection) =>
             Connection = connection ?? throw new ArgumentNullException(nameof(connection));
 
-        public QueryResult Execute(string commandText)
+        public QueryResult? Execute(string commandText)
         {
             var engineUrl = Connection?.Engine?.engine?.endpoint ?? Connection?.DefaultEngine?.Engine_url;
             if (commandText.Trim().StartsWith("SET"))
@@ -131,13 +131,15 @@ namespace FireboltDotNetSdk.Client
                 newCommandText = GetParamQuery(commandText);
             }
 
-            if (Connection != null)
+            if (Connection != null && Connection.Client != null)
             {
                 Response = Connection.Client
                     .ExecuteQuery(engineUrl, Connection.Database, SetParamList, newCommandText)
                     .GetAwaiter().GetResult();
-                //return FormDataForResponse(Response); 
+            } else {
+                throw new NullReferenceException("Client is not initialised to perform the operation. Make sure the connection is open.");
             }
+
             return GetOriginalJsonData();
         }
 
