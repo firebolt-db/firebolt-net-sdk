@@ -1,3 +1,4 @@
+using System.Text;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 
@@ -247,6 +248,18 @@ namespace FireboltDotNetSdk.Tests
             jaggedArray[0] = new int?[] { 1, null, 3 };
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Data[0], Is.EqualTo(jaggedArray));
+        }
+        
+        [Test]
+        public void ExecuteSelectByteA()
+        {
+            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            var command = conn.CreateCursor();
+            command.Execute("SELECT 'hello_world_123'::bytea");
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.That(newMeta.Data[0], Is.EqualTo(Encoding.ASCII.GetBytes("hello_world_123")));
         }
     }
 }
