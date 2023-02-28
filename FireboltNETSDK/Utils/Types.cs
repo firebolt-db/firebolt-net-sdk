@@ -357,7 +357,8 @@ namespace FireboltDoNetSdk.Utils
 }
 public class NewMeta
 {
-    public NewMeta (ArrayList data, string meta) {
+    public NewMeta(ArrayList data, string meta)
+    {
         Data = data;
         Meta = meta;
     }

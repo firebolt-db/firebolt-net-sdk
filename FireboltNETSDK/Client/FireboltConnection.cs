@@ -169,9 +169,7 @@ namespace FireboltDotNetSdk.Client
 
         public GetEngineUrlByDatabaseNameResponse? SetDefaultEngine(string? engineName)
         {
-            if (Client is null) {
-                throw new NullReferenceException("Client is not initialised to perform the operation. Make sure the connection is open.");
-            }
+            if (Client is null) throw new NullReferenceException("Client is not initialised to perform the operation. Make sure the connection is open.");
             try
             {
                 DefaultEngine = Client
@@ -195,7 +193,8 @@ namespace FireboltDotNetSdk.Client
 
         public GetEngineUrlByEngineNameResponse SetEngine(string engineName)
         {
-            if (Client is null) {
+            if (Client is null)
+            {
                 throw new NullReferenceException("Client is not initialised to perform the operation. Make sure the connection is open.");
             }
             // try
@@ -204,7 +203,8 @@ namespace FireboltDotNetSdk.Client
                 .GetEngineUrlByEngineName(engineName, _connectionState.Settings?.Account)
                 .GetAwaiter()
                 .GetResult();
-            if (enginevalue.engine_id == null) {
+            if (enginevalue.engine_id == null)
+            {
                 throw new FireboltException($"Cannot find an engine with name: {engineName}");
             }
             var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,

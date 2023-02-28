@@ -47,9 +47,11 @@ public class ArrayHelper
         var elements = SplitArrayContent(arrayContent)
             .Where(x => !string.IsNullOrEmpty(x)).Select(x => RemoveQuotesAndTransformNull(x)).ToList();
         Array currentArray = new dynamic[elements.Count];
-        for (int i = 0; i < elements.Count; i++) {
+        for (int i = 0; i < elements.Count; i++)
+        {
             var innerType = columnType.GetArrayBaseColumnType();
-            if (innerType == null) {
+            if (innerType == null)
+            {
                 throw new FireboltException("Unable to retrieve a Firebolt type of an array");
             }
             currentArray.SetValue(TypesConverter.ConvertToCSharpVal(elements[i], innerType), i);

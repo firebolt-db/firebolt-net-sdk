@@ -131,7 +131,8 @@ namespace FireboltDotNetSdk.Utils
 
     public class CachedJSONData
     {
-        public CachedJSONData(string paramToken, string paramSalt, int paramExpiration){
+        public CachedJSONData(string paramToken, string paramSalt, int paramExpiration)
+        {
             token = paramToken;
             salt = paramSalt;
             expiration = paramExpiration;
