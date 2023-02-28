@@ -270,7 +270,7 @@ namespace FireboltDoNetSdk.Utils
             }
             return DateOnly.FromDateTime(ConvertToDateTime(srcVal, FireboltDataType.DateTime));
         }
-        
+
         private static byte[] ConvertHexStringToByteArray(string hexString)
         {
             if (!hexString.StartsWith("\\x"))
@@ -278,7 +278,7 @@ namespace FireboltDoNetSdk.Utils
                 throw new FireboltException($"The hexadecimal string must start with \\x: {hexString}");
 
             }
-            hexString = hexString.Remove(0,2);
+            hexString = hexString.Remove(0, 2);
             return Convert.FromHexString(hexString);
         }
 

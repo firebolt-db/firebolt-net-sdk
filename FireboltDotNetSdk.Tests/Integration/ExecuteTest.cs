@@ -249,7 +249,7 @@ namespace FireboltDotNetSdk.Tests
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
             Assert.That(newMeta.Data[0], Is.EqualTo(jaggedArray));
         }
-        
+
         [Test]
         public void ExecuteSelectByteA()
         {
