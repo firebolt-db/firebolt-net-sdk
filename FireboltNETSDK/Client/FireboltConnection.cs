@@ -80,6 +80,7 @@ namespace FireboltDotNetSdk.Client
 
         public override string DataSource => throw new NotImplementedException();
 
+        [System.Diagnostics.CodeAnalysis.AllowNull]
         public override string ConnectionString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         /// <summary>
@@ -203,6 +204,9 @@ namespace FireboltDotNetSdk.Client
                 .GetEngineUrlByEngineName(engineName, _connectionState.Settings?.Account)
                 .GetAwaiter()
                 .GetResult();
+            if (enginevalue.engine_id == null) {
+                throw new FireboltException($"Cannot find an engine with name: {engineName}");
+            }
             var result = Client.GetEngineUrlByEngineId(enginevalue.engine_id.engine_id,
                     enginevalue.engine_id.account_id).GetAwaiter()
                 .GetResult();

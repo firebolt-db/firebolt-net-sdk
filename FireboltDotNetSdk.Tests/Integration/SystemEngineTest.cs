@@ -7,7 +7,7 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class SystemEngineTest : IntegrationTest
     {
-        private FireboltConnection? Connection;
+        private FireboltConnection Connection = null!;
         private static int suffix = new Random().Next(9999999);
         private static string newEngineName = "system_engine_dotnet_test_" + suffix;
         private static string newDatabaseName = "system_engine_dotnet_test_" + suffix;
@@ -80,8 +80,8 @@ namespace FireboltDotNetSdk.Tests
             var cursor = Connection.CreateCursor();
 
             var res = cursor.Execute("SHOW DATABASES");
-
-            Assert.That(res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(newDatabaseName));
+            Assert.NotNull(res);
+            Assert.That(res!.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(newDatabaseName));
 
         }
 
@@ -89,14 +89,18 @@ namespace FireboltDotNetSdk.Tests
         {
             var res = cursor.Execute("SHOW ENGINES");
 
+            Assert.NotNull(res);
             Assert.That(
-        res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
+        res!.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
         "Engine {engineName} is missing in SHOW ENGINES"
         );
             Assert.That(
-        res.Data.Select(item => new object[] { item[0], item[5] }), Has.Exactly(1).EqualTo(new object[] { engineName, dbName }),
-        $"Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
-        );
+                res.Data.Select(
+                    item => new object[] { item[0] ?? "", item[5] ?? "" }
+                ),
+                Has.Exactly(1).EqualTo(new object[] { engineName, dbName }),
+                $"Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
+            );
         }
 
         [Test]
@@ -119,13 +123,20 @@ namespace FireboltDotNetSdk.Tests
         {
             var res = cursor.Execute($"SHOW ENGINES");
 
+            Assert.NotNull(res);
             Assert.That(
-        res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
-        $"Engine {engineName} is missing in SHOW ENGINES"
-        );
+                res!.Data.Select(
+                    item => item[0]
+                ),
+                Has.Exactly(1).EqualTo(engineName),
+                $"Engine {engineName} is missing in SHOW ENGINES"
+            );
             Assert.That(
-            res.Data.Select(item => new object[] { item[0], item[2] }), Has.Exactly(1).EqualTo(new object[] { newEngineName, spec }),
-            $"Engine {engineName} should have {spec} spec in SHOW ENGINES"
+                res.Data.Select(
+                    item => new object[] { item[0] ?? "", item[2] ?? "" }
+                ),
+                Has.Exactly(1).EqualTo(new object[] { newEngineName, spec }),
+                $"Engine {engineName} should have {spec} spec in SHOW ENGINES"
             );
         }
 
@@ -146,13 +157,17 @@ namespace FireboltDotNetSdk.Tests
         {
             var res = cursor.Execute("SHOW ENGINES");
 
+            Assert.NotNull(res);
             Assert.That(
-            res.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
+            res!.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
             "Engine {engineName} is missing in SHOW ENGINES"
             );
             Assert.That(
-            res.Data.Select(item => new object[] { item[0], item[4] }), Has.Exactly(1).EqualTo(new object[] { engineName, status }),
-            "Engine {engineName} should have {status} status"
+                res.Data.Select(
+                    item => new object[] { item[0] ?? "", item[4] ?? "" }
+                ),
+                Has.Exactly(1).EqualTo(new object[] { engineName, status }),
+                "Engine {engineName} should have {status} status"
             );
         }
 

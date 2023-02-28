@@ -131,13 +131,11 @@ namespace FireboltDotNetSdk.Client
                 newCommandText = GetParamQuery(commandText);
             }
 
-            if (Connection != null && Connection.Client != null)
+            if (Connection != null)
             {
-                Response = Connection.Client
+                Response = Connection.Client?
                     .ExecuteQuery(engineUrl, Connection.Database, SetParamList, newCommandText)
                     .GetAwaiter().GetResult();
-            } else {
-                throw new NullReferenceException("Client is not initialised to perform the operation. Make sure the connection is open.");
             }
 
             return GetOriginalJsonData();
@@ -162,10 +160,12 @@ namespace FireboltDotNetSdk.Client
                     //if (item.Value == null) { throw new FireboltException("Query parameter value cannot be null"); }
                     string pattern = string.Format(@"\{0}\b", item.ParameterName);
                     RegexOptions regexOptions = RegexOptions.IgnoreCase;
-                    var verifyParameters = item.Value;
-                    if (item.Value is string & item.Value != null)
+                    var verifyParameters = item.Value?.ToString() ?? "";
+                    if (item.Value is string && item.Value != null)
                     {
-                        string sourceText = item.Value.ToString();
+                        string? sourceText = item.Value.ToString();
+                        if (sourceText == null)
+                            throw new FireboltException("Unexpected error: Unable to cast string value to string.");
                         foreach (var item1 in escape_chars)
                         {
                             sourceText = sourceText.Replace(item1.Key, item1.Value);
@@ -222,7 +222,7 @@ namespace FireboltDotNetSdk.Client
                                 break;
                         }
                     }
-                    commandText = Regex.Replace(commandText, pattern, verifyParameters.ToString(), regexOptions);
+                    commandText = Regex.Replace(commandText, pattern, verifyParameters, regexOptions);
                 }
                 return commandText;
             }
@@ -253,7 +253,7 @@ namespace FireboltDotNetSdk.Client
             var prettyJson = JToken.Parse(Response ?? throw new FireboltException("RowCount is missing"))
                 .ToString(Formatting.Indented);
             var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
-            return ((int)data.Rows)!;
+            return ((int)(data?.Rows ?? -1))!;
         }
 
         public void ClearSetList()

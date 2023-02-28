@@ -21,10 +21,16 @@ namespace FireboltDotNetSdk.Client
     {
         public class LoginResponse
         {
+            internal LoginResponse(string access_token, string expires_in, string refresh_token, string token_type) {
+                Access_token = access_token;
+                Expires_in = expires_in;
+                Refresh_token = refresh_token;
+                Token_type = token_type;
+            }
             /// <summary>
             /// Access token.
             /// </summary>
-            public string? Access_token { get; set; }
+            public string Access_token { get; set; }
 
             /// <summary>
             /// Number of seconds after which token will expire.
@@ -74,7 +80,7 @@ namespace FireboltDotNetSdk.Client
             /// <summary>
             /// Retrieved record.
             /// </summary>
-            public Engine engine_id { get; set; }
+            public Engine? engine_id { get; set; }
 
         }
 
