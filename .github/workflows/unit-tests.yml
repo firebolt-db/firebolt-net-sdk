@@ -29,14 +29,24 @@ jobs:
       run: |
         dotnet test --filter "Category!=Integration" /p:AltCover=true
 
+    - name: Save coverage report
+      uses: actions/upload-artifact@v2
+      with:
+        name: coverage.xml
+        path: /home/runner/work/firebolt-db/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
+
   coverage:
     needs: [unit-tests]
     runs-on: ubuntu-latest
 
     steps:
+
+    - uses: actions/download-artifact@v2
+      with:
+        name: coverage.xml
+    
     - name: cobertura-report
       uses: 5monkeys/cobertura-action@v13
       with:
-        path: /home/runner/work/firebolt-db/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
         minimum_coverage: 80
         fail_below_threshold: true
