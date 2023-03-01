@@ -50,3 +50,4 @@ jobs:
       with:
         minimum_coverage: 80
         fail_below_threshold: true
+        show_class_names: true
