@@ -27,7 +27,7 @@ jobs:
 
     - name: Run unit tests
       run: |
-        dotnet test --filter "Category!=Integration"
+        dotnet test --filter "Category!=Integration" /p:AltCover=true
 
   coverage:
     needs: [unit-tests]
