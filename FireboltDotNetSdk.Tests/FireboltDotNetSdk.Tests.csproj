@@ -6,9 +6,14 @@
     <Nullable>enable</Nullable>
 
     <IsPackable>false</IsPackable>
+    <AltCoverAssemblyFilter>?FireboltDotNetSdk;FireboltDotNetSdk.Tests</AltCoverAssemblyFilter>
+    <AltCoverTypeFilter>Microsoft;System</AltCoverTypeFilter>
+    <AltCoverCobertura>coverage.xml</AltCoverCobertura>
+
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AltCover" Version="8.6.14" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.2.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.1.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
