@@ -33,7 +33,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: coverage.xml
-        path: /home/runner/work/firebolt-db/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
+        path: /home/runner/work/firebolt-net-sdk/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
 
   coverage:
     needs: [unit-tests]
