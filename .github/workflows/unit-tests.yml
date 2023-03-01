@@ -51,3 +51,5 @@ jobs:
         minimum_coverage: 80
         fail_below_threshold: true
         show_class_names: true
+        show_missing: true
+        link_missing_lines: true
