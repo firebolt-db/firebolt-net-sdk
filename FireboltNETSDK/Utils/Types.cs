@@ -26,6 +26,7 @@ namespace FireboltDoNetSdk.Utils
 
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
+        private const string ByteAPrefix = "\\x";
 
         public static object? ConvertToCSharpVal(string? val, ColumnType columnType)
         {
@@ -273,9 +274,9 @@ namespace FireboltDoNetSdk.Utils
 
         private static byte[] ConvertHexStringToByteArray(string hexString)
         {
-            if (!hexString.StartsWith("\\x"))
+            if (!hexString.StartsWith(ByteAPrefix))
             {
-                throw new FireboltException($"The hexadecimal string must start with \\x: {hexString}");
+                throw new FireboltException($"The hexadecimal string must start with {ByteAPrefix}: {hexString}");
 
             }
             hexString = hexString.Remove(0, 2);
