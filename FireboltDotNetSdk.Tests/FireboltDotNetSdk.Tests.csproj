@@ -7,7 +7,7 @@
 
     <IsPackable>false</IsPackable>
     <AltCoverAssemblyFilter>?FireboltDotNetSdk;FireboltDotNetSdk.Tests</AltCoverAssemblyFilter>
-    <AltCoverTypeFilter>Microsoft;System</AltCoverTypeFilter>
+    <AltCoverTypeFilter>Microsoft;System;/</AltCoverTypeFilter>
     <AltCoverCobertura>coverage.xml</AltCoverCobertura>
 
   </PropertyGroup>
