@@ -37,6 +37,6 @@ jobs:
     - name: cobertura-report
       uses: 5monkeys/cobertura-action@v13
       with:
-        path: firebolt-db/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
+        path: /home/runner/work/firebolt-db/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
         minimum_coverage: 80
         fail_below_threshold: true
