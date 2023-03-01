@@ -51,7 +51,6 @@ jobs:
     
     - name: Report
       uses: 5monkeys/cobertura-action@v13
-      working-directory: 
       with:
         minimum_coverage: 80
         fail_below_threshold: true
