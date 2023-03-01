@@ -21,7 +21,7 @@ namespace FireboltDotNetSdk.Client
     {
         public class LoginResponse
         {
-            internal LoginResponse(string access_token, string expires_in, string refresh_token, string token_type)
+            public LoginResponse(string access_token, string expires_in, string refresh_token, string token_type)
             {
                 Access_token = access_token;
                 Expires_in = expires_in;
