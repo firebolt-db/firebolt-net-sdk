@@ -47,7 +47,7 @@ jobs:
 
     - name: Fix file paths
       run: |
-        sed -i -e 's/\/home\/runner\/work\/firebolt-net-sdk\/firebolt-net-sdk\///g' coverage.xml
+        sed -i -e "s/\/home\/runner\/work\/firebolt-net-sdk\/firebolt-net-sdk\///g" coverage.xml
     
     - name: Report
       uses: 5monkeys/cobertura-action@v13
