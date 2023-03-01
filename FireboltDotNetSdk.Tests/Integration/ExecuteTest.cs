@@ -257,9 +257,9 @@ namespace FireboltDotNetSdk.Tests
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
-            command.Execute("SELECT 'hello_world_123'::bytea");
+            command.Execute("SELECT 'hello_world_123ツ\n\u0048'::bytea");
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
-            Assert.That(newMeta.Data[0], Is.EqualTo(Encoding.ASCII.GetBytes("hello_world_123")));
+            Assert.That(newMeta.Data[0], Is.EqualTo(Encoding.UTF8.GetBytes("hello_world_123ツ\n\u0048")));
         }
     }
 }
