@@ -1,3 +1,4 @@
+using System.Text;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -115,4 +116,31 @@ public class TypesConverterTest
         Assert.IsTrue(exception.Message.Contains("Error while parsing response"));
         Assert.That(exception.InnerException.GetType(), Is.EqualTo(typeof(JsonReaderException)));
     }
+
+    [Test]
+    public void ConvertValidHexStringToByteA()
+    {
+        ColumnType columnType = ColumnType.Of("ByteA");
+        var expectedBytes = Encoding.ASCII.GetBytes("hello_world_123");
+        object result = TypesConverter.ConvertToCSharpVal("\\x68656c6c6f5f776f726c645f313233", columnType);
+        Assert.That(result, Is.EqualTo(expectedBytes));
+    }
+
+    [Test]
+    public void ConvertInvalidHexStringToByteA()
+    {
+        ColumnType columnType = ColumnType.Of("ByteA");
+        //invalid because a valid hex string contains an even number of digits;
+        var invalidHexString = "\\x686";
+        Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(invalidHexString, columnType));
+    }
+
+    [Test]
+    public void ConvertByteAWhenNull()
+    {
+        ColumnType columnType = ColumnType.Of("ByteA");
+        Assert.Null(TypesConverter.ConvertToCSharpVal(null, columnType));
+    }
+
+
 }

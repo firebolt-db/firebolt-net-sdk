@@ -19,13 +19,14 @@ namespace FireboltDoNetSdk.Utils
     public enum FireboltDataType
     {
         String, Long, Int, Float, Double, Null, Decimal, Date, DateTime, TimestampNtz, TimestampTz,
-        Boolean, Array, Short
+        Boolean, Array, Short, ByteA
     }
     public static class TypesConverter
     {
 
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
+        private const string ByteAPrefix = "\\x";
 
         public static object? ConvertToCSharpVal(string? val, ColumnType columnType)
         {
@@ -71,6 +72,8 @@ namespace FireboltDoNetSdk.Utils
                         return bool.Parse(srcVal.ToString());
                     case FireboltDataType.Array:
                         return ArrayHelper.TransformToSqlArray(srcVal.ToString(), columnType);
+                    case FireboltDataType.ByteA:
+                        return ConvertHexStringToByteArray(srcVal.ToString());
                     default:
                         throw new FireboltException("Invalid destination type: " + columnType.Type);
                 }
@@ -269,6 +272,17 @@ namespace FireboltDoNetSdk.Utils
             return DateOnly.FromDateTime(ConvertToDateTime(srcVal, FireboltDataType.DateTime));
         }
 
+        private static byte[] ConvertHexStringToByteArray(string hexString)
+        {
+            if (!hexString.StartsWith(ByteAPrefix))
+            {
+                throw new FireboltException($"The hexadecimal string must start with {ByteAPrefix}: {hexString}");
+
+            }
+            hexString = hexString.Remove(0, 2);
+            return Convert.FromHexString(hexString);
+        }
+
         public static FireboltDataType MapColumnTypeToFireboltDataType(string columnType)
         {
             var csharpType = columnType.ToLower() switch
@@ -294,6 +308,7 @@ namespace FireboltDoNetSdk.Utils
                 "decimal" => FireboltDataType.Decimal,
                 "boolean" => FireboltDataType.Boolean,
                 "array" => FireboltDataType.Array,
+                "bytea" => FireboltDataType.ByteA,
                 _ => throw new FireboltException("The data type returned from the server is not supported: " + columnType),
             };
             return csharpType;
