@@ -193,10 +193,7 @@ namespace FireboltDotNetSdk.Client
 
         public GetEngineUrlByEngineNameResponse SetEngine(string engineName)
         {
-            if (Client is null)
-            {
-                throw new NullReferenceException("Client is not initialised to perform the operation. Make sure the connection is open.");
-            }
+            if (Client is null) throw new NullReferenceException("Client is not initialised to perform the operation. Make sure the connection is open.");
             // try
             // {
             var enginevalue = Client
