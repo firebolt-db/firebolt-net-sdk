@@ -6,7 +6,7 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     public class FireboltCommandTest
     {
-        private FireboltCommand _fireboltCommand;
+        private FireboltCommand _fireboltCommand = null!;
 
         [SetUp]
         public void Init()
@@ -29,23 +29,26 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteWrongWaySelectTest(string commandText)
         {
             var cs = new FireboltCommand();
-            FireboltException exception = Assert.Throws<FireboltException>(() => cs.Execute(commandText));
-            Assert.That(exception.Message, Is.EqualTo("Response is empty while GetOriginalJSONData"));
+            FireboltException? exception = Assert.Throws<FireboltException>(() => cs.Execute(commandText));
+            Assert.NotNull(exception);
+            Assert.That(exception!.Message, Is.EqualTo("Response is empty while GetOriginalJSONData"));
         }
 
         [Test]
         public void GetOriginalJsonDataExceptionTest()
         {
             var cs = new FireboltCommand();
-            FireboltException exception = Assert.Throws<FireboltException>(() => cs.GetOriginalJsonData());
-            Assert.That(exception.Message, Is.EqualTo("Response is empty while GetOriginalJSONData"));
+            FireboltException? exception = Assert.Throws<FireboltException>(() => cs.GetOriginalJsonData());
+            Assert.NotNull(exception);
+            Assert.That(exception!.Message, Is.EqualTo("Response is empty while GetOriginalJSONData"));
         }
 
         [Test]
         public void GetOriginalJsonDataTest()
         {
             var result = _fireboltCommand.GetOriginalJsonData();
-            Assert.IsNotNull(result.Data.Count);
+            Assert.NotNull(result);
+            Assert.IsNotNull(result!.Data.Count);
         }
 
         [Test]
@@ -59,8 +62,9 @@ namespace FireboltDotNetSdk.Tests
         public void RowCountExcecptionTest()
         {
             var cs = new FireboltCommand();
-            FireboltException exception = Assert.Throws<FireboltException>(() => cs.RowCount());
-            Assert.That(exception.Message, Is.EqualTo("RowCount is missing"));
+            FireboltException? exception = Assert.Throws<FireboltException>(() => cs.RowCount());
+            Assert.NotNull(exception);
+            Assert.That(exception!.Message, Is.EqualTo("RowCount is missing"));
         }
 
         [TestCase("SET param=1")]

@@ -14,7 +14,8 @@ public class ColumnTypeTest
         Assert.False(columnType.Nullable);
         Assert.Null(columnType.Precision);
         Assert.Null(columnType.Scale);
-        Assert.True(columnType.InnerType.Nullable);
+        Assert.NotNull(columnType.InnerType);
+        Assert.True(columnType.InnerType!.Nullable);
         Assert.That(columnType.InnerType.Type, Is.EqualTo(FireboltDataType.Int));
     }
 
@@ -27,7 +28,8 @@ public class ColumnTypeTest
         Assert.True(columnType.Nullable);
         Assert.Null(columnType.Precision);
         Assert.Null(columnType.Scale);
-        Assert.True(columnType.InnerType.Nullable);
+        Assert.NotNull(columnType.InnerType);
+        Assert.True(columnType.InnerType!.Nullable);
         Assert.That(columnType.InnerType.Type, Is.EqualTo(FireboltDataType.Int));
     }
 
@@ -50,9 +52,11 @@ public class ColumnTypeTest
         Assert.False(columnType.Nullable);
         Assert.Null(columnType.Precision);
         Assert.Null(columnType.Scale);
-        Assert.True(columnType.InnerType.Nullable);
+        Assert.NotNull(columnType.InnerType);
+        Assert.True(columnType.InnerType!.Nullable);
         Assert.That(columnType.InnerType.Type, Is.EqualTo(FireboltDataType.Array));
-        Assert.True(columnType.InnerType.InnerType.Nullable);
+        Assert.NotNull(columnType.InnerType.InnerType);
+        Assert.True(columnType.InnerType!.InnerType!.Nullable);
         Assert.That(columnType.InnerType.InnerType.Type, Is.EqualTo(FireboltDataType.Decimal));
         Assert.That(columnType.InnerType.InnerType.Precision, Is.EqualTo(5));
         Assert.That(columnType.InnerType.InnerType.Scale, Is.EqualTo(2));

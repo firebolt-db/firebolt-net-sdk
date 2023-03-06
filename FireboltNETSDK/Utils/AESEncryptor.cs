@@ -79,7 +79,7 @@ namespace FireboltDotNetSdk.Utils
             var timestamp_bytes = BitConverter.GetBytes(IPAddress.NetworkToHostOrder(timestamp));
             Buffer.BlockCopy(timestamp_bytes, 0, result, 1, timestamp_bytes.Length);
 
-            using (var aes = new AesManaged())
+            using (var aes = Aes.Create())
             {
                 aes.Mode = CipherMode.CBC;
 
@@ -107,7 +107,9 @@ namespace FireboltDotNetSdk.Utils
             using (var hmac = new HMACSHA256(signingKey))
             {
                 hmac.TransformFinalBlock(result, 0, result.Length - 32);
-                Buffer.BlockCopy(hmac.Hash, 0, result, result.Length - 32, 32);
+                var hash = hmac.Hash;
+                if (hash == null) throw new FireboltException("Unable to compute hash.");
+                Buffer.BlockCopy(hash, 0, result, result.Length - 32, 32);
             }
 
             return result;
@@ -143,6 +145,7 @@ namespace FireboltDotNetSdk.Utils
             {
                 hmac.TransformFinalBlock(encrypted, 0, encrypted.Length - 32);
                 var hash2 = hmac.Hash;
+                if (hash2 == null) throw new FireboltException("Wrong HMAC!");
 
                 var hash = encrypted.Skip(encrypted.Length - 32).Take(32);
 
@@ -151,7 +154,7 @@ namespace FireboltDotNetSdk.Utils
 
             byte[] decrypted;
 
-            using (var aes = new AesManaged())
+            using (var aes = Aes.Create())
             {
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.PKCS7;

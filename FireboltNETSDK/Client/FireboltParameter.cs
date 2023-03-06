@@ -39,9 +39,9 @@ namespace FireboltDotNetSdk.Client
         /// Gets or sets the <see cref="FireboltDbType"/> of the parameter.
         /// </summary>
         /// <returns>One of the <see cref="FireboltDbType"/> values. The default value is defined based on the type of the parameter's value.</returns>
-        public FireboltDbType FireboltDbType
+        public FireboltDbType? FireboltDbType
         {
-            get => (FireboltDbType)_forcedType;
+            get => _forcedType;
             set => _forcedType = value;
         }
 
@@ -56,7 +56,7 @@ namespace FireboltDotNetSdk.Client
         {
             get
             {
-                var chType = FireboltDbType;
+                var chType = FireboltDbType ?? global::FireboltDbType.String;
                 return (DbType)chType;
             }
             set => FireboltDbType = (FireboltDbType)value;

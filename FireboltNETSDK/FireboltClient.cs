@@ -107,7 +107,7 @@ public class FireboltClient
     /// <param name="engineId">Name of the database.</param>
     /// <param name="accountId"></param>
     /// <returns>An Engine url response.</returns>
-    public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string engineId, string accountId)
+    public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string? engineId, string? accountId)
     {
         return CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None);
     }
@@ -221,7 +221,7 @@ public class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account,
+    public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string? account,
         CancellationToken cancellationToken)
     {
         if (account == null) throw new FireboltException("Account name is empty");
@@ -235,10 +235,11 @@ public class FireboltClient
         return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
     }
 
-    private async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string engineId,
-        string accountId, CancellationToken cancellationToken)
+    private async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string? engineId,
+        string? accountId, CancellationToken cancellationToken)
     {
         if (engineId == null) throw new FireboltException("Engine name is incorrect or missing");
+        if (accountId == null) throw new FireboltException("Account id is incorrect or missing");
 
         var urlBuilder = new StringBuilder();
         urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId + "/engines/" + engineId);
@@ -441,11 +442,10 @@ public class FireboltClient
         var storedToken = await TokenSecureStorage.GetCachedToken(_username, _password);
         if (storedToken != null)
         {
-            token = new LoginResponse
-            {
-                Access_token = storedToken.token,
-                Expires_in = storedToken.expiration.ToString()
-            };
+            token = new LoginResponse(access_token: storedToken.token,
+                expires_in: storedToken.expiration.ToString(),
+                refresh_token: "",
+                token_type: "");
         }
         else
         {

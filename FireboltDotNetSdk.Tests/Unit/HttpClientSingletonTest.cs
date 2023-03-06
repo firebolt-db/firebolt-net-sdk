@@ -14,6 +14,6 @@ public class HttpClientSingletonTest
     public void SetDefaultRequestHeaders()
     {
         HttpClient client = HttpClientSingleton.GetInstance();
-        Assert.That(client.DefaultRequestHeaders.UserAgent.ToList()[0].Product.Name, Is.EqualTo(".NETSDK"));
+        Assert.That(client.DefaultRequestHeaders.UserAgent.ToList()[0].Product?.Name, Is.EqualTo(".NETSDK"));
     }
 }

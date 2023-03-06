@@ -57,12 +57,11 @@ namespace FireboltDotNetSdk.Utils
                 var b64decoded = WebEncoders.Base64UrlDecode(raw_data.token);
                 var token = (new FernetEncryptor(username + password, raw_data.salt)).Decrypt(b64decoded);
 
-                CachedJSONData data = new()
-                {
-                    token = token,
-                    salt = raw_data.salt,
-                    expiration = Convert.ToInt32(raw_data.expiration)
-                };
+                CachedJSONData data = new(
+                    paramToken: token,
+                    paramSalt: raw_data.salt,
+                    paramExpiration: Convert.ToInt32(raw_data.expiration)
+                );
                 if (data.expiration < Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()))
                 {
                     // Token has expired, returning null
@@ -85,12 +84,11 @@ namespace FireboltDotNetSdk.Utils
             {
                 var encryptor = new FernetEncryptor(username + password);
                 var token = encryptor.Encrypt(tokenData.Access_token);
-                CachedJSONData data = new()
-                {
-                    token = WebEncoders.Base64UrlEncode(token),
-                    salt = encryptor.salt,
-                    expiration = Convert.ToInt32(tokenData.Expires_in) + Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds())
-                };
+                CachedJSONData data = new(
+                    paramToken: WebEncoders.Base64UrlEncode(token),
+                    paramSalt: encryptor.salt,
+                    paramExpiration: Convert.ToInt32(tokenData.Expires_in) + Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds())
+                );
 
                 var cacheDir = GetCacheDir();
                 if (!Directory.Exists(cacheDir))
@@ -133,6 +131,12 @@ namespace FireboltDotNetSdk.Utils
 
     public class CachedJSONData
     {
+        public CachedJSONData(string paramToken, string paramSalt, int paramExpiration)
+        {
+            token = paramToken;
+            salt = paramSalt;
+            expiration = paramExpiration;
+        }
         public string token { get; set; }
         public string salt { get; set; }
         public int expiration { get; set; }

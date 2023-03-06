@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using FireboltDoNetSdk.Utils;
+using FireboltDotNetSdk.Exception;
 
 namespace FireboltDotNetSdk.Utils;
 
@@ -47,8 +48,15 @@ public class ArrayHelper
             .Where(x => !string.IsNullOrEmpty(x)).Select(x => RemoveQuotesAndTransformNull(x)).ToList();
         Array currentArray = new dynamic[elements.Count];
         for (int i = 0; i < elements.Count; i++)
-            currentArray.SetValue(TypesConverter.ConvertToCSharpVal(elements[i], columnType.GetArrayBaseColumnType()),
-                i);
+        {
+            var innerType = columnType.GetArrayBaseColumnType();
+            if (innerType == null)
+            {
+                throw new FireboltException("Unable to retrieve a Firebolt type of an array");
+            }
+            currentArray.SetValue(TypesConverter.ConvertToCSharpVal(elements[i], innerType), i);
+
+        }
         return currentArray;
     }
 

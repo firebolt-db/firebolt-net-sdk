@@ -321,7 +321,7 @@ namespace FireboltDoNetSdk.Utils
             return type;
         }
 
-        public static IEnumerable<NewMeta> ParseJsonResponse(string response)
+        public static IEnumerable<NewMeta> ParseJsonResponse(string? response)
         {
             if (response == null)
             {
@@ -331,19 +331,20 @@ namespace FireboltDoNetSdk.Utils
             {
                 var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
                 var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+                if (data == null) throw new FireboltException("Unable to parse data to JSON");
                 var newListData = new List<NewMeta>();
                 foreach (var t in data.Data)
                     for (var j = 0; j < t.Count; j++)
                     {
                         var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(data.Meta[j]));
                         newListData.Add(new NewMeta
-                        {
-                            Data = new ArrayList
+                        (
+                            data: new ArrayList
                             {
                                 TypesConverter.ConvertToCSharpVal(t[j]?.ToString(), columnType)
                             },
-                            Meta = columnType.Type.ToString()
-                        });
+                            meta: columnType.Type.ToString()
+                        ));
                     }
                 return newListData;
             }
@@ -356,6 +357,11 @@ namespace FireboltDoNetSdk.Utils
 }
 public class NewMeta
 {
+    public NewMeta(ArrayList data, string meta)
+    {
+        Data = data;
+        Meta = meta;
+    }
     public ArrayList Data { get; set; }
     public string Meta { get; set; }
 }

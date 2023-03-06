@@ -27,7 +27,8 @@ namespace FireboltDotNetSdk.Tests
             var cursor = conn.CreateCursor();
 
             var value = cursor.Execute(commandText);
-            Assert.IsNotEmpty(value.Data);
+            Assert.NotNull(value);
+            Assert.IsNotEmpty(value!.Data);
         }
 
         [Ignore("sleepEachRow function is currently not supported on staging")]
@@ -43,7 +44,8 @@ namespace FireboltDotNetSdk.Tests
             cursor.Execute("SET use_standard_sql=0");
 
             var value = cursor.Execute(commandText);
-            Assert.IsNotEmpty(value.Data);
+            Assert.NotNull(value);
+            Assert.IsNotEmpty(value!.Data);
         }
 
         [TestCase("select * from information_schema.tables")]
@@ -57,7 +59,8 @@ namespace FireboltDotNetSdk.Tests
             conn.SetEngine(Engine);
 
             var value = conn.CreateCursor().Execute(commandText);
-            Assert.IsNotEmpty(value.Data);
+            Assert.NotNull(value);
+            Assert.IsNotEmpty(value!.Data);
         }
 
         [Test]
@@ -65,8 +68,9 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString = $"database={Database};username={Username};password=wrongPassword;endpoint={Endpoint};";
             using var conn = new FireboltConnection(connString);
-            FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.IsTrue(exception.Message.Contains("The operation is forbidden\nStatus: 403") || exception.Message.Contains("429"));
+            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.NotNull(exception);
+            Assert.IsTrue(exception!.Message.Contains("The operation is forbidden\nStatus: 403") || exception.Message.Contains("429"));
             Assert.IsTrue(exception.ToString().Contains("FireboltDotNetSdk.Exception.FireboltException: The operation is forbidden\nStatus: 403") || exception.Message.Contains("429"));
         }
 
@@ -82,7 +86,8 @@ namespace FireboltDotNetSdk.Tests
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10 23:01:02.123455'::timestampntz");
             DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0).AddTicks(1234550);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
         }
@@ -99,7 +104,8 @@ namespace FireboltDotNetSdk.Tests
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10'::pgdate");
             DateTime dt = new DateTime(2022, 5, 10, 0, 0, 0);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Meta, Is.EqualTo("Date"));
             Assert.That(newMeta.Data[0], Is.EqualTo(DateOnly.FromDateTime(dt)));
         }
@@ -117,7 +123,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("SELECT '2022-05-10 23:01:02.123456 Europe/Berlin'::timestamptz");
 
             DateTime dt = DateTime.Parse("2022-05-10 21:01:02.123456Z");
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
 
@@ -137,7 +144,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("SELECT '2022-05-11 23:01:02.123123 Europe/Berlin'::timestamptz");
 
             DateTime dt = DateTime.Parse("2022-05-11 21:01:02.123123Z");
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
@@ -156,7 +164,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("SELECT '1111-01-05 17:04:42.123456'::timestamptz");
 
             DateTime dt = DateTime.Parse("1111-01-05 11:11:14.123456Z");
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
@@ -173,7 +182,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("SELECT '2022-05-01 12:01:02.123456'::timestamptz");
 
             DateTime dt = DateTime.Parse("2022-05-01 12:01:02.123456Z");
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
             Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
         }
@@ -192,7 +202,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("SET output_format_firebolt_type_names=true");
             command.Execute("SET bool_output_format=postgres");
             command.Execute("SELECT true::boolean");
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
             Assert.That(newMeta.Data[0], Is.EqualTo(true));
         }
@@ -205,7 +216,8 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             var command = conn.CreateCursor();
             var value = command.Execute("SELECT 1");
-            Assert.That(value.Data[0][0], Is.EqualTo(1));
+            Assert.NotNull(value);
+            Assert.That(value!.Data[0][0], Is.EqualTo(1));
         }
 
         [Test]
@@ -213,16 +225,18 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString = $"database={Database};username={ClientId};password=wrongPassword;endpoint={Endpoint};";
             using var conn = new FireboltConnection(connString);
-            FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.IsTrue(exception.Message.Contains("401"));
+            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.NotNull(exception);
+            Assert.IsTrue(exception!.Message.Contains("401"));
         }
         [Test]
         public void ExecuteServiceAccountLoginWithMissingSecret()
         {
             var connString = $"database={Database};username={ClientId};password=;endpoint={Endpoint};";
             using var conn = new FireboltConnection(connString);
-            FireboltException exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.IsTrue(exception.Message.Contains("Password parameter is missing in the connection string"));
+            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.NotNull(exception);
+            Assert.IsTrue(exception!.Message.Contains("Password parameter is missing in the connection string"));
         }
         [Test]
         public void ExecuteSelectArray()
@@ -232,7 +246,8 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             var command = conn.CreateCursor();
             var res = command.Execute("select [1,NULL,3]");
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(new int?[] { 1, null, 3 }));
         }
 
@@ -246,7 +261,8 @@ namespace FireboltDotNetSdk.Tests
             command.Execute("select [[1,NULL,3]]");
             int?[][] jaggedArray = new int?[1][];
             jaggedArray[0] = new int?[] { 1, null, 3 };
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(jaggedArray));
         }
 
@@ -258,7 +274,8 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             var command = conn.CreateCursor();
             command.Execute("SELECT 'hello_world_123ツ\n\u0048'::bytea");
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response);
+            Assert.NotNull(command.Response == null);
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(Encoding.UTF8.GetBytes("hello_world_123ツ\n\u0048")));
         }
     }
