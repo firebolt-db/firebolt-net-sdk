@@ -56,7 +56,6 @@ namespace FireboltDotNetSdk.Client
         {
             get
             {
-                // not sure if this is right
                 var chType = FireboltDbType ?? global::FireboltDbType.String;
                 return (DbType)chType;
             }
