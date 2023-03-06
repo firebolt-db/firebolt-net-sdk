@@ -126,7 +126,7 @@ public class TypesConverterTest
     {
         ColumnType columnType = ColumnType.Of("ByteA");
         var expectedBytes = Encoding.ASCII.GetBytes("hello_world_123");
-        object result = TypesConverter.ConvertToCSharpVal("\\x68656c6c6f5f776f726c645f313233", columnType);
+        object? result = TypesConverter.ConvertToCSharpVal("\\x68656c6c6f5f776f726c645f313233", columnType);
         Assert.That(result, Is.EqualTo(expectedBytes));
     }
 
