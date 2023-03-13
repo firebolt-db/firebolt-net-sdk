@@ -1,0 +1,86 @@
+name: Release new version
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Semantic version to release
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+        description: 'Branch to release'
+
+
+jobs:
+  integration-tests:
+    uses: ./.github/workflows/integration-tests.yml
+    secrets:
+      FIREBOLT_USERNAME_STAGING: ${{ secrets.FIREBOLT_USERNAME_STAGING }}
+      FIREBOLT_PASSWORD_STAGING: ${{ secrets.FIREBOLT_PASSWORD_STAGING }}
+      FIREBOLT_USERNAME_DEV: ${{ secrets.FIREBOLT_USERNAME_DEV }}
+      FIREBOLT_PASSWORD_DEV: ${{ secrets.FIREBOLT_PASSWORD_DEV }}
+      FIREBOLT_CLIENT_ID_STAGING: ${{ secrets.FIREBOLT_CLIENT_ID_STAGING }}
+      FIREBOLT_CLIENT_SECRET_STAGING: ${{ secrets.FIREBOLT_CLIENT_SECRET_STAGING }}
+      FIREBOLT_CLIENT_ID_DEV: ${{ secrets.FIREBOLT_CLIENT_ID_DEV }}
+      FIREBOLT_CLIENT_SECRET_DEV: ${{ secrets.FIREBOLT_CLIENT_SECRET_DEV }}
+    with:
+      environment: dev
+      branch: ${{ inputs.branch }}
+
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: integration-tests
+    steps:    
+    - name: Check out code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.RELEASE_PAT }}
+        ref: ${{ inputs.branch }}
+    
+    - name: Setup git config
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "<>"
+      shell: bash
+
+    - name: Version bump
+      run: |
+        sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ inputs.version }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ inputs.version }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ inputs.version }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+        git branch
+        git diff
+        git add FireboltNETSDK/FireboltDotNetSdk.csproj
+        git commit -m "Automatic version bump to ${{ inputs.version }}"
+        git push origin ${{ inputs.branch }}
+      shell: bash
+
+    - name: Publish tag on github
+      run: |
+        git tag ${{ inputs.version }}
+        git push origin ${{ inputs.version }}
+      shell: bash
+
+    - name: Set up .NET 6.0
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0
+
+    - name: Build package
+      run: |
+        dotnet restore
+        dotnet build
+        dotnet pack
+      shell: bash
+
+    - name: Publish package on Nuget
+      run: |
+        dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.version }}.nupkg \
+          --api-key ${{ secrets.PUBLISH_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json
+      shell: bash
