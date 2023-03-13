@@ -280,7 +280,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.That(exception!.Message, Is.EqualTo("Cannot get engine url for InexistantEngine engine from Aymeric_test database"));
         }
-        
+
         [Test]
         public void ShouldExecuteUsingEngineUrl()
         {

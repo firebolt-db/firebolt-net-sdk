@@ -93,7 +93,7 @@ namespace FireboltDotNetSdk.Client
             get => GetString(EngineNameKey);
             init => this[EngineNameKey] = value;
         }
-        
+
         /// <summary>
         /// Get the name of the engine.
         /// </summary>

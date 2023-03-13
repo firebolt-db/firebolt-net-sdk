@@ -51,7 +51,7 @@ namespace FireboltDotNetSdk.Client
         /// Get the name of the engine
         /// </summary>
         public string? EngineName { get; }
-        
+
         /// <summary>
         /// Get the url of the engine
         /// </summary>
