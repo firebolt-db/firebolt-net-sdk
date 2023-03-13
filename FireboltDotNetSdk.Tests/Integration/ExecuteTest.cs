@@ -278,7 +278,7 @@ namespace FireboltDotNetSdk.Tests
                 $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name=InexistantEngine";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.That(exception!.Message, Is.EqualTo("Cannot get engine url for InexistantEngine engine from Aymeric_test database"));
+            Assert.That(exception!.Message, Is.EqualTo($"Cannot get engine url for InexistantEngine engine from {Database} database"));
         }
 
         [Test]
