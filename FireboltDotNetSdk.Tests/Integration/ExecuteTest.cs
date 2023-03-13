@@ -52,11 +52,10 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSetEngineTest(string commandText)
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
 
             var value = conn.CreateCursor().Execute(commandText);
             Assert.NotNull(value);
@@ -78,11 +77,10 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampNtz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10 23:01:02.123455'::timestampntz");
             DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0).AddTicks(1234550);
@@ -96,11 +94,10 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampPgDate()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10'::pgdate");
             DateTime dt = new DateTime(2022, 5, 10, 0, 0, 0);
@@ -114,11 +111,10 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-10 23:01:02.123456 Europe/Berlin'::timestamptz");
 
@@ -134,10 +130,9 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTzWithMinutesInTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SET advanced_mode=1");
             command.Execute("SET time_zone=Asia/Calcutta");
@@ -154,10 +149,9 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTzWithTzWithMinutesAndSecondsInTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SET advanced_mode=1");
             command.Execute("SET time_zone=Asia/Calcutta");
@@ -174,10 +168,9 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTzWithTzWithDefaultTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SELECT '2022-05-01 12:01:02.123456'::timestamptz");
 
@@ -192,11 +185,10 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectBoolean()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(Engine);
             var command = conn.CreateCursor();
             command.Execute("SET advanced_mode=1");
             command.Execute("SET output_format_firebolt_type_names=true");
@@ -277,6 +269,29 @@ namespace FireboltDotNetSdk.Tests
             Assert.NotNull(command.Response == null);
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(Encoding.UTF8.GetBytes("hello_world_123ツ\n\u0048")));
+        }
+
+        [Test]
+        public void ShouldThrowExceptionWhenEngineIsNotFound()
+        {
+            var connString =
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_name=InexistantEngine";
+            using var conn = new FireboltConnection(connString);
+            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            Assert.That(exception!.Message, Is.EqualTo("Cannot get engine url for InexistantEngine engine from Aymeric_test database"));
+        }
+        
+        [Test]
+        public void ShouldExecuteUsingEngineUrl()
+        {
+            var connString =
+                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine_url={EngineUrl}";
+            using var conn = new FireboltConnection(connString);
+            conn.Open();
+            var command = conn.CreateCursor();
+            command.Execute("SELECT 1");
+            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
+            Assert.That(newMeta.Data[0], Is.EqualTo(1));
         }
     }
 }

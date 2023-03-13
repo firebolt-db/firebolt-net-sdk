@@ -50,18 +50,6 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Ignore("GetEngineUrlByEngineNameResponse does not throw the exception with this message for the moment")]
-        public void SetEngineTest()
-        {
-            const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
-            var cs = new FireboltConnection(connectionString);
-
-            FireboltException? exception = Throws<FireboltException>(() => cs.SetEngine("default_Engine"));
-            Assert.NotNull(exception);
-            That(exception!.Message, Does.StartWith("Cannot get engine: default_Engine from testdb.ib database"));
-        }
-
-        [Test]
         public void OnSessionEstablishedTest()
         {
             const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";

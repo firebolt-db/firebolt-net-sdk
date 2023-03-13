@@ -76,7 +76,7 @@ namespace FireboltDotNetSdk.Client
             public string? endpoint { get; set; }
         }
 
-        public class GetEngineNameByEngineIdResponse
+        public class GetEngineIdByEngineNameResponse
         {
             /// <summary>
             /// Retrieved record.
