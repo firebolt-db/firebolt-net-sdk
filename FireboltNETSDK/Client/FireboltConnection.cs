@@ -214,7 +214,7 @@ namespace FireboltDotNetSdk.Client
         public void SetDefaultEngine()
         {
             CheckClient();
-            EngineUrl = GetDefaultEngineUrl(Client);
+            EngineUrl = GetDefaultEngineUrl(Client!);
         }
 
         /// <summary>
@@ -225,7 +225,7 @@ namespace FireboltDotNetSdk.Client
         public void SetEngine(string engineName)
         {
             CheckClient();
-            EngineUrl = GetEngineUrlByEngineName(engineName, Client);
+            EngineUrl = GetEngineUrlByEngineName(engineName, Client!);
         }
 
         private void CheckClient()
