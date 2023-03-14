@@ -24,6 +24,7 @@
     <Authors>Firebolt</Authors>
     <Company>Firebolt</Company>
     <PackageProjectUrl>https://www.firebolt.io/</PackageProjectUrl>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
