@@ -9,7 +9,7 @@
     <AltCoverAssemblyFilter>?FireboltDotNetSdk;FireboltDotNetSdk.Tests</AltCoverAssemblyFilter>
     <AltCoverTypeFilter>Microsoft;System;/</AltCoverTypeFilter>
     <AltCoverCobertura>coverage.xml</AltCoverCobertura>
-
+    <WarningsNotAsErrors>612,618</WarningsNotAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
