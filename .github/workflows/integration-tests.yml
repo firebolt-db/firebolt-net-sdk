@@ -6,6 +6,9 @@ on:
         default: 'staging'
         required: false
         type: string
+      branch:
+        required: false
+        type: string
     secrets:
       FIREBOLT_USERNAME_STAGING:
         required: true
@@ -39,6 +42,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.branch }}
     
       - name: Set up .NET 6.0
         uses: actions/setup-dotnet@v3
