@@ -31,30 +31,30 @@ namespace FireboltDotNetSdk.Client
     {
         private readonly FireboltConnectionState _connectionState;
 
-        public FireboltClient Client { get; private set; }
-        public string EngineUrl { get; private set; }
+        public FireboltClient? Client { get; private set; }
+        public string? EngineUrl { get; private set; }
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
         /// </summary>
         /// <returns>The name of the database specified in the connection settings. The default value is an empty string.</returns>
-        public override string Database => _connectionState.Settings.Database ?? throw new FireboltException("Database is missing");
+        public override string Database => _connectionState.Settings?.Database ?? throw new FireboltException("Database is missing");
 
         public string Password
         {
-            get => _connectionState.Settings.Password ?? throw new FireboltException("Password parameter is missing in the connection string");
+            get => _connectionState.Settings?.Password ?? throw new FireboltException("Password parameter is missing in the connection string");
             set => throw new NotImplementedException();
         }
 
         public string Endpoint
         {
-            get => _connectionState.Settings.Endpoint ?? Constant.BaseUrl;
+            get => _connectionState.Settings?.Endpoint ?? Constant.BaseUrl;
             set => throw new NotImplementedException();
         }
 
         public string Account
         {
-            get => _connectionState.Settings.Account ?? string.Empty;
+            get => _connectionState.Settings?.Account ?? string.Empty;
             set => throw new NotImplementedException();
         }
 

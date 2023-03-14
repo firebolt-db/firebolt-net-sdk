@@ -11,6 +11,7 @@
     <AltCoverCobertura>coverage.xml</AltCoverCobertura>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>612,618</WarningsNotAsErrors>
+    <NoWarn>612,618</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
