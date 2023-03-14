@@ -25,6 +25,7 @@
     <Company>Firebolt</Company>
     <PackageProjectUrl>https://www.firebolt.io/</PackageProjectUrl>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>612,618</WarningsNotAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
