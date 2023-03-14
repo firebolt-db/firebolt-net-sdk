@@ -207,6 +207,9 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <summary>
+        /// Set engineUrl to use the default engine of the database
+        /// </summary>
         [Obsolete("The default engine is used when the engine is not specified as part of the connection string")]
         public void SetDefaultEngine()
         {
@@ -214,6 +217,10 @@ namespace FireboltDotNetSdk.Client
             EngineUrl = GetDefaultEngineUrl(Client);
         }
 
+        /// <summary>
+        /// Set engineUrl to use the url of the engine provided
+        /// </summary>
+        /// <param name="engineName">The engine name.</param>
         [Obsolete("Pass engine as part of the connection string instead")]
         public void SetEngine(string engineName)
         {
