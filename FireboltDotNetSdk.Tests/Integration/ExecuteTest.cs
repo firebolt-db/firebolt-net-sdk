@@ -306,7 +306,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.NotNull(value);
             Assert.That(value!.Data[0][0], Is.EqualTo(1));
         }
-        
+
         [Test]
         public void SetEngineThrowsExceptionIfConnectionNotOpened()
         {
