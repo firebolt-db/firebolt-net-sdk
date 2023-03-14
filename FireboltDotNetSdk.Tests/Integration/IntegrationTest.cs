@@ -28,7 +28,6 @@ namespace FireboltDotNetSdk.Tests
         protected static string Endpoint = EnvWithDefault("FIREBOLT_ENDPOINT", "https://api.dev.firebolt.io");
         protected static string Account = EnvWithDefault("FIREBOLT_ACCOUNT", "firebolt");
         protected static string EngineName = EnvWithDefault("FIREBOLT_ENGINE_NAME");
-        protected static string EngineUrl = EnvWithDefault("FIREBOLT_ENGINE_URL");
         protected static string ClientId = EnvWithDefault("FIREBOLT_CLIENT_ID");
         protected static string ClientSecret = EnvWithDefault("FIREBOLT_CLIENT_SECRET");
     }

@@ -28,8 +28,6 @@ namespace FireboltDotNetSdk.Client
     public class FireboltConnectionStringBuilder : DbConnectionStringBuilder
     {
         private static readonly HashSet<string> AllProperties;
-        private static readonly string EngineNameKey = "engine_name";
-        private static readonly string EngineUrlKey = "engine_url";
 
         /// <summary>
         /// Gets or sets the name of the user.
@@ -88,19 +86,10 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Get the name of the engine.
         /// </summary>
-        public string? EngineName
+        public string? Engine
         {
-            get => GetString(EngineNameKey);
-            init => this[EngineNameKey] = value;
-        }
-
-        /// <summary>
-        /// Get the name of the engine.
-        /// </summary>
-        public string? EngineUrl
-        {
-            get => GetString(EngineUrlKey);
-            init => this[EngineUrlKey] = value;
+            get => GetString(nameof(Engine));
+            init => this[nameof(Engine)] = value;
         }
 
         static FireboltConnectionStringBuilder()
@@ -112,8 +101,7 @@ namespace FireboltDotNetSdk.Client
                 nameof(UserName),
                 nameof(Endpoint),
                 nameof(Account),
-                EngineNameKey,
-                EngineUrlKey,
+                nameof(Engine),
             };
         }
 

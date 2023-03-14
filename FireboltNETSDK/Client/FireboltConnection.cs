@@ -66,7 +66,7 @@ namespace FireboltDotNetSdk.Client
 
         private string? EngineName
         {
-            get => _connectionState.Settings?.EngineName;
+            get => _connectionState.Settings?.Engine;
         }
 
 
@@ -160,14 +160,7 @@ namespace FireboltDotNetSdk.Client
         {
             Client = new FireboltClient(UserName, Password, Endpoint);
             await Client.EstablishConnection();
-            if (_connectionState.Settings?.EngineUrl != null)
-            {
-                EngineUrl = _connectionState.Settings?.EngineUrl;
-            }
-            else
-            {
-                EngineUrl = EngineName != null ? GetEngineUrlByEngineName(EngineName, Client) : GetDefaultEngineUrl(Client);
-            }
+            EngineUrl = EngineName != null ? GetEngineUrlByEngineName(EngineName, Client) : GetDefaultEngineUrl(Client);
             OnSessionEstablished();
             return EngineUrl != null;
         }
@@ -213,6 +206,28 @@ namespace FireboltDotNetSdk.Client
                     $"Cannot get engine url for {engineName} engine from {_connectionState.Settings?.Database} database", ex);
             }
         }
+
+        [Obsolete("The default engine is used when the engine is not specified as part of the connection string")]
+        public void SetDefaultEngine()
+        {
+            CheckClient();
+            EngineUrl = GetDefaultEngineUrl(Client);
+        }
+
+        [Obsolete("Pass engine as part of the connection string instead")]
+        public void SetEngine(string engineName)
+        {
+            CheckClient();
+            EngineUrl = GetEngineUrlByEngineName(engineName, Client);
+        }
+
+        private void CheckClient()
+        {
+            if (Client is null)
+                throw new NullReferenceException(
+                    "Client is not initialised to perform the operation. Make sure the connection is open.");
+        }
+
 
         /// <summary>
         /// Creates and returns a <see cref="FireboltCommand"/> object associated with the connection.

@@ -50,12 +50,7 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Get the name of the engine
         /// </summary>
-        public string? EngineName { get; }
-
-        /// <summary>
-        /// Get the url of the engine
-        /// </summary>
-        public string? EngineUrl { get; }
+        public string? Engine { get; }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
@@ -67,8 +62,7 @@ namespace FireboltDotNetSdk.Client
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Endpoint = string.IsNullOrEmpty(builder.Endpoint) ? null : builder.Endpoint;
             Account = string.IsNullOrEmpty(builder.Account) ? null : builder.Account;
-            EngineName = string.IsNullOrEmpty(builder.EngineName) ? null : builder.EngineName;
-            EngineUrl = string.IsNullOrEmpty(builder.EngineUrl) ? null : builder.EngineUrl;
+            Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
         }
     }
 }
