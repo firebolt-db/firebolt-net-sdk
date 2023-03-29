@@ -39,16 +39,18 @@ public class FireboltClient
 
     private Token? _loginToken;
     private readonly string _endpoint;
-    private readonly string _username;
-    private readonly string _password;
+    private readonly string _id;
+    private readonly string _secret;
+    private readonly string _env;
 
-    public FireboltClient(String username, String password, String endpoint)
+    public FireboltClient(String id, String secret, String endpoint, String? env = null)
     {
         _httpClient = HttpClientSingleton.GetInstance();
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
-        _endpoint = endpoint;
-        _username = username;
-        _password = password;
+        _endpoint = env != null ? $"api.{env}.firebolt.io" : endpoint;
+        _id = id;
+        _secret = secret;
+        _env = env ?? "app";
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
@@ -56,26 +58,27 @@ public class FireboltClient
     /// <summary>
     ///     Authenticates the user with Firebolt.
     /// </summary>
-    /// <param name="username"></param>
-    /// <param name="password"></param>
+    /// <param name="id"></param>
+    /// <param name="sectet"></param>
     /// <returns></returns>
-    private Task<LoginResponse> Login(string username, string password)
+    private Task<LoginResponse> Login(string id, string secret, string env)
     {
-        if (IsServiceAccount(username))
-        {
-            var credentials = new UsernamePasswordLoginRequest(username, password);
-            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_USERNAME_PASSWORD_URL, JsonConvert.SerializeObject(credentials, _settings.Value), false, CancellationToken.None);
-        }
-        else
-        {
-            var credentials = new ServiceAccountLoginRequest(username, password);
-            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_SERVICE_ACCOUNT_URL, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
-        }
+        var credentials = new ServiceAccountLoginRequest(id, secret, env);
+        return SendAsync<LoginResponse>(HttpMethod.Post, $"id.{env}.firebolt.io" + Constant.AUTH_SERVICE_ACCOUNT_URL, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
     }
 
-    private bool IsServiceAccount(string username)
+    /// <summary>
+    ///     Fetches system engine URL.
+    /// </summary>
+    /// <param name="accountName">Name of the account</param>
+    /// <returns>Engine URL response</returns>
+    public Task<GetSystemEngineUrlResponse> GetSystemEngineUrl(string accountName)
     {
-        return username.Contains("@");
+        var urlBuilder = new StringBuilder();
+        urlBuilder.Append(_endpoint).Append("/v3/getGatewayHostByAccountName/" + accountName);
+        // Currently working on dev
+        // urlBuilder.Append(_endpoint).Append("/web/v3/account/" + accountName + "/engineUrl");
+        return SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, CancellationToken.None);
     }
 
     /// <summary>
@@ -155,15 +158,19 @@ public class FireboltClient
     public async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string databaseName, string query,
         HashSet<string> setParamList, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(databaseName) ||
-            string.IsNullOrEmpty(query))
+        if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(query))
             throw new FireboltException(
                 $"Some parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
 
         var setParam = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
         var urlBuilder = new StringBuilder();
-        urlBuilder.Append("https://").Append(engineEndpoint).Append("?database=").Append(databaseName)
-            .Append(setParam).Append("&output_format=JSON_Compact");
+        if (!(engineEndpoint.StartsWith("https://") || engineEndpoint.StartsWith("http://"))) {
+            urlBuilder.Append("https://");
+        }
+        urlBuilder.Append(engineEndpoint).Append("/dynamic/query").Append("?output_format=JSON_Compact").Append(setParam);
+        if (databaseName != "") {
+            urlBuilder.Append("?database=").Append(databaseName);
+        }
         return await SendAsync<string>(HttpMethod.Post, urlBuilder.ToString(), query, "text/plain", true, cancellationToken);
     }
 
@@ -439,33 +446,30 @@ public class FireboltClient
     public async Task EstablishConnection()
     {
         LoginResponse token;
-        var storedToken = await TokenSecureStorage.GetCachedToken(_username, _password);
+        var storedToken = await TokenSecureStorage.GetCachedToken(_id, _secret);
         if (storedToken != null)
         {
             token = new LoginResponse(access_token: storedToken.token,
                 expires_in: storedToken.expiration.ToString(),
-                refresh_token: "",
                 token_type: "");
         }
         else
         {
-            token = await Login(_username, _password);
-            await TokenSecureStorage.CacheToken(token, _username, _password);
+            token = await Login(_id, _secret, _env);
+            await TokenSecureStorage.CacheToken(token, _id, _secret);
         }
-        _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
+        _loginToken = new Token(token.Access_token, token.Expires_in);
     }
 
     public class Token
     {
-        public Token(string? accessToken, string? refreshToken, string? tokenExpired)
+        public Token(string? accessToken, string? tokenExpired)
         {
             AccessToken = accessToken;
-            RefreshToken = refreshToken;
             TokenExpired = tokenExpired;
         }
 
         public string? AccessToken { get; }
-        public string? RefreshToken { get; }
         public string? TokenExpired { get; }
     }
 }

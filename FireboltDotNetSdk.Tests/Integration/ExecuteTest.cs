@@ -19,7 +19,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT -30000000000 as int64")]
         public void ExecuteTest(string commandText)
         {
-            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint}";
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -35,7 +35,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select sleepEachRow(1) from numbers(5)")]
         public void ExecuteSetTest(string commandText)
         {
-            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account}";
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -52,7 +52,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSetEngineTest(string commandText)
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -65,7 +65,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteTestInvalidCredentials()
         {
-            var connString = $"database={Database};username={Username};password=wrongPassword;endpoint={Endpoint};";
+            var connString = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account}";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
@@ -77,7 +77,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampNtz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -94,7 +94,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampPgDate()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -111,7 +111,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -130,7 +130,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTzWithMinutesInTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
@@ -149,7 +149,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTzWithTzWithMinutesAndSecondsInTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
@@ -168,7 +168,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectTimestampTzWithTzWithDefaultTz()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
@@ -185,7 +185,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectBoolean()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine={EngineName}";
+                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -203,7 +203,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteServiceAccountLogin()
         {
-            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
@@ -215,7 +215,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteServiceAccountLoginWithInvalidCredentials()
         {
-            var connString = $"database={Database};username={ClientId};password=wrongPassword;endpoint={Endpoint};";
+            var connString = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account}";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
@@ -224,16 +224,15 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteServiceAccountLoginWithMissingSecret()
         {
-            var connString = $"database={Database};username={ClientId};password=;endpoint={Endpoint};";
-            using var conn = new FireboltConnection(connString);
-            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            var connString = $"database={Database};clientid={ClientId};clientsecret=;endpoint={Endpoint};account={Account}";
+            FireboltException? exception = Assert.Throws<FireboltException>(() => new FireboltConnection(connString));
             Assert.NotNull(exception);
-            Assert.IsTrue(exception!.Message.Contains("Password parameter is missing in the connection string"));
+            Assert.IsTrue(exception!.Message.Contains("ClientSecret parameter is missing in the connection string"));
         }
         [Test]
         public void ExecuteSelectArray()
         {
-            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
@@ -246,7 +245,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteSelectTwoDimensionalArray()
         {
-            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
@@ -261,7 +260,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteSelectByteA()
         {
-            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};account={Account}";
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
             var command = conn.CreateCursor();
@@ -275,7 +274,7 @@ namespace FireboltDotNetSdk.Tests
         public void ShouldThrowExceptionWhenEngineIsNotFound()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};engine=InexistantEngine";
+                $"database={Database};ClientId={ClientId};ClientSecret={ClientSecret};endpoint={Endpoint};account={Account};engine=InexistantEngine";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.That(exception!.Message, Is.EqualTo($"Cannot get engine url for InexistantEngine engine from {Database} database"));
@@ -285,35 +284,13 @@ namespace FireboltDotNetSdk.Tests
         public void SetEngine()
         {
             var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};";
+                $"database={Database};ClientId={ClientId};ClientSecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName}";
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            conn.SetEngine(EngineName);
             var command = conn.CreateCursor();
             var value = command.Execute("SELECT 1");
             Assert.NotNull(value);
             Assert.That(value!.Data[0][0], Is.EqualTo(1));
-        }
-        [Test]
-        public void SetDefaultEngine()
-        {
-            var connString = $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};";
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            conn.SetDefaultEngine();
-            var command = conn.CreateCursor();
-            var value = command.Execute("SELECT 1");
-            Assert.NotNull(value);
-            Assert.That(value!.Data[0][0], Is.EqualTo(1));
-        }
-
-        [Test]
-        public void SetEngineThrowsExceptionIfConnectionNotOpened()
-        {
-            var connString =
-                $"database={Database};username={Username};password={Password};endpoint={Endpoint};account={Account};";
-            using var conn = new FireboltConnection(connString);
-            Assert.Throws<NullReferenceException>(() => conn.SetEngine(EngineName));
         }
     }
 }

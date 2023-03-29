@@ -31,15 +31,15 @@ The following example demonstrates how to open a connection to Firebolt
 
 ```cs
             string database = "****";
-            var username = "****";
-            var password = "****";
+            var clientId = "****";
+            var clientSecret = "****";
             string endpoint = "****";
             string account = "firebolt";
             string engine = "****";
-            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};account={account}";
-          
+            string conn_string = $"database={database};clientid={clientId};clientsecret={clientSecret};endpoint={endpoint};account={account}";
+
             using var conn = new FireboltConnection(conn_string);
-           
+
             conn.Open();
 
             conn.Close();
@@ -47,11 +47,11 @@ The following example demonstrates how to open a connection to Firebolt
 Connect and set specific engine if empty will take default
 
 ```cs
-    
-            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};";
-          
+
+            string conn_string = $"database={database};clientid={clientId};clientsecret={clientSecret};endpoint={endpoint};";
+
             using var conn = new FireboltConnection(conn_string);
-           
+
             conn.Open();
 
             conn.SetEngine(engine);
@@ -63,7 +63,7 @@ Execute command
 
 ```cs
 
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};";
+            var connString = $"database={_database};clientid={_clientId};clientsecret={_clientSecret};endpoint={_endpoint};";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -78,7 +78,7 @@ Execute command
 Execute command with SET parameter
 
 ```cs
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
+            var connString = $"database={_database};clientid={_clientId};clientsecret={_clientSecret};endpoint={_endpoint};account={_account}";
 
             using var conn = new FireboltConnection(connString);
             conn.Open();

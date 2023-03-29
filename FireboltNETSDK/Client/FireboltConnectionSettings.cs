@@ -1,5 +1,5 @@
 ﻿#region License Apache 2.0
-/* Copyright 2022 
+/* Copyright 2022
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets the name of the user.
         /// </summary>
-        public string UserName { get; }
+        public string ClientId { get; }
 
         /// <summary>
         /// Gets the password.
         /// </summary>
-        public string? Password { get; }
+        public string ClientSecret { get; }
 
         /// <summary>
         /// Get the name of the default database.
@@ -45,24 +45,27 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Get the name of the default Account.
         /// </summary>
-        public string? Account { get; }
+        public string Account { get; }
 
         /// <summary>
         /// Get the name of the engine
         /// </summary>
         public string? Engine { get; }
 
+        /// Get the name of the environment.
+        /// </summary>
+        public string? Env { get; }
+
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
-            if (string.IsNullOrWhiteSpace(builder.Database))
-                throw new ArgumentException("The database is not defined.", nameof(builder));
 
-            UserName = builder.UserName;
-            Password = string.IsNullOrEmpty(builder.Password) ? null : builder.Password;
+            ClientId = builder.ClientId;
+            ClientSecret = builder.ClientSecret;
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Endpoint = string.IsNullOrEmpty(builder.Endpoint) ? null : builder.Endpoint;
-            Account = string.IsNullOrEmpty(builder.Account) ? null : builder.Account;
+            Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
+            Env = string.IsNullOrEmpty(builder.Env) ? null : builder.Env;
         }
     }
 }

@@ -15,7 +15,7 @@ namespace FireboltDotNetSdk.Tests
         [OneTimeSetUp]
         public void Init()
         {
-            var connString = $"database={Database};username={ClientId};password={ClientSecret};endpoint={Endpoint};engine=system";
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine=system";
             Connection = new FireboltConnection(connString);
             Connection.Open();
             var cursor = Connection.CreateCursor();

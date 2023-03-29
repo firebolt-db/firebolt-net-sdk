@@ -21,11 +21,10 @@ namespace FireboltDotNetSdk.Client
     {
         public class LoginResponse
         {
-            public LoginResponse(string access_token, string expires_in, string refresh_token, string token_type)
+            public LoginResponse(string access_token, string expires_in, string token_type)
             {
                 Access_token = access_token;
                 Expires_in = expires_in;
-                Refresh_token = refresh_token;
                 Token_type = token_type;
             }
             /// <summary>
@@ -37,11 +36,6 @@ namespace FireboltDotNetSdk.Client
             /// Number of seconds after which token will expire.
             /// </summary>
             public string Expires_in { get; set; }
-
-            /// <summary>
-            /// Refresh token.
-            /// </summary>
-            public string Refresh_token { get; set; }
 
             /// <summary>
             /// Type of the token.
@@ -108,6 +102,17 @@ namespace FireboltDotNetSdk.Client
             /// Retrieved record.
             /// </summary>
             public string? Account_id { get; init; }
+
+        }
+
+        public class GetSystemEngineUrlResponse
+        {
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public string? gatewayHost { get; init; }
+            // Currently working on dev
+            // public string? engineUrl { get; init; }
 
         }
     }

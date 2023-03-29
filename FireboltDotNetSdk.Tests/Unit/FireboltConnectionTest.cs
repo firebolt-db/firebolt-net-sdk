@@ -12,47 +12,64 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ParsingNormalConnectionStringTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=testpwd;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             Multiple(() =>
             {
                 That(cs.Endpoint, Is.EqualTo("endpoint"));
                 That(cs.Database, Is.EqualTo("testdb.ib"));
                 That(cs.Account, Is.EqualTo("accountname"));
-                That(cs.Password, Is.EqualTo("testpwd"));
-                That(cs.UserName, Is.EqualTo("testuser"));
+                That(cs.ClientSecret, Is.EqualTo("testpwd"));
+                That(cs.ClientId, Is.EqualTo("testuser"));
             });
         }
 
-        [Test]
-        public void ParsingMissPassConnectionStringTest()
+        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=;account=accountname;endpoint=endpoint")]
+        [TestCase("database=testdb.ib;clientid=testuser;account=accountname;endpoint=endpoint")]
+        public void ParsingMissClientSecretConnectionStringTest(string connectionString)
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
-            var cs = new FireboltConnection(connectionString);
             var ex = Throws<FireboltException>(
-                delegate { throw new FireboltException("Password parameter is missing in the connection string"); }) ?? throw new InvalidOperationException();
-            That(ex.Message, Is.EqualTo("Password parameter is missing in the connection string"));
+                delegate { new FireboltConnection(connectionString); });
+            That(ex?.Message, Is.EqualTo("ClientSecret parameter is missing in the connection string"));
+        }
+
+        [TestCase("database=testdb.ib;clientid=;clientsecret=testpwd;account=accountname;endpoint=endpoint")]
+        [TestCase("database=testdb.ib;clientsecret=testpwd;account=accountname;endpoint=endpoint")]
+        public void ParsingMissClientIdConnectionStringTest(string connectionString)
+        {
+            var ex = Throws<FireboltException>(
+                delegate { new FireboltConnection(connectionString); });
+            That(ex?.Message, Is.EqualTo("ClientId parameter is missing in the connection string"));
+        }
+
+        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=;endpoint=endpoint")]
+        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd;endpoint=endpoint")]
+        public void ParsingMissAccountConnectionStringTest(string connectionString)
+        {
+            var ex = Throws<FireboltException>(
+                delegate { new FireboltConnection(connectionString); });
+            That(ex?.Message, Is.EqualTo("Account parameter is missing in the connection string"));
         }
 
         [Test]
         public void ParsingInvalidConnectionStringTest()
         {
-            const string connectionString = "database=testdb.ib;username=test_user;password=test_pwd;account=account_name;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=test_user;clientsecret=test_pwd;account=account_name;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             Multiple(() =>
             {
                 That(cs.Endpoint, Is.EqualTo("endpoint"));
                 That(cs.Database, Is.EqualTo("testdb.ib"));
                 That(cs.Account, Is.EqualTo("account_name"));
-                That(cs.Password, Is.EqualTo("test_pwd"));
-                That(cs.UserName, Is.EqualTo("test_user"));
+                That(cs.ClientSecret, Is.EqualTo("test_pwd"));
+                That(cs.ClientId, Is.EqualTo("test_user"));
             });
         }
 
         [Test]
         public void OnSessionEstablishedTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             cs.OnSessionEstablished();
             That(cs.State, Is.EqualTo(ConnectionState.Open));
@@ -61,7 +78,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void CloseTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=test_pwd;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             var conState = new FireboltConnectionState();
             cs.Close();
@@ -72,25 +89,15 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("test")]
         public void ParsingDatabaseHostnames(string hostname)
         {
-            var ConnectionString = $"database={hostname}:test.ib;username=user";
+            var ConnectionString = $"database={hostname}:test.ib;clientid=user;clientid=testuser;clientsecret=password;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(ConnectionString);
             That(cs.Database, Is.EqualTo("test:test.ib"));
         }
 
         [Test]
-        public void OpenTestWithoutPassword()
-        {
-            const string connectionString = "database=testdb.ib;username=testuser;password=;account=accountname;endpoint=endpoint";
-            var cs = new FireboltConnection(connectionString);
-            FireboltException? exception = ThrowsAsync<FireboltException>(() => cs.OpenAsync());
-            Assert.NotNull(exception);
-            That(exception!.Message, Is.EqualTo("Password parameter is missing in the connection string"));
-        }
-
-        [Test]
         public void OpenExceptionTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=password;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=password;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             var ex = ThrowsAsync<InvalidOperationException>(async () => await cs.OpenAsync());
         }
@@ -99,7 +106,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void OpenAsyncTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=password;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=password;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             InvalidOperationException? exception = ThrowsAsync<InvalidOperationException>(() => cs.OpenAsync());
             Assert.NotNull(exception);
@@ -109,7 +116,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void OpenInvalidUrlTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             InvalidOperationException? exception = Throws<InvalidOperationException>(() => cs.Open());
             Assert.NotNull(exception);
@@ -119,7 +126,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void CreateCursorTest()
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint;";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=endpoint;";
             var cs = new FireboltConnection(connectionString);
             var cursor = cs.CreateCursor();
             Equals("testdb.ib", cursor.Connection?.Database);
@@ -128,7 +135,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("Select 1")]
         public void CreateCursorCommandTextTest(string commandText)
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             var cursor = cs.CreateCursor(commandText);
             That(cursor.CommandText, Is.EqualTo("Select 1"));
@@ -137,7 +144,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("Select 1")]
         public void FireboltExceptionTest(string commandText)
         {
-            const string connectionString = "database=testdb.ib;username=testuser;password=passwordtest;account=accountname;endpoint=endpoint";
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=endpoint";
             var cs = new FireboltConnection(connectionString);
             var cursor = cs.CreateCursor(commandText);
             That(cursor.CommandText, Is.EqualTo("Select 1"));

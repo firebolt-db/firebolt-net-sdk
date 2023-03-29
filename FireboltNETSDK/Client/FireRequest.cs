@@ -45,11 +45,12 @@ namespace FireboltDotNetSdk.Client
 
         public class ServiceAccountLoginRequest
         {
-            public ServiceAccountLoginRequest(string clientId, string clientSecret)
+            public ServiceAccountLoginRequest(string clientId, string clientSecret, string env="app")
             {
                 ClientId = clientId;
                 ClientSecret = clientSecret;
                 GrantType = "client_credentials";
+                Env = env;
             }
 
             /// <summary>
@@ -61,7 +62,10 @@ namespace FireboltDotNetSdk.Client
                 {
                     { "client_id", ClientId },
                     { "client_secret", ClientSecret },
-                    { "grant_type", GrantType }
+                    { "grant_type", GrantType },
+                    { "audience", $"api.{Env}.firebolt.io" }
+                    // Currently working on dev
+                    // { "audience", "https://dev-firebolt-v2.us.auth0.com/api/v2/" }
                 };
                 return new FormUrlEncodedContent(values);
             }
@@ -80,6 +84,11 @@ namespace FireboltDotNetSdk.Client
             /// GrantType.
             /// </summary>
             private string GrantType { get; }
+
+            /// <summary>
+            /// Env.
+            /// </summary>
+            private string Env { get; }
 
         }
     }
