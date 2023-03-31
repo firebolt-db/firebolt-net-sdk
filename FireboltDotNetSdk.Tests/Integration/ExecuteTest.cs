@@ -86,7 +86,7 @@ namespace FireboltDotNetSdk.Tests
             DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0).AddTicks(1234550);
             Assert.NotNull(command.Response);
             NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
+            Assert.That(newMeta.Meta, Is.EqualTo("DateTime"));
             Assert.That(newMeta.Data[0], Is.EqualTo(dt));
         }
 
