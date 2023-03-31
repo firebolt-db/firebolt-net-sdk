@@ -118,7 +118,7 @@ namespace FireboltDotNetSdk.Client
 
         public QueryResult? Execute(string commandText)
         {
-            var engineUrl = Connection?.Engine?.engine?.endpoint ?? Connection?.DefaultEngine?.Engine_url;
+            var engineUrl = Connection?.EngineUrl;
             if (commandText.Trim().StartsWith("SET"))
             {
                 commandText = commandText.Remove(0, 4).Trim();

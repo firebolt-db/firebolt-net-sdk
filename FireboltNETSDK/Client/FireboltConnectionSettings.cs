@@ -47,6 +47,10 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public string? Account { get; }
 
+        /// <summary>
+        /// Get the name of the engine
+        /// </summary>
+        public string? Engine { get; }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
@@ -58,6 +62,7 @@ namespace FireboltDotNetSdk.Client
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Endpoint = string.IsNullOrEmpty(builder.Endpoint) ? null : builder.Endpoint;
             Account = string.IsNullOrEmpty(builder.Account) ? null : builder.Account;
+            Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
         }
     }
 }

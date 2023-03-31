@@ -83,6 +83,15 @@ namespace FireboltDotNetSdk.Client
             init => this[nameof(Account)] = value;
         }
 
+        /// <summary>
+        /// Get the name of the engine.
+        /// </summary>
+        public string? Engine
+        {
+            get => GetString(nameof(Engine));
+            init => this[nameof(Engine)] = value;
+        }
+
         static FireboltConnectionStringBuilder()
         {
             AllProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -91,7 +100,8 @@ namespace FireboltDotNetSdk.Client
                 nameof(Password),
                 nameof(UserName),
                 nameof(Endpoint),
-                nameof(Account)
+                nameof(Account),
+                nameof(Engine),
             };
         }
 

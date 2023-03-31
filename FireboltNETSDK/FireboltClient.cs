@@ -91,14 +91,14 @@ public class FireboltClient
     }
 
     /// <summary>
-    ///     Returns engine URL by engine name given.
+    ///     Returns engine id by engine name.
     /// </summary>
     /// <param name="engine">Name of the engine.</param>
     /// <param name="account">Name of the account</param>
     /// <returns>A successful response.</returns>
-    public Task<GetEngineNameByEngineIdResponse> GetEngineUrlByEngineName(string engine, string? account)
+    public Task<GetEngineIdByEngineNameResponse> GetEngineIdByEngineName(string engine, string? account)
     {
-        return CoreV1GetEngineUrlByEngineNameAsync(engine, account, CancellationToken.None);
+        return CoreV1GetEngineByEngineNameAsync(engine, account, CancellationToken.None);
     }
 
     /// <summary>
@@ -279,7 +279,7 @@ public class FireboltClient
         return await SendAsync<GetEngineUrlByDatabaseNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
     }
 
-    private async Task<GetEngineNameByEngineIdResponse> CoreV1GetEngineUrlByEngineNameAsync(string engine,
+    private async Task<GetEngineIdByEngineNameResponse> CoreV1GetEngineByEngineNameAsync(string engine,
         string? account, CancellationToken cancellationToken)
     {
         if (engine == null) throw new FireboltException("Engine name is incorrect or missing");
@@ -294,7 +294,7 @@ public class FireboltClient
                 engine,
                 CultureInfo.InvariantCulture)));
 
-        return await SendAsync<GetEngineNameByEngineIdResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
+        return await SendAsync<GetEngineIdByEngineNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
     }
 
     private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
