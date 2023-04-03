@@ -235,7 +235,11 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
         public override async Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
+<<<<<<< HEAD
             Client = new FireboltClient(ClientId, ClientSecret, Endpoint, Env);
+=======
+            Client = new FireboltClient(UserName, Password, Endpoint,  HttpClientSingleton.GetInstance());
+>>>>>>> 697eb3d (Fetch token and retry once on 401)
             await Client.EstablishConnection();
             // Connecting to system engine by default
             var result = await Client.GetSystemEngineUrl(Account);
