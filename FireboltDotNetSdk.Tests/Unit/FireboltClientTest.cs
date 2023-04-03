@@ -56,7 +56,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Is.EqualTo("Account name is empty"));
         }
-        
+
         [Test]
         public void GetEngineUrlByDatabaseNameTest()
         {
@@ -69,7 +69,7 @@ namespace FireboltDotNetSdk.Tests
             var status = client.GetEngineUrlByDatabaseName("DBName", "AccountName");
             Assert.That(status.Status.ToString(), Is.EqualTo("Faulted"));
         }
-        
+
         [Test]
         public void ExecuteQueryExceptionTest()
         {
@@ -84,7 +84,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.ThrowsAsync<HttpRequestException>(() => { client.ExecuteQuery("DBName", "EngineURL", "Select 1").GetAwaiter().GetResult(); return Task.CompletedTask; });
 >>>>>>> 697eb3d (Fetch token and retry once on 401)
         }
-        
+
         [Test]
         public void ExecuteQueryTest()
         {
@@ -97,7 +97,7 @@ namespace FireboltDotNetSdk.Tests
             var tokenField = client.GetType().GetField("_loginToken", System.Reflection.BindingFlags.NonPublic
 >>>>>>> 697eb3d (Fetch token and retry once on 401)
                                                                 | System.Reflection.BindingFlags.Instance);
-            
+
             Assert.NotNull(tokenField);
 <<<<<<< HEAD
             tokenField!.SetValue(client, "abc");
@@ -110,11 +110,11 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(client.ExecuteQuery("endpoint_url", "DBName", "Select 1").GetAwaiter().GetResult(), Is.EqualTo("1"));
 
         }
-        
+
         [Test]
         public void ExecuteQueryWithoutAccessTokenTest()
         {
-            Mock<HttpClient> httpClientMock = new Mock<HttpClient>(); 
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
             FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", httpClientMock.Object);
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "refresh_token", "Bearer");
 
@@ -131,11 +131,11 @@ namespace FireboltDotNetSdk.Tests
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
-        
+
         [Test]
         public void ExecuteQueryWithRetryWhenUnauthorizedTest()
         {
-            Mock<HttpClient> httpClientMock = new Mock<HttpClient>(); 
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
             FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", httpClientMock.Object);
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "refresh_token", "Bearer");
 
@@ -155,13 +155,13 @@ namespace FireboltDotNetSdk.Tests
 
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(),
                  It.IsAny<CancellationToken>()), Times.Exactly(4));
-            
+
         }
-        
+
         [Test]
         public void ExecuteQueryWithRetryWhenUnauthorizedExceptionTest()
         {
-            Mock<HttpClient> httpClientMock = new Mock<HttpClient>(); 
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
             FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", httpClientMock.Object);
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "refresh_token", "Bearer");
 
@@ -180,7 +180,7 @@ namespace FireboltDotNetSdk.Tests
             var exception = Assert.Throws<FireboltException>(() => client.ExecuteQueryAsync("endpoint_url", "DBName", "SELECT 1", new HashSet<string>(), CancellationToken.None)
                 .GetAwaiter().GetResult());
             Assert.IsTrue(exception!.Message.Contains("The operation is unauthorized"));
-            
+
         }
 
         private static HttpResponseMessage GetResponseMessage(Object responseObject, HttpStatusCode httpStatusCode)
@@ -197,8 +197,8 @@ namespace FireboltDotNetSdk.Tests
             }
             return response;
         }
-        
-        private static HttpResponseMessage GetResponseMessage( HttpStatusCode httpStatusCode)
+
+        private static HttpResponseMessage GetResponseMessage(HttpStatusCode httpStatusCode)
         {
             HttpResponseMessage response = new HttpResponseMessage();
             response.StatusCode = httpStatusCode;
