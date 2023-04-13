@@ -180,7 +180,7 @@ namespace FireboltDotNetSdk.Tests
             cursor.Execute($"START ENGINE {newEngineName}");
 
             VerifyEngineStatus(cursor, newEngineName, "Running");
-
+            Thread.Sleep(30000);
             cursor.Execute($"STOP ENGINE {newEngineName}");
 
             VerifyEngineStatus(cursor, newEngineName, "Stopped");
