@@ -21,36 +21,15 @@ namespace FireboltDotNetSdk.Client
 {
     public class FireRequest
     {
-        public class UsernamePasswordLoginRequest
-        {
-            public UsernamePasswordLoginRequest(string username, string password)
-            {
-                Password = password;
-                Username = username;
-            }
-
-            /// <summary>
-            /// Password.
-            /// </summary>
-            [JsonProperty]
-            private string Password { get; }
-
-            /// <summary>
-            /// Username.
-            /// </summary>
-            [JsonProperty]
-            private string Username { get; }
-
-        }
-
         public class ServiceAccountLoginRequest
         {
-            public ServiceAccountLoginRequest(string clientId, string clientSecret, string env="app")
+	    private const string Audience = "https://api.firebolt.io";
+	    private const string GrantType = "client_credentials";
+
+            public ServiceAccountLoginRequest(string clientId, string clientSecret)
             {
                 ClientId = clientId;
                 ClientSecret = clientSecret;
-                GrantType = "client_credentials";
-                Env = env;
             }
 
             /// <summary>
@@ -63,9 +42,7 @@ namespace FireboltDotNetSdk.Client
                     { "client_id", ClientId },
                     { "client_secret", ClientSecret },
                     { "grant_type", GrantType },
-                    { "audience", $"api.{Env}.firebolt.io" }
-                    // Currently working on dev
-                    // { "audience", "https://dev-firebolt-v2.us.auth0.com/api/v2/" }
+                    { "audience",  Audience}
                 };
                 return new FormUrlEncodedContent(values);
             }
@@ -79,17 +56,6 @@ namespace FireboltDotNetSdk.Client
             /// ClientSecret.
             /// </summary>
             private string ClientSecret { get; }
-
-            /// <summary>
-            /// GrantType.
-            /// </summary>
-            private string GrantType { get; }
-
-            /// <summary>
-            /// Env.
-            /// </summary>
-            private string Env { get; }
-
         }
     }
 }

@@ -63,8 +63,13 @@ public class FireboltClient
     /// <returns></returns>
     private Task<LoginResponse> Login(string id, string secret, string env)
     {
-        var credentials = new ServiceAccountLoginRequest(id, secret, env);
-        return SendAsync<LoginResponse>(HttpMethod.Post, $"id.{env}.firebolt.io" + Constant.AUTH_SERVICE_ACCOUNT_URL, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
+        var credentials = new ServiceAccountLoginRequest(id, secret);
+	var url = new UriBuilder();
+	url.Scheme = "https";
+	url.Host = $"id.{env}.firebolt.io";
+	url.Path = Constant.AUTH_SERVICE_ACCOUNT_URL;
+	
+        return SendAsync<LoginResponse>(HttpMethod.Post, url.ToString(), credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
     }
 
     /// <summary>
@@ -74,11 +79,12 @@ public class FireboltClient
     /// <returns>Engine URL response</returns>
     public Task<GetSystemEngineUrlResponse> GetSystemEngineUrl(string accountName)
     {
-        var urlBuilder = new StringBuilder();
-        urlBuilder.Append(_endpoint).Append("/v3/getGatewayHostByAccountName/" + accountName);
-        // Currently working on dev
-        // urlBuilder.Append(_endpoint).Append("/web/v3/account/" + accountName + "/engineUrl");
-        return SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, CancellationToken.None);
+	var url = new UriBuilder();
+	url.Scheme = "https";
+	url.Host = _endpoint;
+	url.Path = String.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName);
+	
+        return SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url.ToString(), (string?)null, true, CancellationToken.None);
     }
 
     /// <summary>
@@ -167,9 +173,9 @@ public class FireboltClient
         if (!(engineEndpoint.StartsWith("https://") || engineEndpoint.StartsWith("http://"))) {
             urlBuilder.Append("https://");
         }
-        urlBuilder.Append(engineEndpoint).Append("/dynamic/query").Append("?output_format=JSON_Compact").Append(setParam);
+        urlBuilder.Append(engineEndpoint).Append("?output_format=JSON_Compact").Append(setParam);
         if (databaseName != "") {
-            urlBuilder.Append("?database=").Append(databaseName);
+            urlBuilder.Append("&database=").Append(databaseName);
         }
         return await SendAsync<string>(HttpMethod.Post, urlBuilder.ToString(), query, "text/plain", true, cancellationToken);
     }

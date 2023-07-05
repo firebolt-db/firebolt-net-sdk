@@ -110,9 +110,7 @@ namespace FireboltDotNetSdk.Client
             /// <summary>
             /// Retrieved record.
             /// </summary>
-            public string? gatewayHost { get; init; }
-            // Currently working on dev
-            // public string? engineUrl { get; init; }
+            public string? engineUrl { get; init; }
 
         }
     }

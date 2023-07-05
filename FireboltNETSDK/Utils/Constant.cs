@@ -51,5 +51,7 @@ namespace FireboltDotNetSdk.Utils
 
         public static string PROVIDERS_URL = "/compute/v1/providers";
         public static string REGIONS_URL = "/compute/v1/regions";
+
+	public static string ACCOUNT_SYSTEM_ENGINE_URL = "/web/v3/account/{0}/engineUrl";
     }
 }
