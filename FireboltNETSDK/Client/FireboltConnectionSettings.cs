@@ -66,20 +66,22 @@ namespace FireboltDotNetSdk.Client
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
-	    (Endpoint, Env) = this.ResolveEndpointAndEnv(builder);
+            (Endpoint, Env) = this.ResolveEndpointAndEnv(builder);
         }
 
-        static string? ExtractEndpointEnv(string endpoint) {
-	    // Remove http:// or https:// prefix if present
-	    endpoint = endpoint.Split("://")[^1];
-	    var endpoint_parts = endpoint.Split(".");
+        static string? ExtractEndpointEnv(string endpoint)
+        {
+            // Remove http:// or https:// prefix if present
+            endpoint = endpoint.Split("://")[^1];
+            var endpoint_parts = endpoint.Split(".");
             // Verify the expected 
             if (
             endpoint_parts.Length == 4 &&
             endpoint_parts[0] == "api" &&
             endpoint_parts[2] == "firebolt" &&
             endpoint_parts[3] == "io"
-            ) {
+            )
+            {
                 return endpoint_parts[1];
             }
             return null;
@@ -90,19 +92,21 @@ namespace FireboltDotNetSdk.Client
             var endpoint = string.IsNullOrEmpty(builder.Endpoint) ? null : builder.Endpoint;
             var env = string.IsNullOrEmpty(builder.Env) ? null : builder.Env;
             var endpoint_env = endpoint != null ? ExtractEndpointEnv(endpoint) : null;
-	    
-            if (env != null && endpoint_env != null && env != endpoint_env){
+
+            if (env != null && endpoint_env != null && env != endpoint_env)
+            {
                 throw new FireboltException(
-		    "Configuration error: environment " +
-		    $"{env} and endpoint {endpoint} are incompatible"
-		);
+            "Configuration error: environment " +
+            $"{env} and endpoint {endpoint} are incompatible"
+        );
             }
-            if (env == null && endpoint_env != null) {
-		env = endpoint_env;
-	    }
-	    System.Console.WriteLine($"Endpoint: {endpoint}");
-	    System.Console.WriteLine($"Env: {env}");
-	    return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
+            if (env == null && endpoint_env != null)
+            {
+                env = endpoint_env;
+            }
+            System.Console.WriteLine($"Endpoint: {endpoint}");
+            System.Console.WriteLine($"Env: {env}");
+            return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
         }
     }
 }

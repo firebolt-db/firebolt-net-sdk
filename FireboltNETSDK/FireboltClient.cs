@@ -64,13 +64,14 @@ public class FireboltClient
     private Task<LoginResponse> Login(string id, string secret, string env)
     {
         var credentials = new ServiceAccountLoginRequest(id, secret);
-	var url = new UriBuilder() {
-	    Scheme = "https",
-	    Host = $"id.{env}.firebolt.io",
-	    Path = Constant.AUTH_SERVICE_ACCOUNT_URL
-	}.Uri.ToString();
+        var url = new UriBuilder()
+        {
+            Scheme = "https",
+            Host = $"id.{env}.firebolt.io",
+            Path = Constant.AUTH_SERVICE_ACCOUNT_URL
+        }.Uri.ToString();
 
-	
+
         return SendAsync<LoginResponse>(HttpMethod.Post, url, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
     }
 
@@ -81,12 +82,13 @@ public class FireboltClient
     /// <returns>Engine URL response</returns>
     public Task<GetSystemEngineUrlResponse> GetSystemEngineUrl(string accountName)
     {
-	var url = new UriBuilder(){
-	    Scheme = "https",
-	    Host = _endpoint,
-	    Path = String.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName)
-	}.Uri.ToString();
-	
+        var url = new UriBuilder()
+        {
+            Scheme = "https",
+            Host = _endpoint,
+            Path = String.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName)
+        }.Uri.ToString();
+
         return SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url, (string?)null, true, CancellationToken.None);
     }
 
@@ -114,7 +116,7 @@ public class FireboltClient
     public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
     {
         return ExecuteQueryAsync(engineEndpoint, databaseName, accountId, query,
-				 setParamList, CancellationToken.None);
+                 setParamList, CancellationToken.None);
     }
 
     /// <param name="engineEndpoint">Engine endpoint (URL)</param>
@@ -131,35 +133,38 @@ public class FireboltClient
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
     public async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
-						 string query, HashSet<string> setParamList, CancellationToken cancellationToken)
+                         string query, HashSet<string> setParamList, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(query))
             throw new FireboltException(
                 $"Some parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
 
         var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
-        var urlBuilder = new UriBuilder(engineEndpoint){
-	    Scheme = "https",
-	    Port = -1
-	};
+        var urlBuilder = new UriBuilder(engineEndpoint)
+        {
+            Scheme = "https",
+            Port = -1
+        };
 
-	var parameters = new Dictionary<string, string>
-	{
-	    { "output_format", "JSON_Compact" }
-	};
-	if (databaseName != null) {
+        var parameters = new Dictionary<string, string>
+    {
+        { "output_format", "JSON_Compact" }
+    };
+        if (databaseName != null)
+        {
             parameters["database"] = databaseName;
         }
-	if (accountId != null) {
-	    parameters["account_id"] = accountId;
-	}
-	var queryStr = parameters.Aggregate(new StringBuilder(),
-              (q, param) => q.AppendFormat("{0}{1}={2}", 
-                           q.Length > 0 ? "&" : "", param.Key, param.Value));
-	if (setParams.Length > 0)
-	    queryStr.Append("&").Append(setParams);
-	urlBuilder.Query = queryStr.ToString();
-	var url = urlBuilder.Uri.ToString();
+        if (accountId != null)
+        {
+            parameters["account_id"] = accountId;
+        }
+        var queryStr = parameters.Aggregate(new StringBuilder(),
+                  (q, param) => q.AppendFormat("{0}{1}={2}",
+                               q.Length > 0 ? "&" : "", param.Key, param.Value));
+        if (setParams.Length > 0)
+            queryStr.Append("&").Append(setParams);
+        urlBuilder.Query = queryStr.ToString();
+        var url = urlBuilder.Uri.ToString();
 
         return await SendAsync<string>(HttpMethod.Post, url, query, "text/plain", true, cancellationToken);
     }
@@ -222,11 +227,12 @@ public class FireboltClient
         CancellationToken cancellationToken)
     {
 
-        var url = new UriBuilder(){
-	    Scheme = "https",
-	    Host = _endpoint,
-	    Path = String.Format(Constant.ACCOUNT_BY_NAME_URL, account)
-	}.Uri.ToString();
+        var url = new UriBuilder()
+        {
+            Scheme = "https",
+            Host = _endpoint,
+            Path = String.Format(Constant.ACCOUNT_BY_NAME_URL, account)
+        }.Uri.ToString();
 
         return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, (string?)null, true, cancellationToken);
     }

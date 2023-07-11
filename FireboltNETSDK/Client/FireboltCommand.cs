@@ -133,7 +133,7 @@ namespace FireboltDotNetSdk.Client
 
             if (Connection != null)
             {
-		var database = Connection.Database != string.Empty ? Connection.Database : null;
+                var database = Connection.Database != string.Empty ? Connection.Database : null;
                 Response = Connection.Client?
                     .ExecuteQuery(engineUrl, database, Connection.AccountId, SetParamList, newCommandText)
                     .GetAwaiter().GetResult();

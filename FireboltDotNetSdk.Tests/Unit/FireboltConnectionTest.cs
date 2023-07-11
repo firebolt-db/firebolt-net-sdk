@@ -17,7 +17,7 @@ namespace FireboltDotNetSdk.Tests
             Multiple(() =>
             {
                 That(cs.Endpoint, Is.EqualTo("api.mock.firebolt.io"));
-		That(cs.Env, Is.EqualTo("mock"));
+                That(cs.Env, Is.EqualTo("mock"));
                 That(cs.Database, Is.EqualTo("testdb.ib"));
                 That(cs.Account, Is.EqualTo("accountname"));
                 That(cs.ClientSecret, Is.EqualTo("testpwd"));

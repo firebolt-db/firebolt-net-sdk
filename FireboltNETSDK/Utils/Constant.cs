@@ -20,8 +20,8 @@ namespace FireboltDotNetSdk.Utils
 {
     static class Constant
     {
-	public static string DEFAULT_ENV = "api";
-	public static string DEFAULT_ENDPOINT = "https://api.app.firebolt.io";
+        public static string DEFAULT_ENV = "api";
+        public static string DEFAULT_ENDPOINT = "https://api.app.firebolt.io";
         public static string AUTH_SERVICE_ACCOUNT_URL = "/oauth/token";
 
         public static string DATABASES_URL = "/core/v1/account/databases";
@@ -53,6 +53,6 @@ namespace FireboltDotNetSdk.Utils
         public static string PROVIDERS_URL = "/compute/v1/providers";
         public static string REGIONS_URL = "/compute/v1/regions";
 
-	public static string ACCOUNT_SYSTEM_ENGINE_URL = "/web/v3/account/{0}/engineUrl";
+        public static string ACCOUNT_SYSTEM_ENGINE_URL = "/web/v3/account/{0}/engineUrl";
     }
 }

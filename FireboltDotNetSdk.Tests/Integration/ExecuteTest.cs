@@ -69,7 +69,7 @@ namespace FireboltDotNetSdk.Tests
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
-	    Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
+            Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
             Assert.That(exception.ToString(), Does.Contain("FireboltDotNetSdk.Exception.FireboltException: The operation is unauthorized\nStatus: 401"));
         }
 

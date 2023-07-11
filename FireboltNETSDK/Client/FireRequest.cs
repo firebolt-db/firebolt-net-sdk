@@ -23,8 +23,8 @@ namespace FireboltDotNetSdk.Client
     {
         public class ServiceAccountLoginRequest
         {
-	    private const string Audience = "https://api.firebolt.io";
-	    private const string GrantType = "client_credentials";
+            private const string Audience = "https://api.firebolt.io";
+            private const string GrantType = "client_credentials";
 
             public ServiceAccountLoginRequest(string clientId, string clientSecret)
             {
