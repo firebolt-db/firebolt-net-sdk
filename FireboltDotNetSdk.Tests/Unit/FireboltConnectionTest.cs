@@ -25,6 +25,22 @@ namespace FireboltDotNetSdk.Tests
             });
         }
 
+        [Test]
+        public void ParsingNoEndpointEnvConnectionStringTest()
+        {
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname;endpoint=some.weird.endpoint;env=mock";
+            var cs = new FireboltConnection(connectionString);
+            Multiple(() =>
+            {
+                That(cs.Endpoint, Is.EqualTo("some.weird.endpoint"));
+                That(cs.Env, Is.EqualTo("mock"));
+                That(cs.Database, Is.EqualTo("testdb.ib"));
+                That(cs.Account, Is.EqualTo("accountname"));
+                That(cs.ClientSecret, Is.EqualTo("testpwd"));
+                That(cs.ClientId, Is.EqualTo("testuser"));
+            });
+        }
+
         [TestCase("database=testdb.ib;clientid=testuser;clientsecret=;account=accountname;endpoint=api.mock.firebolt.io")]
         [TestCase("database=testdb.ib;clientid=testuser;account=accountname;endpoint=api.mock.firebolt.io")]
         public void ParsingMissClientSecretConnectionStringTest(string connectionString)
@@ -65,6 +81,15 @@ namespace FireboltDotNetSdk.Tests
                 That(cs.ClientSecret, Is.EqualTo("test_pwd"));
                 That(cs.ClientId, Is.EqualTo("test_user"));
             });
+        }
+
+        [Test]
+        public void ParsingIncompatibleEndpointAndEnvTest()
+        {
+            const string connectionString = "database=testdb.ib;clientid=test_user;clientsecret=test_pwd;account=account_name;endpoint=api.mock.firebolt.io;env=mock2";
+            var ex = Throws<FireboltException>(
+                    delegate { new FireboltConnection(connectionString); });
+            That(ex?.Message, Is.EqualTo("Configuration error: environment mock2 and endpoint api.mock.firebolt.io are incompatible"));
         }
 
         [Test]
