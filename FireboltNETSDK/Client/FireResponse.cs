@@ -101,7 +101,7 @@ namespace FireboltDotNetSdk.Client
             /// <summary>
             /// Retrieved record.
             /// </summary>
-            public string? Account_id { get; init; }
+            public string? id { get; init; }
 
         }
 

@@ -31,14 +31,19 @@ namespace FireboltDotNetSdk.Client
     {
         private readonly FireboltConnectionState _connectionState;
 
+        private const string engineStatusRunning = "Running";
+
         public FireboltClient? Client { get; private set; }
         public string? EngineUrl { get; private set; }
+        private string? _accountId = null;
+        private bool _isSystem = true;
+        private string _database;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
         /// </summary>
         /// <returns>The name of the database specified in the connection settings. The default value is an empty string.</returns>
-        public override string Database => _connectionState.Settings?.Database ?? string.Empty;
+        public override string Database => _database;
 
         public string ClientSecret
         {
@@ -48,13 +53,13 @@ namespace FireboltDotNetSdk.Client
 
         public string Endpoint
         {
-            get => _connectionState.Settings?.Endpoint ?? Constant.BaseUrl;
+            get => _connectionState.Settings?.Endpoint ?? Constant.DEFAULT_ENDPOINT;
             set => throw new NotImplementedException();
         }
 
         public string? Env
         {
-            get => _connectionState.Settings?.Env;
+            get => _connectionState.Settings?.Env ?? Constant.DEFAULT_ENV;
         }
 
         public string Account
@@ -73,6 +78,17 @@ namespace FireboltDotNetSdk.Client
         {
             get => _connectionState.Settings?.Engine;
         }
+
+	public string? AccountId
+	{
+	    get
+	    {
+		if (_accountId == null && Account != null && _isSystem) {
+		    _accountId = Client?.GetAccountIdByNameAsync(Account, CancellationToken.None).GetAwaiter().GetResult().id;
+		}
+		return _isSystem ? _accountId : null;
+	    }
+	}
 
 
         /// <summary>
@@ -109,6 +125,7 @@ namespace FireboltDotNetSdk.Client
             var connectionSettings = stringBuilder.BuildSettings();
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
+	    _database = _connectionState.Settings?.Database ?? string.Empty;
         }
 
         /// <summary>
@@ -169,8 +186,9 @@ namespace FireboltDotNetSdk.Client
             var result = await Client.GetSystemEngineUrl(Account);
             EngineUrl = result.engineUrl + "/dynamic/query";
             // Specific engine and database specified
-            if (EngineName != null && Database != null) {
+            if (EngineName != null && Database != string.Empty) {
                 EngineUrl = GetEngineUrlByEngineNameAndDb(EngineName, Database);
+		_isSystem = false;
             } else if (EngineName != null) {
                 // If no db provided - try to fetch it
                 var database = GetEngineDatabase(EngineName);
@@ -178,6 +196,8 @@ namespace FireboltDotNetSdk.Client
                     throw new FireboltException($"Engine {EngineName} is attached to a dabase current user can not access");
                 }
                 EngineUrl = GetEngineUrlByEngineNameAndDb(EngineName, database);
+		_database = database;
+		_isSystem = false;
             }
             OnSessionEstablished();
             return EngineUrl != null;
@@ -196,7 +216,7 @@ namespace FireboltDotNetSdk.Client
         private bool IsDatabaseAccessible(string database)
         {
             var query = "SELECT database_name FROM information_schema.databases " +
-                       $"WHERE database_name='${database}'";
+                       $"WHERE database_name='{database}'";
             var cursor = CreateCursor();
             var res = cursor.Execute(query);
             return res?.Data.Count == 1;
@@ -213,7 +233,7 @@ namespace FireboltDotNetSdk.Client
 
         private string? GetEngineUrl(string engineName, string database)
         {
-            var query = "SELECT engs.engine_url, engs.attached_to, dbs.database_name, status " +
+            var query = "SELECT engs.url, engs.attached_to, dbs.database_name, status " +
                         "FROM information_schema.engines as engs " +
                         "LEFT JOIN information_schema.databases as dbs " +
                         "ON engs.attached_to = dbs.database_name " +
@@ -223,22 +243,20 @@ namespace FireboltDotNetSdk.Client
             if (res?.Data.Count == 0) {
                 throw new FireboltException($"Engine {engineName} not found.");
             }
-            var filteredResult = new List<List<object?>>();
-            foreach (var row in res?.Data ?? new List<List<object?>>()) {
-                if ((string?)row[2] == database) {
-                    filteredResult.Append(row);
-                }
-            }
-            if (filteredResult.Count == 0) {
+            var filteredResult = from row in res?.Data ?? new List<List<object?>>()
+                                 where (string?)row[2] == database
+                                 select row;
+            if (filteredResult.Count() == 0) {
                 throw new FireboltException($"Engine {engineName} is not attached to {database}.");
             }
-            if (filteredResult.Count > 1) {
+            if (filteredResult.Count() > 1) {
                 throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database ${database}");
             }
-            if ((string?)filteredResult[0][3] != "RUNNING") {
+	    var resultRow = filteredResult.First();
+            if ((string?)resultRow[3] != engineStatusRunning) {
                 throw new FireboltException($"Engine {engineName} is not running");
             }
-            return (string?)filteredResult[0][0];
+            return (string?)resultRow[0];
         }
 
         private void CheckClient()

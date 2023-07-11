@@ -32,7 +32,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(newMeta.Data[0], Is.EqualTo(1));
         }
         [Test]
-        public void ConnectuserEngineNoDbTest()
+        public void ConnectUserEngineNoDbTest()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};engine={EngineName}";
             FireboltConnection Connection = new FireboltConnection(connString);

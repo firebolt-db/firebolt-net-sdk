@@ -69,8 +69,8 @@ namespace FireboltDotNetSdk.Tests
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
-            Assert.IsTrue(exception!.Message.Contains("The operation is forbidden\nStatus: 403") || exception.Message.Contains("429"));
-            Assert.IsTrue(exception.ToString().Contains("FireboltDotNetSdk.Exception.FireboltException: The operation is forbidden\nStatus: 403") || exception.Message.Contains("429"));
+	    Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
+            Assert.That(exception.ToString(), Does.Contain("FireboltDotNetSdk.Exception.FireboltException: The operation is unauthorized\nStatus: 401"));
         }
 
         [Test]
@@ -277,7 +277,7 @@ namespace FireboltDotNetSdk.Tests
                 $"database={Database};ClientId={ClientId};ClientSecret={ClientSecret};endpoint={Endpoint};account={Account};engine=InexistantEngine;env={Env}";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.That(exception!.Message, Is.EqualTo($"Cannot get engine url for InexistantEngine engine from {Database} database"));
+            Assert.That(exception!.Message, Is.EqualTo($"Engine InexistantEngine not found."));
         }
 
         [Test]
