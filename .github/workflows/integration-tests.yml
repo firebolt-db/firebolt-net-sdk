@@ -10,21 +10,13 @@ on:
         required: false
         type: string
     secrets:
-      FIREBOLT_USERNAME_STAGING:
+      FIREBOLT_CLIENT_ID_STAGING_NEW_IDN:
         required: true
-      FIREBOLT_PASSWORD_STAGING:
+      FIREBOLT_CLIENT_SECRET_STAGING_NEW_IDN:
         required: true
-      FIREBOLT_USERNAME_DEV:
+      FIREBOLT_CLIENT_ID_DEV_NEW_IDN:
         required: true
-      FIREBOLT_PASSWORD_DEV:
-        required: true
-      FIREBOLT_CLIENT_ID_STAGING:
-        required: true
-      FIREBOLT_CLIENT_SECRET_STAGING:
-        required: true
-      FIREBOLT_CLIENT_ID_DEV:
-        required: true
-      FIREBOLT_CLIENT_SECRET_DEV:
+      FIREBOLT_CLIENT_SECRET_DEV_NEW_IDN:
         required: true
   workflow_dispatch:
     inputs:
@@ -57,15 +49,11 @@ jobs:
       - name: Determine env variables
         run: |
           if [ "${{ inputs.environment }}" == 'staging' ]; then
-             echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_STAGING }}" >> "$GITHUB_ENV"
-             echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_STAGING }}" >> "$GITHUB_ENV"
-             echo "CLIENT_ID=${{ secrets.FIREBOLT_CLIENT_ID_STAGING }}" >> "$GITHUB_ENV"
-             echo "CLIENT_SECRET=${{ secrets.FIREBOLT_CLIENT_SECRET_STAGING }}" >> "$GITHUB_ENV"
+             echo "CLIENT_ID=${{ secrets.FIREBOLT_CLIENT_ID_STAGING_NEW_IDN }}" >> "$GITHUB_ENV"
+             echo "CLIENT_SECRET=${{ secrets.FIREBOLT_CLIENT_SECRET_STAGING_NEW_IDN }}" >> "$GITHUB_ENV"
           else
-             echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_DEV }}" >> "$GITHUB_ENV"
-             echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_DEV }}" >> "$GITHUB_ENV"
-             echo "CLIENT_ID=${{ secrets.FIREBOLT_CLIENT_ID_DEV }}" >> "$GITHUB_ENV"
-             echo "CLIENT_SECRET=${{ secrets.FIREBOLT_CLIENT_SECRET_DEV }}" >> "$GITHUB_ENV"
+             echo "CLIENT_ID=${{ secrets.FIREBOLT_CLIENT_ID_DEV_NEW_IDN }}" >> "$GITHUB_ENV"
+             echo "CLIENT_SECRET=${{ secrets.FIREBOLT_CLIENT_SECRET_DEV_NEW_IDN }}" >> "$GITHUB_ENV"
           fi
 
       - name: Keep environment name in the summary
@@ -73,22 +61,21 @@ jobs:
 
       - name: Setup database and engine
         id: setup
-        uses: firebolt-db/integration-testing-setup@master
+        uses: firebolt-db/integration-testing-setup@v2
         with:
-          firebolt-username: ${{ env.USERNAME }}
-          firebolt-password: ${{ env.PASSWORD }}
+          firebolt-client-id: ${{ env.CLIENT_ID }}
+          firebolt-client-secret: ${{ env.CLIENT_SECRET }}
           api-endpoint: "api.${{ inputs.environment }}.firebolt.io"
-          region: "us-east-1"
+          account: developer
 
       - name: Run integration tests
         env:
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
-          FIREBOLT_USERNAME: ${{ env.USERNAME }}
-          FIREBOLT_PASSWORD: ${{ env.PASSWORD }}
           FIREBOLT_CLIENT_ID: ${{ env.CLIENT_ID }}
           FIREBOLT_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
           FIREBOLT_ENDPOINT: "https://api.${{ inputs.environment }}.firebolt.io"
-          ACCOUNT_NAME: "firebolt"
+          FIREBOLT_ENV: ${{ inputs.environment }}
+          ACCOUNT_NAME: "developer"
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
         run: |
           dotnet test --filter "Category=Integration"        
