@@ -185,7 +185,7 @@ namespace FireboltDotNetSdk.Client
             await Client.EstablishConnection();
             // Connecting to system engine by default
             var result = await Client.GetSystemEngineUrl(Account);
-            EngineUrl = result.engineUrl + "/dynamic/query";
+            EngineUrl = result.engineUrl;
             // Specific engine and database specified
             if (EngineName != null && Database != string.Empty)
             {
