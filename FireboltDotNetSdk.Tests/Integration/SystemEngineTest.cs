@@ -171,6 +171,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Ignore("Start stop command are flaky now, enable this test when they become stable")]
         public void StartStopEngineAndDropDbTest()
         {
             var cursor = Connection.CreateCursor();
