@@ -257,7 +257,6 @@ public class FireboltClient
 
     private async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, CancellationToken cancellationToken)
     {
-        System.Console.WriteLine($"Executing query {method} {uri} with content {content}");
         using var request = new HttpRequestMessage();
         request.Method = method;
         request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
