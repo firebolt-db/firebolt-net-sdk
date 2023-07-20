@@ -75,7 +75,7 @@ jobs:
           FIREBOLT_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
           FIREBOLT_ENDPOINT: "https://api.${{ inputs.environment }}.firebolt.io"
           FIREBOLT_ENV: ${{ inputs.environment }}
-          ACCOUNT_NAME: "developer"
+          FIREBOLT_ACCOUNT: "developer"
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
         run: |
           dotnet test --filter "Category=Integration"        
