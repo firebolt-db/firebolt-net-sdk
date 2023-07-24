@@ -104,8 +104,6 @@ namespace FireboltDotNetSdk.Client
             {
                 env = endpoint_env;
             }
-            System.Console.WriteLine($"Endpoint: {endpoint}");
-            System.Console.WriteLine($"Env: {env}");
             return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
         }
     }
