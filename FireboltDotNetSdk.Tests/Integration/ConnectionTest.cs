@@ -1,4 +1,5 @@
 using FireboltDotNetSdk.Client;
+using FireboltDotNetSdk.Exception;
 
 
 namespace FireboltDotNetSdk.Tests
@@ -7,41 +8,37 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class ConnectionTest : IntegrationTest
     {
-        [Test]
-        public void ConnectNoEngineTest()
+        [TestCase(false, false, Description = "Connect without database and engine")]
+        [TestCase(true, false, Description = "Connect without engine but with database")]
+        [TestCase(false, true, Description = "Connect with engine but without database")]
+        [TestCase(true, true, Description = "Connect with both engine and database")]
+        public void ConnectTest(bool useDatabase, bool useEngine)
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env}";
+            if (useDatabase)
+            {
+                connString += $";database={Database}";
+            }
+            if (useEngine)
+            {
+                connString += $";engine={EngineName}";
+            }
             FireboltConnection Connection = new FireboltConnection(connString);
             Connection.Open();
             var cursor = Connection.CreateCursor();
-            cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
-            Assert.NotNull(cursor.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(cursor.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(1));
-        }
-        [Test]
-        public void ConnectNoEngineWithDatabaseTest()
-        {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Connection.Open();
-            var cursor = Connection.CreateCursor();
-            cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
-            Assert.NotNull(cursor.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(cursor.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(1));
-        }
-        [Test]
-        public void ConnectUserEngineNoDbTest()
-        {
-            var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Connection.Open();
-            var cursor = Connection.CreateCursor();
-            cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
-            Assert.NotNull(cursor.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(cursor.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(1));
+
+            if (useEngine || useDatabase)
+            {
+                // Test case for use engine
+                var resp = cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
+                Assert.NotNull(resp);
+                Assert.That(resp!.Rows, Is.GreaterThan(0));
+            }
+            else
+            {
+                FireboltException? exception = Assert.Throws<FireboltException>(
+                    () => cursor.Execute("SELECT TOP 1 * FROM information_schema.tables"));
+            }
         }
     }
 }
