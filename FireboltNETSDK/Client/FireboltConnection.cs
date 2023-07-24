@@ -211,8 +211,9 @@ namespace FireboltDotNetSdk.Client
         private string? GetEngineDatabase(string engineName)
         {
             var query = "SELECT attached_to FROM information_schema.engines " +
-                        $"WHERE engine_name='{engineName}'";
+        $"WHERE engine_name=@EngineName";
             var cursor = CreateCursor();
+            cursor.Parameters.AddWithValue("@EngineName", engineName);
             var res = cursor.Execute(query);
             var database = (string?)res?.Data[0][0];
             return database;
@@ -221,8 +222,9 @@ namespace FireboltDotNetSdk.Client
         private bool IsDatabaseAccessible(string database)
         {
             var query = "SELECT database_name FROM information_schema.databases " +
-                       $"WHERE database_name='{database}'";
+                       $"WHERE database_name=@DatabaseName";
             var cursor = CreateCursor();
+            cursor.Parameters.AddWithValue("@DatabaseName", database);
             var res = cursor.Execute(query);
             return res?.Data.Count == 1;
         }
@@ -243,8 +245,9 @@ namespace FireboltDotNetSdk.Client
                         "FROM information_schema.engines as engs " +
                         "LEFT JOIN information_schema.databases as dbs " +
                         "ON engs.attached_to = dbs.database_name " +
-                        $"WHERE engs.engine_name = '{engineName}'";
+                        $"WHERE engs.engine_name = @EngineName";
             var cursor = CreateCursor();
+            cursor.Parameters.AddWithValue("@EngineName", engineName);
             var res = cursor.Execute(query);
             if (res?.Data.Count == 0)
             {
