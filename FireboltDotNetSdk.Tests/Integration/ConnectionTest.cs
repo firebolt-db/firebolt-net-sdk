@@ -14,7 +14,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltConnection Connection = new FireboltConnection(connString);
             Connection.Open();
             var cursor = Connection.CreateCursor();
-            cursor.Execute("SELECT 1");
+            cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
             Assert.NotNull(cursor.Response);
             NewMeta newMeta = ResponseUtilities.getFirstRow(cursor.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(1));
@@ -26,7 +26,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltConnection Connection = new FireboltConnection(connString);
             Connection.Open();
             var cursor = Connection.CreateCursor();
-            cursor.Execute("SELECT 1");
+            cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
             Assert.NotNull(cursor.Response);
             NewMeta newMeta = ResponseUtilities.getFirstRow(cursor.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(1));
@@ -38,7 +38,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltConnection Connection = new FireboltConnection(connString);
             Connection.Open();
             var cursor = Connection.CreateCursor();
-            cursor.Execute("SELECT 1");
+            cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
             Assert.NotNull(cursor.Response);
             NewMeta newMeta = ResponseUtilities.getFirstRow(cursor.Response!);
             Assert.That(newMeta.Data[0], Is.EqualTo(1));
