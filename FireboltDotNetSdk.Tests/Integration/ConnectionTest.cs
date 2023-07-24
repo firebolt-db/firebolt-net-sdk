@@ -40,5 +40,17 @@ namespace FireboltDotNetSdk.Tests
                     () => cursor.Execute("SELECT TOP 1 * FROM information_schema.tables"));
             }
         }
+
+        [Test]
+        public void InvalidAccountConnectTest()
+        {
+            var connString = $"clientid={ClientId};clientsecret={ClientSecret};account=non-existing-account-123;env={Env}";
+            FireboltConnection Connection = new FireboltConnection(connString);
+
+            FireboltException? exception = Assert.Throws<FireboltException>(
+                        () => Connection.Open());
+            Assert.NotNull(exception);
+            Assert.That(exception!.Message, Does.Contain("Account with name non-existing-account-123 was not found"));
+        }
     }
 }

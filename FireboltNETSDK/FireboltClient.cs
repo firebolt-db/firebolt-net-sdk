@@ -17,11 +17,8 @@
 
 #endregion
 
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -80,7 +77,7 @@ public class FireboltClient
     /// </summary>
     /// <param name="accountName">Name of the account</param>
     /// <returns>Engine URL response</returns>
-    public Task<GetSystemEngineUrlResponse> GetSystemEngineUrl(string accountName)
+    public async Task<GetSystemEngineUrlResponse> GetSystemEngineUrl(string accountName)
     {
         var url = new UriBuilder()
         {
@@ -89,7 +86,14 @@ public class FireboltClient
             Path = String.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName)
         }.Uri.ToString();
 
-        return SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url, (string?)null, true, CancellationToken.None);
+        try
+        {
+            return await SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url, (string?)null, true, CancellationToken.None);
+        }
+        catch (FireboltException e) when (e.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new FireboltException(HttpStatusCode.NotFound, $"Account with name {accountName} was not found");
+        }
     }
 
     /// <summary>
