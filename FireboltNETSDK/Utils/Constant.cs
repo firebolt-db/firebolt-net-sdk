@@ -25,7 +25,7 @@ namespace FireboltDotNetSdk.Utils
 
         public static string AUTH_SERVICE_ACCOUNT_URL = "/oauth/token";
 
-        public static string ACCOUNT_BY_NAME_URL = "/web/v3/account//resolve";
+        public static string ACCOUNT_BY_NAME_URL = "/web/v3/account/{0}/resolve";
         public static string ACCOUNT_SYSTEM_ENGINE_URL = "/web/v3/account/{0}/engineUrl";
     }
 }
