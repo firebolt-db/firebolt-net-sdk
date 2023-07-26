@@ -20,15 +20,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteTest(string commandText)
         {
             var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-
-            var cursor = conn.CreateCursor();
-
-            var value = cursor.Execute(commandText);
-            Assert.NotNull(value);
-            Assert.IsNotEmpty(value!.Data);
+            executeTest(connString, commandText, null);
         }
 
         [Ignore("sleepEachRow function is currently not supported on staging")]
@@ -36,16 +28,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSetTest(string commandText)
         {
             var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-
-            var cursor = conn.CreateCursor();
-            cursor.Execute("SET use_standard_sql=0");
-
-            var value = cursor.Execute(commandText);
-            Assert.NotNull(value);
-            Assert.IsNotEmpty(value!.Data);
+            executeTest(connString, commandText, "SET use_standard_sql=0");
         }
 
         [TestCase("select * from information_schema.tables")]
@@ -53,11 +36,21 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString =
                 $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
+            executeTest(connString, commandText, null);
+        }
 
+        private void executeTest(string connString, string commandText, string? additionalCommand)
+        {
             using var conn = new FireboltConnection(connString);
             conn.Open();
 
-            var value = conn.CreateCursor().Execute(commandText);
+            var cursor = conn.CreateCursor();
+            if (additionalCommand != null)
+            {
+                cursor.Execute(additionalCommand);
+            }
+
+            var value = cursor.Execute(commandText);
             Assert.NotNull(value);
             Assert.IsNotEmpty(value!.Data);
         }
