@@ -16,6 +16,7 @@
 #endregion
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using System.Text.RegularExpressions;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -71,20 +72,9 @@ namespace FireboltDotNetSdk.Client
 
         static string? ExtractEndpointEnv(string endpoint)
         {
-            // Remove http:// or https:// prefix if present
-            endpoint = endpoint.Split("://")[^1];
-            var endpoint_parts = endpoint.Split(".");
-            // Verify the expected 
-            if (
-            endpoint_parts.Length == 4 &&
-            endpoint_parts[0] == "api" &&
-            endpoint_parts[2] == "firebolt" &&
-            endpoint_parts[3] == "io"
-            )
-            {
-                return endpoint_parts[1];
-            }
-            return null;
+            var pattern = new Regex(@"(\w*://)?api\.(?<env>\w+)\.firebolt\.io");
+            var match = pattern.Match(endpoint);
+            return match.Success ? match.Groups["env"].Value : null;
         }
 
         (string, string) ResolveEndpointAndEnv(FireboltConnectionStringBuilder builder)
