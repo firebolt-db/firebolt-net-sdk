@@ -210,8 +210,7 @@ namespace FireboltDotNetSdk.Client
 
         private string? GetEngineDatabase(string engineName)
         {
-            var query = "SELECT attached_to FROM information_schema.engines " +
-        $"WHERE engine_name=@EngineName";
+            var query = "SELECT attached_to FROM information_schema.engines WHERE engine_name=@EngineName";
             var cursor = CreateCursor();
             cursor.Parameters.AddWithValue("@EngineName", engineName);
             var res = cursor.Execute(query);
@@ -241,11 +240,11 @@ namespace FireboltDotNetSdk.Client
 
         private string? GetEngineUrl(string engineName, string database)
         {
-            var query = "SELECT engs.url, engs.attached_to, dbs.database_name, status " +
-                        "FROM information_schema.engines as engs " +
-                        "LEFT JOIN information_schema.databases as dbs " +
-                        "ON engs.attached_to = dbs.database_name " +
-                        $"WHERE engs.engine_name = @EngineName";
+            var query = @$"SELECT engs.url, engs.attached_to, dbs.database_name, status 
+                        FROM information_schema.engines as engs 
+                        LEFT JOIN information_schema.databases as dbs
+                        ON engs.attached_to = dbs.database_name 
+                        WHERE engs.engine_name = @EngineName";
             var cursor = CreateCursor();
             cursor.Parameters.AddWithValue("@EngineName", engineName);
             var res = cursor.Execute(query);
