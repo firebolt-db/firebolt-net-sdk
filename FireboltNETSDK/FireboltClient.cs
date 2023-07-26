@@ -17,11 +17,8 @@
 
 #endregion
 
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -37,18 +34,20 @@ public class FireboltClient
     private readonly Lazy<JsonSerializerSettings> _settings;
     private readonly HttpClient _httpClient;
 
-    private Token? _loginToken;
+    private string? _token;
     private readonly string _endpoint;
-    private readonly string _username;
-    private readonly string _password;
+    private readonly string _id;
+    private readonly string _secret;
+    private readonly string _env;
 
-    public FireboltClient(String username, String password, String endpoint)
+    public FireboltClient(String id, String secret, String endpoint, String? env = null)
     {
         _httpClient = HttpClientSingleton.GetInstance();
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
-        _endpoint = endpoint;
-        _username = username;
-        _password = password;
+        _endpoint = env != null ? $"api.{env}.firebolt.io" : endpoint;
+        _id = id;
+        _secret = secret;
+        _env = env ?? "app";
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
@@ -56,60 +55,45 @@ public class FireboltClient
     /// <summary>
     ///     Authenticates the user with Firebolt.
     /// </summary>
-    /// <param name="username"></param>
-    /// <param name="password"></param>
+    /// <param name="id"></param>
+    /// <param name="sectet"></param>
     /// <returns></returns>
-    private Task<LoginResponse> Login(string username, string password)
+    private Task<LoginResponse> Login(string id, string secret, string env)
     {
-        if (IsServiceAccount(username))
+        var credentials = new ServiceAccountLoginRequest(id, secret);
+        var url = new UriBuilder()
         {
-            var credentials = new UsernamePasswordLoginRequest(username, password);
-            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_USERNAME_PASSWORD_URL, JsonConvert.SerializeObject(credentials, _settings.Value), false, CancellationToken.None);
-        }
-        else
+            Scheme = "https",
+            Host = $"id.{env}.firebolt.io",
+            Path = Constant.AUTH_SERVICE_ACCOUNT_URL
+        }.Uri.ToString();
+
+
+        return SendAsync<LoginResponse>(HttpMethod.Post, url, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
+    }
+
+    /// <summary>
+    ///     Fetches system engine URL.
+    /// </summary>
+    /// <param name="accountName">Name of the account</param>
+    /// <returns>Engine URL response</returns>
+    public async Task<GetSystemEngineUrlResponse> GetSystemEngineUrl(string accountName)
+    {
+        var url = new UriBuilder()
         {
-            var credentials = new ServiceAccountLoginRequest(username, password);
-            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_SERVICE_ACCOUNT_URL, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
+            Scheme = "https",
+            Host = _endpoint,
+            Path = String.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName)
+        }.Uri.ToString();
+
+        try
+        {
+            return await SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url, (string?)null, true, CancellationToken.None);
         }
-    }
-
-    private bool IsServiceAccount(string username)
-    {
-        return username.Contains("@");
-    }
-
-    /// <summary>
-    ///     Returns engine URL by database name given.
-    /// </summary>
-    /// <param name="databaseName">Name of the database.</param>
-    /// <param name="account"></param>
-    /// <returns>A successful response.</returns>
-    public Task<GetEngineUrlByDatabaseNameResponse> GetEngineUrlByDatabaseName(string? databaseName,
-        string? account)
-    {
-        return CoreV1GetEngineUrlByDatabaseNameAsync(databaseName, account, CancellationToken.None);
-    }
-
-    /// <summary>
-    ///     Returns engine id by engine name.
-    /// </summary>
-    /// <param name="engine">Name of the engine.</param>
-    /// <param name="account">Name of the account</param>
-    /// <returns>A successful response.</returns>
-    public Task<GetEngineIdByEngineNameResponse> GetEngineIdByEngineName(string engine, string? account)
-    {
-        return CoreV1GetEngineByEngineNameAsync(engine, account, CancellationToken.None);
-    }
-
-    /// <summary>
-    ///     Returns engine URL by engine id.
-    /// </summary>
-    /// <param name="engineId">Name of the database.</param>
-    /// <param name="accountId"></param>
-    /// <returns>An Engine url response.</returns>
-    public Task<GetEngineUrlByEngineNameResponse> GetEngineUrlByEngineId(string? engineId, string? accountId)
-    {
-        return CoreV1GetEngineUrlByEngineIdAsync(engineId, accountId, CancellationToken.None);
+        catch (FireboltException e) when (e.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new FireboltException(HttpStatusCode.NotFound, $"Account with name {accountName} was not found");
+        }
     }
 
     /// <summary>
@@ -119,9 +103,9 @@ public class FireboltClient
     /// <param name="databaseName">Database name</param>
     /// <param name="query">SQL query to execute</param>
     /// <returns>A successful response.</returns>
-    public Task<string?> ExecuteQuery(string? engineEndpoint, string databaseName, string query)
+    public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, string query)
     {
-        return ExecuteQueryAsync(engineEndpoint, databaseName, query,
+        return ExecuteQueryAsync(engineEndpoint, databaseName, accountId, query,
             new HashSet<string>(), CancellationToken.None);
     }
 
@@ -133,10 +117,10 @@ public class FireboltClient
     /// <param name="setParamList">parameters</param>
     /// <param name="query">SQL query to execute</param>
     /// <returns>A successful response.</returns>
-    public Task<string?> ExecuteQuery(string? engineEndpoint, string databaseName, HashSet<string> setParamList, string query)
+    public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
     {
-        return ExecuteQueryAsync(engineEndpoint, databaseName, query,
-            setParamList, CancellationToken.None);
+        return ExecuteQueryAsync(engineEndpoint, databaseName, accountId, query,
+                 setParamList, CancellationToken.None);
     }
 
     /// <param name="engineEndpoint">Engine endpoint (URL)</param>
@@ -152,19 +136,41 @@ public class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string databaseName, string query,
-        HashSet<string> setParamList, CancellationToken cancellationToken)
+    public async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
+                         string query, HashSet<string> setParamList, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(databaseName) ||
-            string.IsNullOrEmpty(query))
+        if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(query))
             throw new FireboltException(
                 $"Some parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
 
-        var setParam = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
-        var urlBuilder = new StringBuilder();
-        urlBuilder.Append("https://").Append(engineEndpoint).Append("?database=").Append(databaseName)
-            .Append(setParam).Append("&output_format=JSON_Compact");
-        return await SendAsync<string>(HttpMethod.Post, urlBuilder.ToString(), query, "text/plain", true, cancellationToken);
+        var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
+        var urlBuilder = new UriBuilder(engineEndpoint)
+        {
+            Scheme = "https",
+            Port = -1
+        };
+
+        var parameters = new Dictionary<string, string>
+    {
+        { "output_format", "JSON_Compact" }
+    };
+        if (databaseName != null)
+        {
+            parameters["database"] = databaseName;
+        }
+        if (accountId != null)
+        {
+            parameters["account_id"] = accountId;
+        }
+        var queryStr = parameters.Aggregate(new StringBuilder(),
+                  (q, param) => q.AppendFormat("{0}{1}={2}",
+                               q.Length > 0 ? "&" : "", param.Key, param.Value));
+        if (setParams.Length > 0)
+            queryStr.Append("&").Append(setParams);
+        urlBuilder.Query = queryStr.ToString();
+        var url = urlBuilder.Uri.ToString();
+
+        return await SendAsync<string>(HttpMethod.Post, url, query, "text/plain", true, cancellationToken);
     }
 
     private async Task<ObjectResponseResult<T?>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
@@ -221,80 +227,18 @@ public class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string? account,
+    public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account,
         CancellationToken cancellationToken)
     {
-        if (account == null) throw new FireboltException("Account name is empty");
 
-        var urlBuilder = new StringBuilder();
-        urlBuilder.Append(_endpoint)
-            .Append("/iam/v2/accounts:getIdByName?");
-        urlBuilder.Append(Uri.EscapeDataString("accountName") + "=")
-            .Append(Uri.EscapeDataString(ConvertToString(account, CultureInfo.InvariantCulture)));
-
-        return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
-    }
-
-    private async Task<GetEngineUrlByEngineNameResponse> CoreV1GetEngineUrlByEngineIdAsync(string? engineId,
-        string? accountId, CancellationToken cancellationToken)
-    {
-        if (engineId == null) throw new FireboltException("Engine name is incorrect or missing");
-        if (accountId == null) throw new FireboltException("Account id is incorrect or missing");
-
-        var urlBuilder = new StringBuilder();
-        urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId + "/engines/" + engineId);
-        return await SendAsync<GetEngineUrlByEngineNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
-    }
-
-    /// <param name="databaseName">Name of the database.</param>
-    /// <param name="account"></param>
-    /// <param name="cancellationToken">
-    ///     A cancellation token that can be used by other objects or threads to receive notice of
-    ///     cancellation.
-    /// </param>
-    /// <summary>
-    ///     Returns engine URL by database name given.
-    /// </summary>
-    /// <returns>A successful response.</returns>
-    /// <exception cref="FireboltException">A server side error occurred.</exception>
-    private async Task<GetEngineUrlByDatabaseNameResponse> CoreV1GetEngineUrlByDatabaseNameAsync(string? databaseName,
-        string? account, CancellationToken cancellationToken)
-    {
-        var urlBuilder = new StringBuilder();
-
-        if (account == null)
+        var url = new UriBuilder()
         {
-            urlBuilder.Append(_endpoint).Append("/core/v1/account/engines:" + "getURLByDatabaseName" + "?")
-                .Append(Uri.EscapeDataString("database_name") + "=")
-                .Append(Uri.EscapeDataString(ConvertToString(databaseName, CultureInfo.InvariantCulture)));
-        }
-        else
-        {
-            var accountId = await GetAccountIdByNameAsync(account, cancellationToken);
-            if (accountId == null) throw new FireboltException("Account id is missing");
-            urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getURLByDatabaseName" + "?")
-                .Append(Uri.EscapeDataString("database_name") + "=").Append(Uri.EscapeDataString(
-                ConvertToString(databaseName, CultureInfo.InvariantCulture)));
-        }
-        return await SendAsync<GetEngineUrlByDatabaseNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
-    }
+            Scheme = "https",
+            Host = _endpoint,
+            Path = String.Format(Constant.ACCOUNT_BY_NAME_URL, account)
+        }.Uri.ToString();
 
-    private async Task<GetEngineIdByEngineNameResponse> CoreV1GetEngineByEngineNameAsync(string engine,
-        string? account, CancellationToken cancellationToken)
-    {
-        if (engine == null) throw new FireboltException("Engine name is incorrect or missing");
-
-        var accountName = account ?? "firebolt";
-        var accountId = await GetAccountIdByNameAsync(accountName, cancellationToken);
-        if (accountId == null) throw new FireboltException("Account id is missing");
-
-        var urlBuilder = new StringBuilder();
-        urlBuilder.Append(_endpoint).Append("/core/v1/accounts/" + accountId.Account_id + "/engines:" + "getIdByName" + "?")
-            .Append(Uri.EscapeDataString("engine_name") + "=").Append(Uri.EscapeDataString(ConvertToString(
-                engine,
-                CultureInfo.InvariantCulture)));
-
-        return await SendAsync<GetEngineIdByEngineNameResponse>(HttpMethod.Get, urlBuilder.ToString(), (string?)null, true, cancellationToken);
+        return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, (string?)null, true, cancellationToken);
     }
 
     private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
@@ -375,52 +319,11 @@ public class FireboltClient
 
     private void AddAccessToken(HttpRequestMessage request)
     {
-        if (string.IsNullOrEmpty(_loginToken?.AccessToken))
+        if (string.IsNullOrEmpty(_token))
         {
             throw new FireboltException("The Access token is null or empty - EstablishConnection must be called");
         }
-        request.Headers.Add("Authorization", "Bearer " + _loginToken.AccessToken);
-    }
-
-    private static string ConvertToString(object? value, CultureInfo cultureInfo)
-    {
-        switch (value)
-        {
-            case Enum:
-                {
-                    var name = Enum.GetName(value.GetType(), value);
-                    if (name != null)
-                    {
-                        var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
-                        if (field != null)
-                            if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
-                                return attribute.Value ?? name;
-
-                        var converted = Convert.ToString(Convert.ChangeType(value,
-                            Enum.GetUnderlyingType(value.GetType()), cultureInfo));
-                        return converted ?? string.Empty;
-                    }
-
-                    break;
-                }
-            case bool b:
-                return Convert.ToString(b, cultureInfo).ToLowerInvariant();
-            case byte[] bytes:
-                return Convert.ToBase64String(bytes);
-            default:
-                {
-                    if (value?.GetType().IsArray ?? false)
-                    {
-                        IEnumerable<object?> array = ((Array)value).OfType<object>();
-                        return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
-                    }
-
-                    break;
-                }
-        }
-
-        var result = Convert.ToString(value, cultureInfo);
-        return result ?? "";
+        request.Headers.Add("Authorization", "Bearer " + _token);
     }
 
     private struct ObjectResponseResult<T>
@@ -439,33 +342,18 @@ public class FireboltClient
     public async Task EstablishConnection()
     {
         LoginResponse token;
-        var storedToken = await TokenSecureStorage.GetCachedToken(_username, _password);
+        var storedToken = await TokenSecureStorage.GetCachedToken(_id, _secret);
         if (storedToken != null)
         {
             token = new LoginResponse(access_token: storedToken.token,
                 expires_in: storedToken.expiration.ToString(),
-                refresh_token: "",
                 token_type: "");
         }
         else
         {
-            token = await Login(_username, _password);
-            await TokenSecureStorage.CacheToken(token, _username, _password);
+            token = await Login(_id, _secret, _env);
+            await TokenSecureStorage.CacheToken(token, _id, _secret);
         }
-        _loginToken = new Token(token.Access_token, token.Refresh_token, token.Expires_in);
-    }
-
-    public class Token
-    {
-        public Token(string? accessToken, string? refreshToken, string? tokenExpired)
-        {
-            AccessToken = accessToken;
-            RefreshToken = refreshToken;
-            TokenExpired = tokenExpired;
-        }
-
-        public string? AccessToken { get; }
-        public string? RefreshToken { get; }
-        public string? TokenExpired { get; }
+        _token = token.Access_token;
     }
 }

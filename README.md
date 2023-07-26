@@ -21,72 +21,76 @@ It can also be downloaded using Visual Studio UI (Tools > NuGet Package Manager 
 
 Alternatively, packages can also be downloaded using Package Manager Console:
 ```{r, engine='bash', code_block_name}
-PM> Install-Package FireboltNetSDK -Version 0.0.1
+PM> Install-Package FireboltNetSDK
 ```
 
 Examples
 ======================
 
-The following example demonstrates how to open a connection to Firebolt
+The following examples demonstrate how to connect and interact with Firebolt database using this driver:
+
+###### Creating a connection string
 
 ```cs
-            string database = "****";
-            var username = "****";
-            var password = "****";
-            string endpoint = "****";
-            string account = "firebolt";
-            string engine = "****";
-            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};account={account}";
-          
-            using var conn = new FireboltConnection(conn_string);
-           
-            conn.Open();
+// Name of your Firebolt account
+string account = "my_firebolt_account";
+// Client credentials, that you want to use to connect
+string clientId = "my_client_id";
+string clientSecret = "my_client_secret";
+// Name of database and engine to connect to (Optional)
+string database = "my_database_name";
+string engine = "my_engine_name";
 
-            conn.Close();
-```
-Connect and set specific engine if empty will take default
-
-```cs
-    
-            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};";
-          
-            using var conn = new FireboltConnection(conn_string);
-           
-            conn.Open();
-
-            conn.SetEngine(engine);
-
-            conn.Close();
+// Construct a connection string using defined parameter
+string conn_string = $"account={account};clientid={clientId};clientsecret={clientSecret};database={database};engine={engine}";
 ```
 
-Execute command
+###### Creating and closing a connection
 
 ```cs
+using FireboltDotNetSdk.Client;
 
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};";
+// Create a new connection using generated connection string
+using var conn = new FireboltConnection(conn_string);
+// Open a connection
+conn.Open();
 
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
+// Execute SQL, fetch data, ...
 
-            var cursor = conn.CreateCursor();
+// Close the connection after all operations are done
+conn.Close();
+```
 
-            cursor.Execute("SELECT 1");
+###### Executing a SQL command
 
-            conn.Close();
+```cs
+// First you would need to create a cursor
+var cursor = conn.CreateCursor();
+
+// Execute a SQL query and get a response object
+var resp = cursor.Execute("SELECT * FROM my_table");
+
+// Get the amount of rows returned
+Console.WriteLine($"Fetched {resp.Rows} rows")
+
+// Get column names and types
+var columns = String.Join(", ", resp.Meta.Select(x => $"{x.Name}({x.Type})"));
+Console.WriteLine($"Result columns: {columns}");
+
+// Fetch the data from response object
+foreach (var row in resp.Data) {
+    Console.WriteLine(String.Join(",", row));
+}
 ```
 
 Execute command with SET parameter
 
 ```cs
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
+var cursor = conn.CreateCursor();
+cursor.Execute("SET time_zone=America/New_York");
 
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
+var resp = cursor.Execute("SELECT '2000-01-01 12:00:00.123456 Europe/Berlin'::timestamptz as t");
 
-            var cursor = conn.CreateCursor();
-            cursor.Execute("SET use_standard_sql=0");
-
-            cursor.Execute("SELECT 1");
-
-            conn.Close();
+// 2000-01-01 06:00:00.123456-05
+Console.WriteLine(resp.Data[0][0]);
 ```

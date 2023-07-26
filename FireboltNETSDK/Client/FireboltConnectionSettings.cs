@@ -1,5 +1,5 @@
 ﻿#region License Apache 2.0
-/* Copyright 2022 
+/* Copyright 2022
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 #endregion
+using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Utils;
+using System.Text.RegularExpressions;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -25,12 +28,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets the name of the user.
         /// </summary>
-        public string UserName { get; }
+        public string ClientId { get; }
 
         /// <summary>
         /// Gets the password.
         /// </summary>
-        public string? Password { get; }
+        public string ClientSecret { get; }
 
         /// <summary>
         /// Get the name of the default database.
@@ -40,29 +43,58 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Get the name of the default Endpoint.
         /// </summary>
-        public string? Endpoint { get; }
+        public string Endpoint { get; }
 
         /// <summary>
         /// Get the name of the default Account.
         /// </summary>
-        public string? Account { get; }
+        public string Account { get; }
 
         /// <summary>
         /// Get the name of the engine
         /// </summary>
         public string? Engine { get; }
 
+        /// Get the name of the environment.
+        /// </summary>
+        public string? Env { get; }
+
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
-            if (string.IsNullOrWhiteSpace(builder.Database))
-                throw new ArgumentException("The database is not defined.", nameof(builder));
 
-            UserName = builder.UserName;
-            Password = string.IsNullOrEmpty(builder.Password) ? null : builder.Password;
+            ClientId = builder.ClientId;
+            ClientSecret = builder.ClientSecret;
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
-            Endpoint = string.IsNullOrEmpty(builder.Endpoint) ? null : builder.Endpoint;
-            Account = string.IsNullOrEmpty(builder.Account) ? null : builder.Account;
+            Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
+            (Endpoint, Env) = this.ResolveEndpointAndEnv(builder);
+        }
+
+        static string? ExtractEndpointEnv(string endpoint)
+        {
+            var pattern = new Regex(@"(\w*://)?api\.(?<env>\w+)\.firebolt\.io");
+            var match = pattern.Match(endpoint);
+            return match.Success ? match.Groups["env"].Value : null;
+        }
+
+        (string, string) ResolveEndpointAndEnv(FireboltConnectionStringBuilder builder)
+        {
+            var endpoint = string.IsNullOrEmpty(builder.Endpoint) ? null : builder.Endpoint;
+            var env = string.IsNullOrEmpty(builder.Env) ? null : builder.Env;
+            var endpoint_env = endpoint != null ? ExtractEndpointEnv(endpoint) : null;
+
+            if (env != null && endpoint_env != null && env != endpoint_env)
+            {
+                throw new FireboltException(
+            "Configuration error: environment " +
+            $"{env} and endpoint {endpoint} are incompatible"
+        );
+            }
+            if (env == null && endpoint_env != null)
+            {
+                env = endpoint_env;
+            }
+            return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
         }
     }
 }

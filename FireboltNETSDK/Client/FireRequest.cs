@@ -21,35 +21,15 @@ namespace FireboltDotNetSdk.Client
 {
     public class FireRequest
     {
-        public class UsernamePasswordLoginRequest
-        {
-            public UsernamePasswordLoginRequest(string username, string password)
-            {
-                Password = password;
-                Username = username;
-            }
-
-            /// <summary>
-            /// Password.
-            /// </summary>
-            [JsonProperty]
-            private string Password { get; }
-
-            /// <summary>
-            /// Username.
-            /// </summary>
-            [JsonProperty]
-            private string Username { get; }
-
-        }
-
         public class ServiceAccountLoginRequest
         {
+            private const string Audience = "https://api.firebolt.io";
+            private const string GrantType = "client_credentials";
+
             public ServiceAccountLoginRequest(string clientId, string clientSecret)
             {
                 ClientId = clientId;
                 ClientSecret = clientSecret;
-                GrantType = "client_credentials";
             }
 
             /// <summary>
@@ -61,7 +41,8 @@ namespace FireboltDotNetSdk.Client
                 {
                     { "client_id", ClientId },
                     { "client_secret", ClientSecret },
-                    { "grant_type", GrantType }
+                    { "grant_type", GrantType },
+                    { "audience",  Audience}
                 };
                 return new FormUrlEncodedContent(values);
             }
@@ -75,12 +56,6 @@ namespace FireboltDotNetSdk.Client
             /// ClientSecret.
             /// </summary>
             private string ClientSecret { get; }
-
-            /// <summary>
-            /// GrantType.
-            /// </summary>
-            private string GrantType { get; }
-
         }
     }
 }
