@@ -15,78 +15,100 @@ This project is developed under Visual Studio 2022. Earlier versions of Visual S
 Installing the Package
 ======================
 
-Packages can be directly downloaded from [nuget.org](https://www.nuget.org/).
-
-It can also be downloaded using Visual Studio UI (Tools > NuGet Package Manager > Manage NuGet Packages for Solution and search for "Firebolt")
-
-Alternatively, packages can also be downloaded using Package Manager Console:
+Here is a FireboltNetSDK [NuGet page](https://www.nuget.org/packages/FireboltNetSDK/).
+- Install using **.NET CLI**
 ```{r, engine='bash', code_block_name}
-PM> Install-Package FireboltNetSDK -Version 0.0.1
+dotnet add package FireboltNetSDK --version 0.2.0
+```   
+- Install using **Visual Studio UI**
+  - `Tools` > `NuGet Package Manager` > `Manage NuGet Packages for Solution` and search for `Firebolt`   
+- Install using **Package Manager Console**:
+```{r, engine='bash', code_block_name}
+PM> Install-Package FireboltNetSDK -Version 0.*
 ```
 
 Examples
 ======================
 
-The following example demonstrates how to open a connection to Firebolt
+Following examples demonstrate how to connect and interact with Firebolt database using this driver:
+
+#### Creating a connection string for username/password authentication
 
 ```cs
-            string database = "****";
-            var username = "****";
-            var password = "****";
-            string endpoint = "****";
-            string account = "firebolt";
-            string engine = "****";
-            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};account={account}";
-          
-            using var conn = new FireboltConnection(conn_string);
-           
-            conn.Open();
+// Username and password, that you want to use to connect
+string username = "my_username";
+string password = "my_password";
+// Name of database and engine to connect to
+string database = "my_database_name";
+string engine_name = "my_engine_name";
+// Name of your Firebolt account (Optional)
+string account = "my_firebolt_account";
 
-            conn.Close();
+// Construct a connection string using defined parameters
+string conn_string = $"username={username};password={password};account={account};database={database};engine={engine_name}";        
 ```
-Connect and set specific engine if empty will take default
+#### Creating a connection string for service account authentication
 
 ```cs
-    
-            string conn_string = $"database={database};username={username};password={password};endpoint={endpoint};";
-          
-            using var conn = new FireboltConnection(conn_string);
-           
-            conn.Open();
+// Username and password, that you want to use to connect
+string client_id = "my_client_id";
+string client_secret = "my_client_secret";
+// Name of database and engine to connect to
+string database = "my_database_name";
+string engine_name = "my_engine_name";
+// Name of your Firebolt account (Optional)
+string account = "my_firebolt_account";
 
-            conn.SetEngine(engine);
-
-            conn.Close();
-```
-
-Execute command
-
-```cs
-
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-
-            var cursor = conn.CreateCursor();
-
-            cursor.Execute("SELECT 1");
-
-            conn.Close();
+// Construct a connection string using defined parameters
+string conn_string = $"username={client_id};password={client_secret};account={account};database={database};engine={engine_name}";        
 ```
 
-Execute command with SET parameter
+#### Creating and closing a connection
 
 ```cs
-            var connString = $"database={_database};username={_username};password={_password};endpoint={_endpoint};account={_account}";
+using FireboltDotNetSdk.Client;
 
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
+// Create a new connection using generated connection string
+using var conn = new FireboltConnection(conn_string);
+// Open a connection
+conn.Open();
 
-            var cursor = conn.CreateCursor();
-            cursor.Execute("SET use_standard_sql=0");
+// Execute SQL, fetch data, ...
 
-            cursor.Execute("SELECT 1");
+// Close the connection after all operations are done
+conn.Close();
+```
 
-            conn.Close();
+#### Executing a SQL command
+
+```cs
+// First you would need to create a cursor
+var cursor = conn.CreateCursor();
+
+// Execute a SQL query and get a response object
+var resp = cursor.Execute("SELECT * FROM my_table");
+
+// Get the amount of rows returned
+Console.WriteLine($"Fetched {resp.Rows} rows")
+
+// Get column names and types
+var columns = String.Join(", ", resp.Meta.Select(x => $"{x.Name}({x.Type})"));
+Console.WriteLine($"Result columns: {columns}");
+
+// Fetch the data from response object
+foreach (var row in resp.Data) {
+    Console.WriteLine(String.Join(",", row));
+}
+```
+
+#### Execute command with SET parameter
+
+```cs
+var cursor = conn.CreateCursor();
+cursor.Execute("SET time_zone=America/New_York");
+
+var resp = cursor.Execute("SELECT '2000-01-01 12:00:00.123456 Europe/Berlin'::timestamptz as t");
+
+// 2000-01-01 06:00:00.123456-05
+Console.WriteLine(resp.Data[0][0]);
 ```
