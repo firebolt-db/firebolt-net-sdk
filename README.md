@@ -32,6 +32,10 @@ Examples
 
 Following examples demonstrate how to connect and interact with Firebolt database using this driver:
 
+.NET SDK supports two ways of authentication: 
+- Username/Password authentication: use the same credentials you use to log in to Web UI
+- Service Account authentication: credentials used for programatical access only, see [Service Accounts](https://docs.firebolt.io/managing-your-account/service-accounts.html) docs page
+
 #### Creating a connection string for username/password authentication
 
 ```cs
