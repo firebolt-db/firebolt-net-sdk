@@ -23,6 +23,9 @@ dotnet add package FireboltNetSDK
 - Install using **Visual Studio UI**
   - `Tools` > `NuGet Package Manager` > `Manage NuGet Packages for Solution` and search for `Firebolt`   
 - Install using **Package Manager Console**:
+```{r, engine='bash', code_block_name}
+PM> Install-Package FireboltNetSDK -Version 0.*
+```
 
 Examples
 ======================
