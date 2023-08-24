@@ -29,7 +29,7 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltConnection : DbConnection
     {
-        private readonly FireboltConnectionState _connectionState;
+        private FireboltConnectionState _connectionState;
 
         private const string engineStatusRunning = "Running";
 
@@ -100,11 +100,20 @@ namespace FireboltDotNetSdk.Client
 
         public override string ServerVersion
         {
-            get 
-            {
-                string? version = (string?)getOneLine("SELECT VERSION()")?[0];
-                return version == null ? "" : version;
-            }
+            // get 
+            // {
+            //     // string? version = (string?)getOneLine("SELECT VERSION()")?[0];
+
+
+            //     // string yyy = (string?)getOneLine("SELECT VERSION()")?[0] ?? String.Empty;
+
+            //     // string xx = version ?? String.Empty;
+            //     // return version == null ? "" : version;
+
+            //     return (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
+            // }
+
+            get => (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
         }
 
 
