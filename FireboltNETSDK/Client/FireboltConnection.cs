@@ -98,7 +98,15 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The state of the connection.</returns>
         public override ConnectionState State => _connectionState.State;
 
-        public override string ServerVersion => throw new NotImplementedException();
+        public override string ServerVersion
+        {
+            get 
+            {
+                string? version = (string?)getOneLine("SELECT VERSION()")?[0];
+                return version == null ? "" : version;
+            }
+        }
+
 
         public override string DataSource => throw new NotImplementedException();
 
@@ -210,22 +218,36 @@ namespace FireboltDotNetSdk.Client
 
         private string? GetEngineDatabase(string engineName)
         {
-            var query = "SELECT attached_to FROM information_schema.engines WHERE engine_name=@EngineName";
+            return (string?)GetEngineData(engineName, "attached_to")?[0];            
+        }
+        private List<object?>? GetEngineData(string engineName, params string[] fields)
+        {
+            var query = $"SELECT {String.Join(",", fields)} FROM information_schema.engines WHERE engine_name=@EngineName";
+            IDictionary<string, object?> parameters = new Dictionary<string, object?> { { "@EngineName", engineName } };
+            return getOneLine(query, parameters);
+        }
+
+        private List<object?>? getOneLine(string query, IDictionary<string, object?>? parameters = null) {
+            return getLines(query, parameters)?[0];
+        }
+
+        private List<List<object?>>? getLines(string query, IDictionary<string, object?>? parameters = null)
+        {
             var cursor = CreateCursor();
-            cursor.Parameters.AddWithValue("@EngineName", engineName);
+            if (parameters != null) {
+                foreach (var parameter in parameters) {
+                    cursor.Parameters.AddWithValue(parameter.Key, parameter.Value);
+                }
+            }
             var res = cursor.Execute(query);
-            var database = (string?)res?.Data[0][0];
-            return database;
+            return res?.Data;
         }
 
         private bool IsDatabaseAccessible(string database)
         {
-            var query = "SELECT database_name FROM information_schema.databases " +
-                       $"WHERE database_name=@DatabaseName";
-            var cursor = CreateCursor();
-            cursor.Parameters.AddWithValue("@DatabaseName", database);
-            var res = cursor.Execute(query);
-            return res?.Data.Count == 1;
+            var query = "SELECT database_name FROM information_schema.databases WHERE database_name=@DatabaseName";
+            IDictionary<string, object?> parameters = new Dictionary<string, object?> { { "@DatabaseName", database } };
+            return getLines(query, parameters)?.Count == 1;
         }
 
         private string? GetEngineUrlByEngineNameAndDb(string engineName, string database)
