@@ -38,6 +38,7 @@ namespace FireboltDotNetSdk.Client
         private string? _accountId = null;
         private bool _isSystem = true;
         private string _database;
+        private string _connectionString;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -100,27 +101,13 @@ namespace FireboltDotNetSdk.Client
 
         public override string ServerVersion
         {
-            // get 
-            // {
-            //     // string? version = (string?)getOneLine("SELECT VERSION()")?[0];
-
-
-            //     // string yyy = (string?)getOneLine("SELECT VERSION()")?[0] ?? String.Empty;
-
-            //     // string xx = version ?? String.Empty;
-            //     // return version == null ? "" : version;
-
-            //     return (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
-            // }
-
             get => (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
         }
-
 
         public override string DataSource => throw new NotImplementedException();
 
         [System.Diagnostics.CodeAnalysis.AllowNull]
-        public override string ConnectionString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override string ConnectionString { get => _connectionString; set => throw new NotImplementedException(); }
 
         /// <summary>
         /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
@@ -144,6 +131,7 @@ namespace FireboltDotNetSdk.Client
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
             _database = _connectionState.Settings?.Database ?? string.Empty;
+            _connectionString = stringBuilder.ConnectionString;
         }
 
         /// <summary>

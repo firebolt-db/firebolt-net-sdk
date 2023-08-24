@@ -9,9 +9,9 @@ namespace FireboltDotNetSdk.Tests
     internal class ConnectionTest : IntegrationTest
     {
         [TestCase(false, false, Description = "Connect without database and engine")]
-        //[TestCase(true, false, Description = "Connect without engine but with database")]
-        //[TestCase(false, true, Description = "Connect with engine but without database")]
-        //[TestCase(true, true, Description = "Connect with both engine and database")]
+        [TestCase(true, false, Description = "Connect without engine but with database")]
+        [TestCase(false, true, Description = "Connect with engine but without database")]
+        [TestCase(true, true, Description = "Connect with both engine and database")]
         public void ConnectTest(bool useDatabase, bool useEngine)
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env}";
@@ -24,6 +24,7 @@ namespace FireboltDotNetSdk.Tests
                 connString += $";engine={EngineName}";
             }
             FireboltConnection Connection = new FireboltConnection(connString);
+            Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
             Connection.Open();
 
             string version = Connection.ServerVersion;

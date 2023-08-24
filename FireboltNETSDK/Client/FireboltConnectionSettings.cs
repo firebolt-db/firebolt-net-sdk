@@ -58,10 +58,11 @@ namespace FireboltDotNetSdk.Client
         /// Get the name of the environment.
         /// </summary>
         public string? Env { get; }
+        public string? ConnectionString { get; }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
-
+            ConnectionString = builder.ConnectionString;
             ClientId = builder.ClientId;
             ClientSecret = builder.ClientSecret;
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
