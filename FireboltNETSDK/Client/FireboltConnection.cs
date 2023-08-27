@@ -140,13 +140,18 @@ namespace FireboltDotNetSdk.Client
         /// <exception cref="NotSupportedException">Always throws <see cref="NotSupportedException"/>.</exception>
         public override void ChangeDatabase(string databaseName)
         {
-            throw new NotSupportedException();
+            if (ChangeDatabaseImpl(databaseName)) {
+                Open();
+            }
         }
 
         /// <inheritdoc cref="ChangeDatabase(string)"/>
         public override Task ChangeDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            if (ChangeDatabaseImpl(databaseName)) {
+                return OpenAsync();
+            }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -252,6 +257,7 @@ namespace FireboltDotNetSdk.Client
             var haveAccess = IsDatabaseAccessible(database);
             if (!haveAccess)
             {
+                Close();
                 throw new FireboltException($"Database {database} does not exist or current user does not have access to it!");
             }
             return GetEngineUrl(engineName, database);
@@ -335,6 +341,7 @@ namespace FireboltDotNetSdk.Client
         {
             _connectionState.State = ConnectionState.Closed;
             Client = null;
+            _isSystem = true;
         }
 
         /// <summary>
@@ -348,6 +355,37 @@ namespace FireboltDotNetSdk.Client
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
             throw new NotImplementedException();
+        }
+
+        private string EditConnectionString(string orig, string name, string value) {
+            string newKeyValue = $"{name}={value}";
+            string[] elements = orig.Split(';');
+            bool append = true;
+            for (int i = 0; i < elements.Length; i++) {
+                string[] kv = elements[i].Split('=');
+                if (kv[0] == name) {
+                    append = false;
+                    if (kv[1] != value) {
+                        elements[i] = newKeyValue;
+                    }
+                }
+            }
+            return append ? string.Join(';', elements) : $"{orig};{newKeyValue}";
+
+        }
+        private bool ChangeDatabaseImpl(string databaseName)
+        {
+            if (databaseName == _database) {
+                return false;
+            }
+            bool isOpen = Client != null; 
+            if (isOpen) {
+                Close();
+            }
+            _database = databaseName;
+            _connectionString = EditConnectionString(_connectionString, "database", databaseName);
+            _connectionState.Settings = new FireboltConnectionStringBuilder(_connectionString).BuildSettings();
+            return isOpen;
         }
     }
 }
