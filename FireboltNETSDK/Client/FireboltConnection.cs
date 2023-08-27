@@ -107,33 +107,41 @@ namespace FireboltDotNetSdk.Client
         public override string DataSource => _database;
 
         [System.Diagnostics.CodeAnalysis.AllowNull]
-        public override string ConnectionString { 
-            get => _connectionString; 
-            set {
-                if (value == null) {
+        public override string ConnectionString
+        {
+            get => _connectionString;
+            set
+            {
+                if (value == null)
+                {
                     throw new ArgumentNullException(nameof(value));
                 }
-                if (value == _connectionString) {
+                if (value == _connectionString)
+                {
                     return;
                 }
                 _connectionString = value;
                 var connectionSettings = new FireboltConnectionStringBuilder(value).BuildSettings();
-                if (connectionSettings.Database == Database 
-                    && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env 
-                    && connectionSettings.Account == Account 
-                    && connectionSettings.ClientId == ClientId && connectionSettings.ClientSecret == ClientSecret) {
+                if (connectionSettings.Database == Database
+                    && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
+                    && connectionSettings.Account == Account
+                    && connectionSettings.ClientId == ClientId && connectionSettings.ClientSecret == ClientSecret)
+                {
                     return;
                 }
-                bool isOpen = Client != null; 
-                if (isOpen) {
+                bool isOpen = Client != null;
+                if (isOpen)
+                {
                     Close();
                 }
-                if (connectionSettings.Account != Account) {
+                if (connectionSettings.Account != Account)
+                {
                     _accountId = null;
                 }
                 _connectionState.Settings = connectionSettings;
                 _database = _connectionState.Settings?.Database ?? string.Empty;
-                if (isOpen) {
+                if (isOpen)
+                {
                     Open();
                 }
             }
@@ -170,7 +178,8 @@ namespace FireboltDotNetSdk.Client
         /// <exception cref="NotSupportedException">Always throws <see cref="NotSupportedException"/>.</exception>
         public override void ChangeDatabase(string databaseName)
         {
-            if (ChangeDatabaseImpl(databaseName)) {
+            if (ChangeDatabaseImpl(databaseName))
+            {
                 Open();
             }
         }
@@ -178,7 +187,8 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc cref="ChangeDatabase(string)"/>
         public override Task ChangeDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
         {
-            if (ChangeDatabaseImpl(databaseName)) {
+            if (ChangeDatabaseImpl(databaseName))
+            {
                 return OpenAsync();
             }
             return Task.CompletedTask;
@@ -250,7 +260,7 @@ namespace FireboltDotNetSdk.Client
 
         private string? GetEngineDatabase(string engineName)
         {
-            return (string?)GetEngineData(engineName, "attached_to")?[0];            
+            return (string?)GetEngineData(engineName, "attached_to")?[0];
         }
         private List<object?>? GetEngineData(string engineName, params string[] fields)
         {
@@ -259,15 +269,18 @@ namespace FireboltDotNetSdk.Client
             return getOneLine(query, parameters);
         }
 
-        private List<object?>? getOneLine(string query, IDictionary<string, object?>? parameters = null) {
+        private List<object?>? getOneLine(string query, IDictionary<string, object?>? parameters = null)
+        {
             return getLines(query, parameters)?[0];
         }
 
         private List<List<object?>>? getLines(string query, IDictionary<string, object?>? parameters = null)
         {
             var cursor = CreateCursor();
-            if (parameters != null) {
-                foreach (var parameter in parameters) {
+            if (parameters != null)
+            {
+                foreach (var parameter in parameters)
+                {
                     cursor.Parameters.AddWithValue(parameter.Key, parameter.Value);
                 }
             }
@@ -387,15 +400,19 @@ namespace FireboltDotNetSdk.Client
             throw new NotImplementedException();
         }
 
-        private string EditConnectionString(string orig, string name, string value) {
+        private string EditConnectionString(string orig, string name, string value)
+        {
             string newKeyValue = $"{name}={value}";
             string[] elements = orig.Split(';');
             bool append = true;
-            for (int i = 0; i < elements.Length; i++) {
+            for (int i = 0; i < elements.Length; i++)
+            {
                 string[] kv = elements[i].Split('=');
-                if (kv[0] == name) {
+                if (kv[0] == name)
+                {
                     append = false;
-                    if (kv[1] != value) {
+                    if (kv[1] != value)
+                    {
                         elements[i] = newKeyValue;
                     }
                 }
@@ -405,11 +422,13 @@ namespace FireboltDotNetSdk.Client
         }
         private bool ChangeDatabaseImpl(string databaseName)
         {
-            if (databaseName == _database) {
+            if (databaseName == _database)
+            {
                 return false;
             }
-            bool isOpen = Client != null; 
-            if (isOpen) {
+            bool isOpen = Client != null;
+            if (isOpen)
+            {
                 Close();
             }
             _database = databaseName;
