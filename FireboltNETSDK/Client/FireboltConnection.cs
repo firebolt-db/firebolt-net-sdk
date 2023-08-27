@@ -107,7 +107,37 @@ namespace FireboltDotNetSdk.Client
         public override string DataSource => throw new NotImplementedException();
 
         [System.Diagnostics.CodeAnalysis.AllowNull]
-        public override string ConnectionString { get => _connectionString; set => throw new NotImplementedException(); }
+        public override string ConnectionString { 
+            get => _connectionString; 
+            set {
+                if (value == null) {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                if (value == _connectionString) {
+                    return;
+                }
+                _connectionString = value;
+                var connectionSettings = new FireboltConnectionStringBuilder(value).BuildSettings();
+                if (connectionSettings.Database == Database 
+                    && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env 
+                    && connectionSettings.Account == Account 
+                    && connectionSettings.ClientId == ClientId && connectionSettings.ClientSecret == ClientSecret) {
+                    return;
+                }
+                bool isOpen = Client != null; 
+                if (isOpen) {
+                    Close();
+                }
+                if (connectionSettings.Account != Account) {
+                    _accountId = null;
+                }
+                _connectionState.Settings = connectionSettings;
+                _database = _connectionState.Settings?.Database ?? string.Empty;
+                if (isOpen) {
+                    Open();
+                }
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.

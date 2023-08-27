@@ -113,9 +113,9 @@ namespace FireboltDotNetSdk.Client
             set => throw new NotImplementedException();
         }
 
-        internal FireboltCommand(FireboltConnection connection) {
+        internal FireboltCommand(FireboltConnection connection) => 
             Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-        }
+        
 
         public QueryResult? Execute(string commandText)
         {
