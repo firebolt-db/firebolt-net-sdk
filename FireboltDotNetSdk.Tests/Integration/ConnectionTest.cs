@@ -1,5 +1,6 @@
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
+using System.Net.Http;
 
 
 namespace FireboltDotNetSdk.Tests
@@ -15,14 +16,18 @@ namespace FireboltDotNetSdk.Tests
         public void ConnectTest(bool useDatabase, bool useEngine)
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env}";
+            string expectedDatabase = string.Empty;
             if (useDatabase)
             {
                 connString += $";database={Database}";
+                expectedDatabase = Database;
             }
             if (useEngine)
             {
                 connString += $";engine={EngineName}";
+                expectedDatabase = Database; // if engine is specified the we use default database
             }
+            Console.WriteLine($"test: {connString}");
             FireboltConnection Connection = new FireboltConnection(connString);
             Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
             Connection.Open();
@@ -30,6 +35,8 @@ namespace FireboltDotNetSdk.Tests
             string version = Connection.ServerVersion;
             Assert.NotNull(version);
             Assert.IsNotEmpty(version);
+
+            Assert.That(Connection.DataSource ?? string.Empty, Is.EqualTo(expectedDatabase));            
             var cursor = Connection.CreateCursor();
 
             if (useEngine || useDatabase)
@@ -113,11 +120,75 @@ namespace FireboltDotNetSdk.Tests
             Connection.Close();
         }
 
+
+        [Test]
+        public void SetConnectionStringSameValueNotOpen() {
+            var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
+            FireboltConnection Connection = new FireboltConnection(connString);
+            Connection.ConnectionString = connString;
+            Connection.Open();
+            assertSelectOne(Connection.CreateCursor());
+            Connection.Close();
+        }
+
+        [Test]
+        public void SetConnectionStringSameValueOpen() {
+            var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
+            FireboltConnection Connection = new FireboltConnection(connString);
+            Connection.Open();
+            assertSelectOne(Connection.CreateCursor());
+            Connection.ConnectionString = connString;
+            assertSelectOne(Connection.CreateCursor());
+            Connection.Close();
+        }
+
+        [Test]
+        public void SetConnectionStringFirstWrongThenGood() {
+            var connString1 = $"clientid=ClientId;clientsecret=ClientSecret;account=Account;env=Env;database=Database;engine=EngineName";
+            var connString2 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
+            FireboltConnection Connection = new FireboltConnection(connString1);
+            Assert.Throws<HttpRequestException>(() => Connection.Open());
+            Connection.ConnectionString = connString2;
+            assertSelectOne(Connection.CreateCursor());
+            Connection.Close();
+        }
+
+        [Test]
+        public void SetConnectionStringFirstGoodThenWrong() {
+            var connString1 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
+            var connString2 = $"clientid=ClientId;clientsecret=ClientSecret;account=Account;env=Env;database=Database;engine=EngineName";
+            FireboltConnection Connection = new FireboltConnection(connString1);
+            Connection.Open();
+            assertSelectOne(Connection.CreateCursor());
+            Assert.Throws<HttpRequestException>(() => Connection.ConnectionString = connString2);
+        }
+
+        [Test]
+        public void SetAccountUsingConnectionStringFirstGoodThenWrong() {
+            var connString1 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
+            var connString2 = $"clientid={ClientId};clientsecret={ClientSecret};account=WRONG;env={Env};database={Database};engine={EngineName}";
+            SetConnectionStringFirstGoodThenWrongThrowingFireboltException(connString1, connString2);
+        }
+
+        [Test]
+        public void SetDatabaseUsingConnectionStringFirstGoodThenWrong() {
+            var connString1 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
+            var connString2 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database=WRONG;engine={EngineName}";
+            SetConnectionStringFirstGoodThenWrongThrowingFireboltException(connString1, connString2);
+        }
+
         private void assertSelectOne(FireboltCommand cursor) {
             var resp = cursor.Execute("SELECT 1");
             Assert.NotNull(resp);
             Assert.That(resp!.Rows, Is.EqualTo(1));
             Assert.That(resp.Data[0][0], Is.EqualTo(1));
+        }
+
+        private void SetConnectionStringFirstGoodThenWrongThrowingFireboltException(string connString1, string connString2) {
+            FireboltConnection Connection = new FireboltConnection(connString1);
+            Connection.Open();
+            assertSelectOne(Connection.CreateCursor());
+            Assert.Throws<FireboltException>(() => Connection.ConnectionString = connString2);
         }
     }
 }

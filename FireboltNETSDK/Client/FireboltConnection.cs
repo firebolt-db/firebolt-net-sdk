@@ -104,7 +104,7 @@ namespace FireboltDotNetSdk.Client
             get => (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
         }
 
-        public override string DataSource => throw new NotImplementedException();
+        public override string DataSource => _database;
 
         [System.Diagnostics.CodeAnalysis.AllowNull]
         public override string ConnectionString { 
