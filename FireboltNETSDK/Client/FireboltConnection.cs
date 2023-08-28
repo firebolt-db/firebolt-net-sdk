@@ -50,13 +50,11 @@ namespace FireboltDotNetSdk.Client
         public string ClientSecret
         {
             get => _connectionState.Settings?.ClientSecret ?? throw new FireboltException("ClientSecret parameter is missing in the connection string");
-            set => throw new NotImplementedException();
         }
 
         public string Endpoint
         {
             get => _connectionState.Settings?.Endpoint ?? Constant.DEFAULT_ENDPOINT;
-            set => throw new NotImplementedException();
         }
 
         public string? Env
@@ -67,13 +65,11 @@ namespace FireboltDotNetSdk.Client
         public string Account
         {
             get => _connectionState.Settings?.Account ?? string.Empty;
-            set => throw new NotImplementedException();
         }
 
         public string ClientId
         {
             get => _connectionState.Settings?.ClientId ?? throw new FireboltException("ClientId is missing");
-            set => throw new NotImplementedException();
         }
 
         private string? EngineName
