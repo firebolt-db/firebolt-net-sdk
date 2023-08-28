@@ -29,7 +29,7 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltConnection : DbConnection
     {
-        private readonly FireboltConnectionState _connectionState;
+        private FireboltConnectionState _connectionState;
 
         private const string engineStatusRunning = "Running";
 
@@ -38,6 +38,8 @@ namespace FireboltDotNetSdk.Client
         private string? _accountId = null;
         private bool _isSystem = true;
         private string _database;
+        private string _connectionString;
+        private string? _serverVersion;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -48,13 +50,11 @@ namespace FireboltDotNetSdk.Client
         public string ClientSecret
         {
             get => _connectionState.Settings?.ClientSecret ?? throw new FireboltException("ClientSecret parameter is missing in the connection string");
-            set => throw new NotImplementedException();
         }
 
         public string Endpoint
         {
             get => _connectionState.Settings?.Endpoint ?? Constant.DEFAULT_ENDPOINT;
-            set => throw new NotImplementedException();
         }
 
         public string? Env
@@ -65,13 +65,11 @@ namespace FireboltDotNetSdk.Client
         public string Account
         {
             get => _connectionState.Settings?.Account ?? string.Empty;
-            set => throw new NotImplementedException();
         }
 
         public string ClientId
         {
             get => _connectionState.Settings?.ClientId ?? throw new FireboltException("ClientId is missing");
-            set => throw new NotImplementedException();
         }
 
         private string? EngineName
@@ -98,12 +96,60 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The state of the connection.</returns>
         public override ConnectionState State => _connectionState.State;
 
-        public override string ServerVersion => throw new NotImplementedException();
+        public override string ServerVersion
+        {
+            get
+            {
+                if (_serverVersion == null)
+                {
+                    _serverVersion = (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
+                }
+                return _serverVersion;
+            }
+        }
 
-        public override string DataSource => throw new NotImplementedException();
+        public override string DataSource => _database;
 
         [System.Diagnostics.CodeAnalysis.AllowNull]
-        public override string ConnectionString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override string ConnectionString
+        {
+            get => _connectionString;
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                if (value == _connectionString)
+                {
+                    return;
+                }
+                _connectionString = value;
+                var connectionSettings = new FireboltConnectionStringBuilder(value).BuildSettings();
+                if (connectionSettings.Database == Database
+                    && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
+                    && connectionSettings.Account == Account
+                    && connectionSettings.ClientId == ClientId && connectionSettings.ClientSecret == ClientSecret)
+                {
+                    return;
+                }
+                bool isOpen = Client != null;
+                if (isOpen)
+                {
+                    Close();
+                }
+                if (connectionSettings.Account != Account)
+                {
+                    _accountId = null;
+                }
+                _connectionState.Settings = connectionSettings;
+                _database = _connectionState.Settings?.Database ?? string.Empty;
+                if (isOpen)
+                {
+                    Open();
+                }
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
@@ -127,21 +173,29 @@ namespace FireboltDotNetSdk.Client
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
             _database = _connectionState.Settings?.Database ?? string.Empty;
+            _connectionString = stringBuilder.ConnectionString;
         }
 
         /// <summary>
-        /// Not supported. The database cannot be changed while the connection is open.
+        /// Changes the current database for an open connection. If connection was open, re-opens it. 
         /// </summary>
         /// <exception cref="NotSupportedException">Always throws <see cref="NotSupportedException"/>.</exception>
         public override void ChangeDatabase(string databaseName)
         {
-            throw new NotSupportedException();
+            if (ChangeDatabaseImpl(databaseName))
+            {
+                Open();
+            }
         }
 
         /// <inheritdoc cref="ChangeDatabase(string)"/>
         public override Task ChangeDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            if (ChangeDatabaseImpl(databaseName))
+            {
+                return OpenAsync();
+            }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -210,22 +264,39 @@ namespace FireboltDotNetSdk.Client
 
         private string? GetEngineDatabase(string engineName)
         {
-            var query = "SELECT attached_to FROM information_schema.engines WHERE engine_name=@EngineName";
+            return (string?)GetEngineData(engineName, "attached_to")?[0];
+        }
+        private List<object?>? GetEngineData(string engineName, params string[] fields)
+        {
+            var query = $"SELECT {String.Join(",", fields)} FROM information_schema.engines WHERE engine_name=@EngineName";
+            IDictionary<string, object?> parameters = new Dictionary<string, object?> { { "@EngineName", engineName } };
+            return getOneLine(query, parameters);
+        }
+
+        private List<object?>? getOneLine(string query, IDictionary<string, object?>? parameters = null)
+        {
+            return getLines(query, parameters)?[0];
+        }
+
+        private List<List<object?>>? getLines(string query, IDictionary<string, object?>? parameters = null)
+        {
             var cursor = CreateCursor();
-            cursor.Parameters.AddWithValue("@EngineName", engineName);
+            if (parameters != null)
+            {
+                foreach (var parameter in parameters)
+                {
+                    cursor.Parameters.AddWithValue(parameter.Key, parameter.Value);
+                }
+            }
             var res = cursor.Execute(query);
-            var database = (string?)res?.Data[0][0];
-            return database;
+            return res?.Data;
         }
 
         private bool IsDatabaseAccessible(string database)
         {
-            var query = "SELECT database_name FROM information_schema.databases " +
-                       $"WHERE database_name=@DatabaseName";
-            var cursor = CreateCursor();
-            cursor.Parameters.AddWithValue("@DatabaseName", database);
-            var res = cursor.Execute(query);
-            return res?.Data.Count == 1;
+            var query = "SELECT database_name FROM information_schema.databases WHERE database_name=@DatabaseName";
+            IDictionary<string, object?> parameters = new Dictionary<string, object?> { { "@DatabaseName", database } };
+            return getLines(query, parameters)?.Count == 1;
         }
 
         private string? GetEngineUrlByEngineNameAndDb(string engineName, string database)
@@ -233,6 +304,7 @@ namespace FireboltDotNetSdk.Client
             var haveAccess = IsDatabaseAccessible(database);
             if (!haveAccess)
             {
+                Close();
                 throw new FireboltException($"Database {database} does not exist or current user does not have access to it!");
             }
             return GetEngineUrl(engineName, database);
@@ -316,6 +388,7 @@ namespace FireboltDotNetSdk.Client
         {
             _connectionState.State = ConnectionState.Closed;
             Client = null;
+            _isSystem = true;
         }
 
         /// <summary>
@@ -329,6 +402,43 @@ namespace FireboltDotNetSdk.Client
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
             throw new NotImplementedException();
+        }
+
+        private string EditConnectionString(string orig, string name, string value)
+        {
+            string newKeyValue = $"{name}={value}";
+            string[] elements = orig.Split(';');
+            bool append = true;
+            for (int i = 0; i < elements.Length; i++)
+            {
+                string[] kv = elements[i].Split('=');
+                if (kv[0] == name)
+                {
+                    append = false;
+                    if (kv[1] != value)
+                    {
+                        elements[i] = newKeyValue;
+                    }
+                }
+            }
+            return append ? string.Join(';', elements) : $"{orig};{newKeyValue}";
+
+        }
+        private bool ChangeDatabaseImpl(string databaseName)
+        {
+            if (databaseName == _database)
+            {
+                return false;
+            }
+            bool isOpen = Client != null;
+            if (isOpen)
+            {
+                Close();
+            }
+            _database = databaseName;
+            _connectionString = EditConnectionString(_connectionString, "database", databaseName);
+            _connectionState.Settings = new FireboltConnectionStringBuilder(_connectionString).BuildSettings();
+            return isOpen;
         }
     }
 }
