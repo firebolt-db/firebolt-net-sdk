@@ -153,11 +153,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString1 = $"clientid=ClientId;clientsecret=ClientSecret;account=Account;env=Env;database=Database;engine=EngineName";
             var connString2 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString1);
-            Assert.Throws<HttpRequestException>(() => Connection.Open());
-            Connection.ConnectionString = connString2;
-            assertSelectOne(Connection.CreateCursor());
-            Connection.Close();
+            SetConnectionStringFirstWrongThenGood<HttpRequestException>(connString1, connString2);
         }
 
         [Test]
@@ -165,10 +161,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString1 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
             var connString2 = $"clientid=ClientId;clientsecret=ClientSecret;account=Account;env=Env;database=Database;engine=EngineName";
-            FireboltConnection Connection = new FireboltConnection(connString1);
-            Connection.Open();
-            assertSelectOne(Connection.CreateCursor());
-            Assert.Throws<HttpRequestException>(() => Connection.ConnectionString = connString2);
+            SetConnectionStringFirstGoodThenWrong<HttpRequestException>(connString1, connString2);
         }
 
         [Test]
@@ -176,7 +169,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString1 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
             var connString2 = $"clientid={ClientId};clientsecret={ClientSecret};account=WRONG;env={Env};database={Database};engine={EngineName}";
-            SetConnectionStringFirstGoodThenWrongThrowingFireboltException(connString1, connString2);
+            SetConnectionStringFirstGoodThenWrong<FireboltException>(connString1, connString2);
         }
 
         [Test]
@@ -184,7 +177,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString1 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
             var connString2 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database=WRONG;engine={EngineName}";
-            SetConnectionStringFirstGoodThenWrongThrowingFireboltException(connString1, connString2);
+            SetConnectionStringFirstGoodThenWrong<FireboltException>(connString1, connString2);
         }
 
         private void assertSelectOne(FireboltCommand cursor)
@@ -195,12 +188,21 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(resp.Data[0][0], Is.EqualTo(1));
         }
 
-        private void SetConnectionStringFirstGoodThenWrongThrowingFireboltException(string connString1, string connString2)
+        private void SetConnectionStringFirstWrongThenGood<E>(string connString1, string connString2) where E : System.Exception
+        {
+            FireboltConnection Connection = new FireboltConnection(connString1);
+            Assert.Throws<HttpRequestException>(() => Connection.Open());
+            Connection.ConnectionString = connString2;
+            assertSelectOne(Connection.CreateCursor());
+            Connection.Close();
+        }
+
+        private void SetConnectionStringFirstGoodThenWrong<E>(string connString1, string connString2) where E : System.Exception
         {
             FireboltConnection Connection = new FireboltConnection(connString1);
             Connection.Open();
             assertSelectOne(Connection.CreateCursor());
-            Assert.Throws<FireboltException>(() => Connection.ConnectionString = connString2);
+            Assert.Throws<E>(() => Connection.ConnectionString = connString2);
         }
     }
 }
