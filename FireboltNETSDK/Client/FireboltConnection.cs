@@ -39,6 +39,7 @@ namespace FireboltDotNetSdk.Client
         private bool _isSystem = true;
         private string _database;
         private string _connectionString;
+        private string? _serverVersion;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -101,7 +102,14 @@ namespace FireboltDotNetSdk.Client
 
         public override string ServerVersion
         {
-            get => (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
+            get
+            {
+                if (_serverVersion == null)
+                {
+                    _serverVersion = (string?)getOneLine("SELECT VERSION()")?[0] ?? string.Empty;
+                }
+                return _serverVersion;
+            }
         }
 
         public override string DataSource => _database;
@@ -173,7 +181,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Not supported. The database cannot be changed while the connection is open.
+        /// Changes the current database for an open connection. If connection was open, re-opens it. 
         /// </summary>
         /// <exception cref="NotSupportedException">Always throws <see cref="NotSupportedException"/>.</exception>
         public override void ChangeDatabase(string databaseName)
