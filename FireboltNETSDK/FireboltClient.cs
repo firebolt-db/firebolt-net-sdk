@@ -17,8 +17,11 @@
 
 #endregion
 
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -36,20 +39,14 @@ public class FireboltClient
 
     private string? _token;
     private readonly string _endpoint;
-<<<<<<< HEAD
     private readonly string _id;
     private readonly string _secret;
     private readonly string _env;
 
-    public FireboltClient(String id, String secret, String endpoint, String? env = null)
-=======
-    private readonly string _username;
-    private readonly string _password;
     private readonly string _jsonContentType = "application/json";
     private readonly string _textContentType = "text/plain";
 
-    public FireboltClient(String username, String password, String endpoint, HttpMessageInvoker httpClient)
->>>>>>> 697eb3d (Fetch token and retry once on 401)
+    public FireboltClient(String id, String secret, String endpoint, String? env, HttpMessageInvoker httpClient)
     {
         _httpClient = httpClient;
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
@@ -72,14 +69,13 @@ public class FireboltClient
         var credentials = new ServiceAccountLoginRequest(id, secret);
         var url = new UriBuilder()
         {
-<<<<<<< HEAD
             Scheme = "https",
             Host = $"id.{env}.firebolt.io",
             Path = Constant.AUTH_SERVICE_ACCOUNT_URL
         }.Uri.ToString();
 
 
-        return SendAsync<LoginResponse>(HttpMethod.Post, url, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None);
+        return SendAsync<LoginResponse>(HttpMethod.Post, url, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None, true);
     }
 
     /// <summary>
@@ -103,15 +99,6 @@ public class FireboltClient
         catch (FireboltException e) when (e.StatusCode == HttpStatusCode.NotFound)
         {
             throw new FireboltException(HttpStatusCode.NotFound, $"Account with name {accountName} was not found");
-=======
-            var credentials = new UsernamePasswordLoginRequest(username, password);
-            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_USERNAME_PASSWORD_URL, JsonConvert.SerializeObject(credentials, _settings.Value), _jsonContentType, false, CancellationToken.None, false);
-        }
-        else
-        {
-            var credentials = new ServiceAccountLoginRequest(username, password);
-            return SendAsync<LoginResponse>(HttpMethod.Post, _endpoint + Constant.AUTH_SERVICE_ACCOUNT_URL, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None, false);
->>>>>>> 697eb3d (Fetch token and retry once on 401)
         }
     }
 
@@ -162,7 +149,6 @@ public class FireboltClient
             throw new FireboltException(
                 $"Some parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
 
-<<<<<<< HEAD
         var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
         var urlBuilder = new UriBuilder(engineEndpoint)
         {
@@ -190,14 +176,7 @@ public class FireboltClient
         urlBuilder.Query = queryStr.ToString();
         var url = urlBuilder.Uri.ToString();
 
-        return await SendAsync<string>(HttpMethod.Post, url, query, "text/plain", true, cancellationToken);
-=======
-        var setParam = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
-        var urlBuilder = new StringBuilder();
-        urlBuilder.Append("https://").Append(engineEndpoint).Append("?database=").Append(databaseName)
-            .Append(setParam).Append("&output_format=JSON_Compact");
-        return await SendAsync<string>(HttpMethod.Post, urlBuilder.ToString(), query, _textContentType, true, cancellationToken, true);
->>>>>>> 697eb3d (Fetch token and retry once on 401)
+        return await SendAsync<string>(HttpMethod.Post, url, query, _textContentType, true, cancellationToken, true);
     }
 
     private async Task<ObjectResponseResult<T?>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
@@ -254,10 +233,8 @@ public class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account,
-        CancellationToken cancellationToken)
+    public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
     {
-
         var url = new UriBuilder()
         {
             Scheme = "https",
@@ -345,7 +322,10 @@ public class FireboltClient
         }
         finally
         {
-            response.Dispose();
+            if (response != null)
+            {
+                response.Dispose();
+            }
         }
     }
 
@@ -353,19 +333,11 @@ public class FireboltClient
 
     private async void AddAccessToken(HttpRequestMessage request)
     {
-<<<<<<< HEAD
         if (string.IsNullOrEmpty(_token))
-=======
-        var token = _loginToken;
-        if (string.IsNullOrEmpty(token?.AccessToken))
->>>>>>> 697eb3d (Fetch token and retry once on 401)
         {
-            token = await EstablishConnection();
+            _token = await EstablishConnection();
         }
-<<<<<<< HEAD
         request.Headers.Add("Authorization", "Bearer " + _token);
-=======
-        request.Headers.Add("Authorization", "Bearer " + token.AccessToken);
     }
 
     private static string ConvertToString(object? value, CultureInfo cultureInfo)
@@ -407,7 +379,6 @@ public class FireboltClient
 
         var result = Convert.ToString(value, cultureInfo);
         return result ?? "";
->>>>>>> 697eb3d (Fetch token and retry once on 401)
     }
 
     private struct ObjectResponseResult<T>
@@ -423,20 +394,10 @@ public class FireboltClient
         public string? Text { get; }
     }
 
-    public async Task<Token> EstablishConnection()
-    {
-<<<<<<< HEAD
-        LoginResponse token;
-        var storedToken = await TokenSecureStorage.GetCachedToken(_id, _secret);
-=======
-        return await EstablishConnection(false);
-    }
-
-    private async Task<Token> EstablishConnection(bool forceTokenRefresh)
+    public async Task<string> EstablishConnection(bool forceTokenRefresh = false)
     {
         LoginResponse loginResponse;
-        var storedToken = forceTokenRefresh ? null : await TokenSecureStorage.GetCachedToken(_username, _password);
->>>>>>> 697eb3d (Fetch token and retry once on 401)
+        var storedToken = forceTokenRefresh ? null : await TokenSecureStorage.GetCachedToken(_id, _secret);
         if (storedToken != null)
         {
             loginResponse = new LoginResponse(access_token: storedToken.token,
@@ -445,17 +406,10 @@ public class FireboltClient
         }
         else
         {
-<<<<<<< HEAD
-            token = await Login(_id, _secret, _env);
-            await TokenSecureStorage.CacheToken(token, _id, _secret);
+            loginResponse = await Login(_id, _secret, _env);
+            await TokenSecureStorage.CacheToken(loginResponse, _id, _secret);
         }
-        _token = token.Access_token;
-=======
-            loginResponse = await Login(_username, _password);
-            await TokenSecureStorage.CacheToken(loginResponse, _username, _password);
-        }
-        _loginToken = new Token(loginResponse.Access_token, loginResponse.Refresh_token, loginResponse.Expires_in);
-        return _loginToken;
->>>>>>> 697eb3d (Fetch token and retry once on 401)
+        _token = loginResponse.Access_token;
+        return _token;
     }
 }
