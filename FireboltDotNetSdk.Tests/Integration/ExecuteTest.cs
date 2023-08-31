@@ -219,7 +219,7 @@ namespace FireboltDotNetSdk.Tests
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
-            Assert.IsTrue(exception!.Message.Contains("401"));
+            Assert.IsTrue(exception!.Message.Contains("403"));
         }
         [Test]
         public void ExecuteServiceAccountLoginWithMissingSecret()
