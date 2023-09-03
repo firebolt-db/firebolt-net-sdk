@@ -19,7 +19,7 @@ namespace FireboltDotNetSdk.Tests
             Connection = new FireboltConnection(connString);
             Connection.Open();
             var cursor = Connection.CreateCursor();
-            CreateEngine(cursor, newEngineName, "SPEC = B1");
+            CreateEngine(cursor, newEngineName, "SPEC = 'B1'");
             CreateDatabase(cursor, newDatabaseName, newEngineName);
         }
 
@@ -146,7 +146,7 @@ namespace FireboltDotNetSdk.Tests
 
             VerifyEngineSpec(cursor, newEngineName, "B1");
 
-            cursor.Execute($"ALTER ENGINE {newEngineName} SET SPEC = B2");
+            cursor.Execute($"ALTER ENGINE {newEngineName} SET SPEC = 'B2'");
 
             VerifyEngineSpec(cursor, newEngineName, "B2");
 
