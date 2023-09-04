@@ -176,7 +176,7 @@ public class FireboltClient
         urlBuilder.Query = queryStr.ToString();
         var url = urlBuilder.Uri.ToString();
 
-        return await SendAsync<string>(HttpMethod.Post, url, query, _textContentType, true, cancellationToken, true);
+        return await SendAsync<string>(HttpMethod.Post, url, query, _textContentType, needsAccessToken: true, cancellationToken, retryUnauthorized: true);
     }
 
     private async Task<ObjectResponseResult<T?>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
@@ -301,7 +301,7 @@ public class FireboltClient
                 if (needsAccessToken && response.StatusCode == HttpStatusCode.Unauthorized && retryUnauthorized)
                 {
                     //If we need an access token and the token is invalid (401), we try to re-establish the connection once.
-                    await EstablishConnection(true);
+                    await EstablishConnection(forceTokenRefresh: true);
                     return await SendAsync<T>(method, uri, content, needsAccessToken, cancellationToken, false);
                 }
                 string? errorResponse = null;
@@ -329,8 +329,6 @@ public class FireboltClient
         }
     }
 
-
-
     private async void AddAccessToken(HttpRequestMessage request)
     {
         if (string.IsNullOrEmpty(_token))
@@ -338,47 +336,6 @@ public class FireboltClient
             _token = await EstablishConnection();
         }
         request.Headers.Add("Authorization", "Bearer " + _token);
-    }
-
-    private static string ConvertToString(object? value, CultureInfo cultureInfo)
-    {
-        switch (value)
-        {
-            case Enum:
-                {
-                    var name = Enum.GetName(value.GetType(), value);
-                    if (name != null)
-                    {
-                        var field = value.GetType().GetTypeInfo().GetDeclaredField(name);
-                        if (field != null)
-                            if (field.GetCustomAttribute(typeof(EnumMemberAttribute)) is EnumMemberAttribute attribute)
-                                return attribute.Value ?? name;
-
-                        var converted = Convert.ToString(Convert.ChangeType(value,
-                            Enum.GetUnderlyingType(value.GetType()), cultureInfo));
-                        return converted ?? string.Empty;
-                    }
-
-                    break;
-                }
-            case bool b:
-                return Convert.ToString(b, cultureInfo).ToLowerInvariant();
-            case byte[] bytes:
-                return Convert.ToBase64String(bytes);
-            default:
-                {
-                    if (value?.GetType().IsArray ?? false)
-                    {
-                        IEnumerable<object?> array = ((Array)value).OfType<object>();
-                        return string.Join(",", array.Select(o => ConvertToString(o, cultureInfo)));
-                    }
-
-                    break;
-                }
-        }
-
-        var result = Convert.ToString(value, cultureInfo);
-        return result ?? "";
     }
 
     private struct ObjectResponseResult<T>
