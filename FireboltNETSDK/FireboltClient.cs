@@ -105,8 +105,7 @@ public class FireboltClient
     /// <returns>A successful response.</returns>
     public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, string query)
     {
-        return ExecuteQueryAsync(engineEndpoint, databaseName, accountId, query,
-            new HashSet<string>(), CancellationToken.None);
+        return ExecuteQuery(engineEndpoint, databaseName, accountId, new HashSet<string>(), query);
     }
 
     /// <summary>
