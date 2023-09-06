@@ -17,11 +17,8 @@
 
 #endregion
 
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
@@ -75,7 +72,7 @@ public class FireboltClient
         }.Uri.ToString();
 
 
-        return SendAsync<LoginResponse>(HttpMethod.Post, url, credentials.GetFormUrlEncodedContent(), false, CancellationToken.None, true);
+        return SendAsync<LoginResponse>(HttpMethod.Post, url, credentials.GetFormUrlEncodedContent(), needsAccessToken: false, CancellationToken.None, retryUnauthorized: true);
     }
 
     /// <summary>
@@ -89,12 +86,12 @@ public class FireboltClient
         {
             Scheme = "https",
             Host = _endpoint,
-            Path = String.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName)
+            Path = string.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName)
         }.Uri.ToString();
 
         try
         {
-            return await SendAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url, (string?)null, true, CancellationToken.None);
+            return await GetJsonResponseAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url, body: null, requiresAuth: true, CancellationToken.None);
         }
         catch (FireboltException e) when (e.StatusCode == HttpStatusCode.NotFound)
         {
@@ -239,16 +236,16 @@ public class FireboltClient
         {
             Scheme = "https",
             Host = _endpoint,
-            Path = String.Format(Constant.ACCOUNT_BY_NAME_URL, account)
+            Path = string.Format(Constant.ACCOUNT_BY_NAME_URL, account)
         }.Uri.ToString();
 
-        return await SendAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, (string?)null, true, cancellationToken);
+        return await GetJsonResponseAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, null, requiresAuth: true, cancellationToken);
     }
 
-    private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
+    private async Task<T> GetJsonResponseAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
         CancellationToken cancellationToken)
     {
-        return await SendAsync<T>(method, uri, body, _jsonContentType, requiresAuth, cancellationToken, true);
+        return await SendAsync<T>(method, uri, body, _jsonContentType, requiresAuth, cancellationToken, retryUnauthorized: true);
     }
 
     private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, string bodyType,
@@ -260,7 +257,7 @@ public class FireboltClient
             content.Headers.ContentType = MediaTypeHeaderValue.Parse(bodyType);
             return await SendAsync<T>(method, uri, content, needsAccessToken, cancellationToken, retryUnauthorized);
         }
-        return await SendAsync<T>(method, uri, (HttpContent?)null, needsAccessToken, cancellationToken, retryUnauthorized);
+        return await SendAsync<T>(method, uri, content: null, needsAccessToken, cancellationToken, retryUnauthorized);
     }
 
     private async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, CancellationToken cancellationToken, bool retryUnauthorized)
@@ -289,7 +286,7 @@ public class FireboltClient
 
             if (response.IsSuccessStatusCode)
             {
-                var objectResponse = await ReadObjectResponseAsync<T>(response, headers, false, cancellationToken).ConfigureAwait(false);
+                var objectResponse = await ReadObjectResponseAsync<T>(response, headers, readResponseAsString: false, cancellationToken).ConfigureAwait(false);
                 if (objectResponse.Object == null)
                     throw new FireboltException("Response was null which was not expected.", HttpStatusCode.OK,
                         objectResponse.Text, headers, null);
@@ -302,12 +299,12 @@ public class FireboltClient
                 {
                     //If we need an access token and the token is invalid (401), we try to re-establish the connection once.
                     await EstablishConnection(forceTokenRefresh: true);
-                    return await SendAsync<T>(method, uri, content, needsAccessToken, cancellationToken, false);
+                    return await SendAsync<T>(method, uri, content, needsAccessToken, cancellationToken, retryUnauthorized: false);
                 }
                 string? errorResponse = null;
                 try
                 {
-                    errorResponse = (await ReadObjectResponseAsync<ResponseError?>(response, headers, true, cancellationToken)
+                    errorResponse = (await ReadObjectResponseAsync<ResponseError?>(response, headers, readResponseAsString: true, cancellationToken)
                         .ConfigureAwait(false)).Object?.message;
                 }
                 catch (FireboltException exception)
