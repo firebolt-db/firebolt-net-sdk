@@ -54,7 +54,8 @@ namespace FireboltDoNetSdk.Utils
                         return FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
                     case FireboltDataType.Decimal:
                         return FastParseDecimal(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case FireboltDataType.String: return srcVal.ToString();
+                    case FireboltDataType.String:
+                        return srcVal.ToString();
                     case FireboltDataType.DateTime:
                     case FireboltDataType.TimestampTz:
                     case FireboltDataType.TimestampNtz:
@@ -73,7 +74,9 @@ namespace FireboltDoNetSdk.Utils
                     case FireboltDataType.Array:
                         return ArrayHelper.TransformToSqlArray(srcVal.ToString(), columnType);
                     case FireboltDataType.ByteA:
-                        return ConvertHexStringToByteArray(srcVal.ToString());
+                        return ConvertHexStringToByteArray(str);
+                    case FireboltDataType.Null:
+                        throw new FireboltException("Not null value in null type");
                     default:
                         throw new FireboltException("Invalid destination type: " + columnType.Type);
                 }
@@ -244,9 +247,14 @@ namespace FireboltDoNetSdk.Utils
             {
                 throw new FireboltException("Cannot convert to DateTime object - wrong timestamp type: " + srcType);
             }
+            return ParseDateTime(srcVal.ToString());
+        }
+
+        public static DateTime ParseDateTime(string str)
+        {
             try
             {
-                return DateTime.ParseExact(srcVal.ToString(), new[]
+                return DateTime.ParseExact(str, new[]
                 {
                    "yyyy-MM-dd HH:mm:ss.FFFFFF", // dateTime without timezone
                    "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone in format +00
@@ -258,10 +266,10 @@ namespace FireboltDoNetSdk.Utils
             {
                 //DateTime.ParseExact does not handle timezones with seconds, so why we try with one last format that supports tz +00:00:00 with OffsetDateTimePattern
                 var pattern = OffsetDateTimePattern.CreateWithInvariantCulture("yyyy-MM-dd HH:mm:ss.FFFFFFo<+HH:mm:ss>");
-                return pattern.Parse(srcVal.ToString()).Value.InFixedZone().ToDateTimeUtc().ToLocalTime();
+                return pattern.Parse(str).Value.InFixedZone().ToDateTimeUtc().ToLocalTime();
             }
-
         }
+
 
         private static DateOnly ConvertToDate(Utf8Buffer srcVal, FireboltDataType srcType)
         {
@@ -289,6 +297,7 @@ namespace FireboltDoNetSdk.Utils
             {
                 "string" => FireboltDataType.String,
                 "long" => FireboltDataType.Long,
+                "short" => FireboltDataType.Short,
                 "int" => FireboltDataType.Int,
                 "integer" => FireboltDataType.Int,
                 "float" => FireboltDataType.Float,
@@ -331,30 +340,39 @@ namespace FireboltDoNetSdk.Utils
             {
                 var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
                 var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
-                if (data == null) throw new FireboltException("Unable to parse data to JSON");
-                var newListData = new List<NewMeta>();
-                foreach (var t in data.Data)
-                    for (var j = 0; j < t.Count; j++)
-                    {
-                        var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(data.Meta[j]));
-                        newListData.Add(new NewMeta
-                        (
-                            data: new ArrayList
-                            {
-                                TypesConverter.ConvertToCSharpVal(t[j]?.ToString(), columnType)
-                            },
-                            meta: columnType.Type.ToString()
-                        ));
-                    }
-                return newListData;
+                if (data == null)
+                {
+                    throw new FireboltException("Unable to parse data to JSON");
+                }
+                return ProcessQueryResult(data);
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 throw new FireboltException("Error while parsing response", e);
             }
         }
+
+
+        private static IEnumerable<NewMeta> ProcessQueryResult(QueryResult result)
+        {
+            var newListData = new List<NewMeta>();
+            foreach (var t in result.Data)
+                for (var j = 0; j < t.Count; j++)
+                {
+                    var columnType = ColumnType.Of(GetFullColumnTypeName(result.Meta[j]));
+                    newListData.Add(new NewMeta
+                    (
+                        data: new ArrayList { ConvertToCSharpVal(t[j]?.ToString(), columnType) },
+                        meta: columnType.Type.ToString()
+                    ));
+                }
+            return newListData;
+        }
     }
 }
+
+
+
 public class NewMeta
 {
     public NewMeta(ArrayList data, string meta)

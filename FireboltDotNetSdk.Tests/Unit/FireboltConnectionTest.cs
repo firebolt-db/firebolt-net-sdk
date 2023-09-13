@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Utils;
 using static NUnit.Framework.Assert;
 
 namespace FireboltDotNetSdk.Tests
@@ -8,6 +9,26 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     public class FireboltConnectionTest
     {
+        private class MockFireboltConnection : FireboltConnection
+        {
+            private string? _openedWithConnectionString;
+            private string? _closedWithConnectionString;
+
+            public MockFireboltConnection(string connectionString) : base(connectionString) { Client = new MockClient(null); }
+
+            public string? OpenedWithConnectionString { get => _openedWithConnectionString; }
+            public string? ClosedWithConnectionString { get => _closedWithConnectionString; }
+
+            public override void Open() { _openedWithConnectionString = ConnectionString; }
+
+            public override void Close() { _closedWithConnectionString = ConnectionString; }
+
+            public void Reset()
+            {
+                _openedWithConnectionString = null;
+                _closedWithConnectionString = null;
+            }
+        }
 
         [Test]
         public void ParsingNormalConnectionStringTest()
@@ -35,6 +56,21 @@ namespace FireboltDotNetSdk.Tests
                 That(cs.Endpoint, Is.EqualTo("some.weird.endpoint"));
                 That(cs.Env, Is.EqualTo("mock"));
                 That(cs.Database, Is.EqualTo("testdb.ib"));
+                That(cs.Account, Is.EqualTo("accountname"));
+                That(cs.ClientSecret, Is.EqualTo("testpwd"));
+                That(cs.ClientId, Is.EqualTo("testuser"));
+            });
+        }
+
+        [Test]
+        public void ParsingEngineConnectionStringTest()
+        {
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
+            var cs = new FireboltConnection(connectionString);
+            Multiple(() =>
+            {
+                That(cs.Endpoint, Is.EqualTo(Constant.DEFAULT_ENDPOINT));
+                That(cs.Env, Is.EqualTo(Constant.DEFAULT_ENV));
                 That(cs.Account, Is.EqualTo("accountname"));
                 That(cs.ClientSecret, Is.EqualTo("testpwd"));
                 That(cs.ClientId, Is.EqualTo("testuser"));
@@ -139,31 +175,120 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void CreateCursorTest()
+        public void CreateCommandTest()
         {
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=api.mock.firebolt.io;";
             var cs = new FireboltConnection(connectionString);
-            var cursor = cs.CreateCursor();
-            Equals("testdb.ib", cursor.Connection?.Database);
+            var command = cs.CreateCommand();
+            Equals("testdb.ib", command.Connection?.Database);
         }
 
         [TestCase("Select 1")]
-        public void CreateCursorCommandTextTest(string commandText)
+        public void CreateCommandTextTest(string commandText)
         {
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=api.mock.firebolt.io";
             var cs = new FireboltConnection(connectionString);
-            var cursor = cs.CreateCursor(commandText);
-            That(cursor.CommandText, Is.EqualTo("Select 1"));
+            var command = cs.CreateCommand();
+            command.CommandText = commandText;
+            That(command.CommandText, Is.EqualTo("Select 1"));
         }
 
-        [TestCase("Select 1")]
-        public void FireboltExceptionTest(string commandText)
+        [Test]
+        public void CreateConnectionWithNullConnectionString()
         {
-            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=api.mock.firebolt.io";
-            var cs = new FireboltConnection(connectionString);
-            var cursor = cs.CreateCursor(commandText);
-            That(cursor.CommandText, Is.EqualTo("Select 1"));
+            var cs = new FireboltConnection("clientid=testuser;clientsecret=testpwd;account=accountname;engine=my");
+            Throws<ArgumentNullException>(() => cs.ConnectionString = null);
         }
 
+        [Test]
+        public void SetSameConnectionString()
+        {
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=my";
+            var cs = new MockFireboltConnection(connectionString);
+            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            cs.Open();
+            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+
+            cs.Reset();
+
+            cs.ConnectionString = connectionString;
+            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+
+            cs.Close();
+            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+        }
+
+        [Test]
+        public void SetDifferentConnectionString()
+        {
+            const string connectionString1 = "clientid=testuser;clientsecret=testpwd;account=account1;engine=diesel";
+            var cs = new MockFireboltConnection(connectionString1);
+            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            cs.Open();
+            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString1));
+            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+
+            const string connectionString2 = "clientid=testuser;clientsecret=testpwd;account=account2;engine=benzene";
+
+            cs.ConnectionString = connectionString2;
+            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString1));
+            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
+            That(cs.Account, Is.EqualTo("account2"));
+        }
+
+        [Test]
+        public void SetSameDatabase()
+        {
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;database=db";
+            var cs = new MockFireboltConnection(connectionString);
+            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            cs.Open();
+            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+
+            cs.Reset();
+
+            cs.ChangeDatabase("db");
+            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+
+            cs.Close();
+            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+        }
+
+        [Test]
+        public void SetDifferentDatabase()
+        {
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;database=one";
+            var cs = new MockFireboltConnection(connectionString);
+            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            cs.Open();
+            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+
+            cs.Reset();
+
+            cs.ChangeDatabase("two");
+            string connectionString2 = "clientid=testuser;clientsecret=testpwd;account=accountname;database=two";
+            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
+
+            cs.Close();
+            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString2));
+        }
+
+        [Test]
+        public void NotImplementedMethods()
+        {
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
+            var cs = new FireboltConnection(connectionString);
+            Throws<NotImplementedException>(() => cs.BeginTransaction());
+            Throws<NotSupportedException>(() => cs.EnlistTransaction(null));
+            Throws<NotImplementedException>(() => cs.GetSchema());
+            Throws<NotImplementedException>(() => cs.GetSchema("collection"));
+            Throws<NotImplementedException>(() => cs.GetSchema("collection", new string[0]));
+        }
     }
 }

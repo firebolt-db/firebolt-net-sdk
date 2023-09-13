@@ -18,10 +18,13 @@
 using System.Data;
 using System.Data.Common;
 using System.Transactions;
+using System.Runtime.CompilerServices;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using IsolationLevel = System.Data.IsolationLevel;
 
+
+[assembly: InternalsVisibleTo("FireboltDotNetSdk.Tests")]
 namespace FireboltDotNetSdk.Client
 {
     /// <summary>
@@ -33,13 +36,14 @@ namespace FireboltDotNetSdk.Client
 
         private const string engineStatusRunning = "Running";
 
-        public FireboltClient? Client { get; private set; }
-        public string? EngineUrl { get; private set; }
+        public FireboltClient? Client { get; internal set; }
+        public string? EngineUrl { get; internal set; }
         private string? _accountId = null;
         private bool _isSystem = true;
         private string _database;
         private string _connectionString;
         private string? _serverVersion;
+        public readonly HashSet<string> SetParamList = new();
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -124,13 +128,13 @@ namespace FireboltDotNetSdk.Client
                 {
                     return;
                 }
-                _connectionString = value;
                 var connectionSettings = new FireboltConnectionStringBuilder(value).BuildSettings();
                 if (connectionSettings.Database == Database
                     && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
                     && connectionSettings.Account == Account
                     && connectionSettings.ClientId == ClientId && connectionSettings.ClientSecret == ClientSecret)
                 {
+                    _connectionString = value;
                     return;
                 }
                 bool isOpen = Client != null;
@@ -138,6 +142,8 @@ namespace FireboltDotNetSdk.Client
                 {
                     Close();
                 }
+
+                _connectionString = value;
                 if (connectionSettings.Account != Account)
                 {
                     _accountId = null;
@@ -280,16 +286,15 @@ namespace FireboltDotNetSdk.Client
 
         private List<List<object?>>? getLines(string query, IDictionary<string, object?>? parameters = null)
         {
-            var cursor = CreateCursor();
+            var command = CreateCommand();
             if (parameters != null)
             {
                 foreach (var parameter in parameters)
                 {
-                    cursor.Parameters.AddWithValue(parameter.Key, parameter.Value);
+                    command.Parameters.Add(new FireboltParameter(parameter.Key, parameter.Value));
                 }
             }
-            var res = cursor.Execute(query);
-            return res?.Data;
+            return ((FireboltCommand)command).Execute(query)?.Data;
         }
 
         private bool IsDatabaseAccessible(string database)
@@ -310,73 +315,48 @@ namespace FireboltDotNetSdk.Client
             return GetEngineUrl(engineName, database);
         }
 
-        private string? GetEngineUrl(string engineName, string database)
+        private string? GetEngineUrl(string engineName, string? database)
         {
             var query = @$"SELECT engs.url, engs.attached_to, dbs.database_name, status 
                         FROM information_schema.engines as engs 
                         LEFT JOIN information_schema.databases as dbs
                         ON engs.attached_to = dbs.database_name 
                         WHERE engs.engine_name = @EngineName";
-            var cursor = CreateCursor();
-            cursor.Parameters.AddWithValue("@EngineName", engineName);
-            var res = cursor.Execute(query);
-            if (res?.Data.Count == 0)
+            var command = CreateCommand();
+            command.CommandText = query;
+            command.Parameters.Add(new FireboltParameter("@EngineName", engineName));
+
+            DbDataReader reader = command.ExecuteReader();
+            if (!reader.Read())
             {
                 throw new FireboltException($"Engine {engineName} not found.");
             }
-            var filteredResult = from row in res?.Data ?? new List<List<object?>>()
-                                 where (string?)row[2] == database
-                                 select row;
-            if (filteredResult.Count() == 0)
+            if (reader.IsDBNull(1))
             {
-                throw new FireboltException($"Engine {engineName} is not attached to {database}.");
+                throw new FireboltException($"Engine {engineName} is not attached to any database");
             }
-            if (filteredResult.Count() > 1)
+            if (database != null && reader.GetString(1) != database)
             {
-                throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database ${database}");
+                throw new FireboltException($"Engine {engineName} is not attached to {database}");
             }
-            var resultRow = filteredResult.First();
-            if ((string?)resultRow[3] != engineStatusRunning)
+            if (!engineStatusRunning.Equals(reader.GetString(3), StringComparison.OrdinalIgnoreCase))
             {
                 throw new FireboltException($"Engine {engineName} is not running");
             }
-            return (string?)resultRow[0];
+            if (reader.Read())
+            {
+                throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database ${database}");
+            }
+            return reader.GetString(0);
         }
 
-        private void CheckClient()
-        {
-            if (Client is null)
-                throw new NullReferenceException(
-                    "Client is not initialised to perform the operation. Make sure the connection is open.");
-        }
-
-
-        /// <summary>
-        /// Creates and returns a <see cref="FireboltCommand"/> object associated with the connection.
-        /// </summary>
-        /// <returns>A <see cref="FireboltCommand"/> object.</returns>
-        public FireboltCommand CreateCursor()
-        {
-            return new FireboltCommand(this);
-        }
-
-        /// <summary>
-        /// Creates and returns a <see cref="FireboltCommand"/> object associated with the connection.
-        /// </summary>
-        /// <param name="commandText">The text for a new command.</param>
-        /// <returns>A <see cref="FireboltCommand"/> object.</returns>
-        public FireboltCommand CreateCursor(string commandText)
-        {
-            return new FireboltCommand(this) { CommandText = commandText };
-        }
-
-        /// <inheritdoc cref="CreateCursor()"/>
+        /// <inheritdoc cref="CreateDbCommand()"/>
         protected override DbCommand CreateDbCommand()
         {
-            return CreateCursor();
+            return new FireboltCommand(this, null, new FireboltParameterCollection());
         }
 
-        public void OnSessionEstablished()
+        internal void OnSessionEstablished()
         {
             _connectionState.State = ConnectionState.Open;
         }
@@ -414,14 +394,14 @@ namespace FireboltDotNetSdk.Client
                 string[] kv = elements[i].Split('=');
                 if (kv[0] == name)
                 {
-                    append = false;
                     if (kv[1] != value)
                     {
                         elements[i] = newKeyValue;
+                        append = false;
                     }
                 }
             }
-            return append ? string.Join(';', elements) : $"{orig};{newKeyValue}";
+            return append ? $"{orig};{newKeyValue}" : string.Join(';', elements);
 
         }
         private bool ChangeDatabaseImpl(string databaseName)

@@ -64,36 +64,67 @@ conn.Open();
 conn.Close();
 ```
 
-###### Executing a SQL command
+###### Executing a SQL command that does not return result
+```cs
+// First you would need to create a command
+var command = conn.CreateCommand();
+
+// ... and set the SQL query
+command.CommandText = "CREATE DATABASE IF NOT EXISTS MY_DB";
+
+// Execute a SQL query and get a DB reader
+command.ExecuteNonQuery();
+
+// Close the connection after all operations are done
+conn.Close();
+```
+
+
+###### Executing a SQL command that returns result
 
 ```cs
-// First you would need to create a cursor
-var cursor = conn.CreateCursor();
+// First you would need to create a command
+var command = conn.CreateCommand();
 
-// Execute a SQL query and get a response object
-var resp = cursor.Execute("SELECT * FROM my_table");
+// ... and set the SQL query
+command.CommandText = "SELECT * FROM my_table";
 
-// Get the amount of rows returned
-Console.WriteLine($"Fetched {resp.Rows} rows")
+// Execute a SQL query and get a DB reader
+DbDataReader reader = command.ExecuteReader();
 
-// Get column names and types
-var columns = String.Join(", ", resp.Meta.Select(x => $"{x.Name}({x.Type})"));
-Console.WriteLine($"Result columns: {columns}");
+// Optionally you can check whether the result set has rows
+Console.WriteLine($"Has rows: {reader.HasRows}");
 
-// Fetch the data from response object
-foreach (var row in resp.Data) {
-    Console.WriteLine(String.Join(",", row));
+// Discover the result metadata
+int n = reader.FieldCount();
+for (int i = 0; i < n; i++)
+{
+  Type type = reader.GetFieldType();
+  string name = reader.GetName();
+}
+
+// Iterate over the rows and get values
+while (reader.Read())
+{
+    for (int i = 0; i < n; i++)
+    {
+        Console.WriteLine($"{reader.GetName(i)}:{reader.GetFieldType(i)}={reader.GetValue(i)}");
+    }
 }
 ```
 
 Execute command with SET parameter
 
 ```cs
-var cursor = conn.CreateCursor();
-cursor.Execute("SET time_zone=America/New_York");
+var tz = conn.CreateCommand();
+tz.CommandText = "SET time_zone=America/New_York";
+tz.ExecuteNonQuery();
 
-var resp = cursor.Execute("SELECT '2000-01-01 12:00:00.123456 Europe/Berlin'::timestamptz as t");
-
-// 2000-01-01 06:00:00.123456-05
-Console.WriteLine(resp.Data[0][0]);
+tz.CommandText = "SELECT '2000-01-01 12:00:00.123456 Europe/Berlin'::timestamptz as t";
+DbDataReader tzr = tz.ExecuteReader();
+if (tzr.Read())
+{
+  // 2000-01-01 06:00:00.123456-05
+  Console.WriteLine(tzr.GetDateTime(0));
+}
 ```

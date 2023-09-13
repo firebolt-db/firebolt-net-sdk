@@ -119,7 +119,7 @@ public class FireboltClient
     /// <param name="setParamList">parameters</param>
     /// <param name="query">SQL query to execute</param>
     /// <returns>A successful response.</returns>
-    public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
+    public virtual Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
     {
         return ExecuteQueryAsync(engineEndpoint, databaseName, accountId, query,
                  setParamList, CancellationToken.None);
@@ -229,7 +229,7 @@ public class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
+    public virtual async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
     {
         var url = new UriBuilder()
         {

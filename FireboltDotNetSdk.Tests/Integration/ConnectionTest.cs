@@ -1,7 +1,6 @@
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
-using System.Net.Http;
-
+using System.Data.Common;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -27,28 +26,38 @@ namespace FireboltDotNetSdk.Tests
                 connString += $";engine={EngineName}";
                 expectedDatabase = Database; // if engine is specified the we use default database
             }
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
-            Connection.Open();
+            DbConnection connection = new FireboltConnection(connString);
+            Assert.That(connection.ConnectionString, Is.EqualTo(connString));
+            connection.Open();
 
-            string version = Connection.ServerVersion;
+            string version = connection.ServerVersion;
             Assert.NotNull(version);
             Assert.IsNotEmpty(version);
 
-            Assert.That(Connection.DataSource ?? string.Empty, Is.EqualTo(expectedDatabase));
-            var cursor = Connection.CreateCursor();
+            Assert.That(connection.DataSource ?? string.Empty, Is.EqualTo(expectedDatabase));
+            DbCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT TOP 1 * FROM information_schema.tables";
 
             if (useEngine || useDatabase)
             {
                 // Test case for use engine
-                var resp = cursor.Execute("SELECT TOP 1 * FROM information_schema.tables");
-                Assert.NotNull(resp);
-                Assert.That(resp!.Rows, Is.GreaterThan(0));
+                DbDataReader reader = command.ExecuteReader();
+                Assert.NotNull(reader);
+                Assert.True(reader.Read());
+                int n = reader.FieldCount;
+                for (int i = 0; i < n; i++)
+                {
+                    if (!reader.IsDBNull(i))
+                    {
+                        Assert.NotNull(reader.GetValue(i));
+                    }
+                }
+                Assert.False(reader.Read());
+                connection.Close();
             }
             else
             {
-                FireboltException? exception = Assert.Throws<FireboltException>(
-                    () => cursor.Execute("SELECT TOP 1 * FROM information_schema.tables"));
+                FireboltException? exception = Assert.Throws<FireboltException>(() => command.ExecuteReader());
             }
         }
 
@@ -56,9 +65,8 @@ namespace FireboltDotNetSdk.Tests
         public void InvalidAccountConnectTest()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account=non-existing-account-123;env={Env}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-
-            FireboltException? exception = Assert.Throws<FireboltException>(() => Connection.Open());
+            DbConnection connection = new FireboltConnection(connString);
+            FireboltException? exception = Assert.Throws<FireboltException>(() => connection.Open());
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Does.Contain("Account with name non-existing-account-123 was not found"));
         }
@@ -67,61 +75,61 @@ namespace FireboltDotNetSdk.Tests
         public void ChangeDatabaseToNotExistingWhenConnectionIsOpen()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
-            Connection.Open();
-            FireboltException? exception = Assert.Throws<FireboltException>(() => Connection.ChangeDatabase("DOES_NOT_EXIST"));
+            DbConnection connection = new FireboltConnection(connString);
+            Assert.That(connection.ConnectionString, Is.EqualTo(connString));
+            connection.Open();
+            FireboltException? exception = Assert.Throws<FireboltException>(() => connection.ChangeDatabase("DOES_NOT_EXIST"));
         }
 
         [Test]
         public void ChangeDatabaseToNotExistingWhenConnectionIsNotOpen()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
-            Connection.ChangeDatabase("DOES_NOT_EXIST"); // does not fail because connection is not open
-            FireboltException? exception = Assert.Throws<FireboltException>(() => Connection.Open());
+            DbConnection connection = new FireboltConnection(connString);
+            Assert.That(connection.ConnectionString, Is.EqualTo(connString));
+            connection.ChangeDatabase("DOES_NOT_EXIST"); // does not fail because connection is not open
+            FireboltException? exception = Assert.Throws<FireboltException>(() => connection.Open());
         }
 
         [Test]
         public void ChangeDatabaseToExistingWhenConnectionIsOpen()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database=DOES_NOT_EXIST;engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
-            Assert.Throws<FireboltException>(() => Connection.Open());
-            Assert.Throws<FireboltException>(() => Connection.CreateCursor().Execute("SELECT 1"));
-            Connection.ChangeDatabase(Database);
-            Connection.Open();
-            assertSelectOne(Connection.CreateCursor());
-            Connection.Close();
+            DbConnection connection = new FireboltConnection(connString);
+            Assert.That(connection.ConnectionString, Is.EqualTo(connString));
+            Assert.Throws<FireboltException>(() => connection.Open());
+            failingSelect(connection);
+            connection.ChangeDatabase(Database);
+            connection.Open();
+            assertSelect(connection.CreateCommand());
+            connection.Close();
         }
 
         [Test]
         public void ChangeDatabaseToSameConnectionIsOpen()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
-            Connection.Open();
-            assertSelectOne(Connection.CreateCursor());
-            Connection.ChangeDatabase(Database);
-            assertSelectOne(Connection.CreateCursor());
-            Connection.Close();
+            DbConnection connection = new FireboltConnection(connString);
+            Assert.That(connection.ConnectionString, Is.EqualTo(connString));
+            connection.Open();
+            assertSelect(connection.CreateCommand());
+            connection.ChangeDatabase(Database);
+            assertSelect(connection.CreateCommand());
+            connection.Close();
         }
 
         [Test]
         public void ChangeDatabaseToSameConnectionNotOpen()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Assert.That(Connection.ConnectionString, Is.EqualTo(connString));
-            Assert.Throws<FireboltException>(() => Connection.CreateCursor().Execute("SELECT 1"));
-            Connection.ChangeDatabase(Database);
-            Assert.Throws<FireboltException>(() => Connection.CreateCursor().Execute("SELECT 1"));
-            Connection.Open();
-            assertSelectOne(Connection.CreateCursor());
-            Connection.Close();
+            DbConnection connection = new FireboltConnection(connString);
+            Assert.That(connection.ConnectionString, Is.EqualTo(connString));
+            failingSelect(connection);
+            connection.ChangeDatabase(Database);
+            failingSelect(connection);
+            connection.Open();
+            assertSelect(connection.CreateCommand());
+            connection.Close();
         }
 
 
@@ -129,23 +137,23 @@ namespace FireboltDotNetSdk.Tests
         public void SetConnectionStringSameValueNotOpen()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Connection.ConnectionString = connString;
-            Connection.Open();
-            assertSelectOne(Connection.CreateCursor());
-            Connection.Close();
+            DbConnection connection = new FireboltConnection(connString);
+            connection.ConnectionString = connString;
+            connection.Open();
+            assertSelect(connection.CreateCommand());
+            connection.Close();
         }
 
         [Test]
         public void SetConnectionStringSameValueOpen()
         {
             var connString = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
-            FireboltConnection Connection = new FireboltConnection(connString);
-            Connection.Open();
-            assertSelectOne(Connection.CreateCursor());
-            Connection.ConnectionString = connString;
-            assertSelectOne(Connection.CreateCursor());
-            Connection.Close();
+            DbConnection connection = new FireboltConnection(connString);
+            connection.Open();
+            assertSelect(connection.CreateCommand());
+            connection.ConnectionString = connString;
+            assertSelect(connection.CreateCommand());
+            connection.Close();
         }
 
         [Test]
@@ -180,29 +188,40 @@ namespace FireboltDotNetSdk.Tests
             SetConnectionStringFirstGoodThenWrong<FireboltException>(connString1, connString2);
         }
 
-        private void assertSelectOne(FireboltCommand cursor)
-        {
-            var resp = cursor.Execute("SELECT 1");
-            Assert.NotNull(resp);
-            Assert.That(resp!.Rows, Is.EqualTo(1));
-            Assert.That(resp.Data[0][0], Is.EqualTo(1));
-        }
-
         private void SetConnectionStringFirstWrongThenGood<E>(string connString1, string connString2) where E : System.Exception
         {
-            FireboltConnection Connection = new FireboltConnection(connString1);
-            Assert.Throws<HttpRequestException>(() => Connection.Open());
-            Connection.ConnectionString = connString2;
-            assertSelectOne(Connection.CreateCursor());
-            Connection.Close();
+            DbConnection connection = new FireboltConnection(connString1);
+            Assert.Throws<HttpRequestException>(() => connection.Open());
+            connection.ConnectionString = connString2;
+            assertSelect(connection.CreateCommand());
+            connection.Close();
         }
 
         private void SetConnectionStringFirstGoodThenWrong<E>(string connString1, string connString2) where E : System.Exception
         {
-            FireboltConnection Connection = new FireboltConnection(connString1);
-            Connection.Open();
-            assertSelectOne(Connection.CreateCursor());
-            Assert.Throws<E>(() => Connection.ConnectionString = connString2);
+            DbConnection connection = new FireboltConnection(connString1);
+            connection.Open();
+            assertSelect(connection.CreateCommand());
+            Assert.Throws<E>(() => connection.ConnectionString = connString2);
+        }
+
+        private void assertSelect(DbCommand command)
+        {
+            command.CommandText = "SELECT 1";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.True(reader.Read());
+            Assert.That(reader.GetInt16(0), Is.EqualTo(1));
+            Assert.False(reader.Read());
+        }
+
+        private void failingSelect(DbConnection connection)
+        {
+            Assert.Throws<FireboltException>(() =>
+            {
+                DbCommand command = connection.CreateCommand();
+                command.CommandText = "SELECT 1";
+                command.ExecuteReader();
+            });
         }
     }
 }

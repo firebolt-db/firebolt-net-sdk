@@ -19,29 +19,41 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Net.Mime;
 using System.Text.RegularExpressions;
-using FireboltDoNetSdk.Utils;
-using FireboltDotNetSdk.Exception;
-using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Client
 {
     /// <summary>
     /// Represents an SQL statement to execute against a FireBolt database. This class cannot be inherited.
     /// </summary>
-    public sealed class FireboltCommand : DbCommand
+    public class FireboltCommand : DbCommand
     {
+        private FireboltConnection? _connection;
         private string? _commandText;
+        private DbParameterCollection _parameters;
 
-        public string? Response { get; set; }
+        public readonly HashSet<string> SetParamList;
 
-        public readonly HashSet<string> SetParamList = new();
-
-        public FireboltCommand()
+        public FireboltCommand() : this(null, null)
         {
+        }
+
+        public FireboltCommand(FireboltConnection? connection, string? commandText, params DbParameter[] parameters) : this(connection, commandText, new FireboltParameterCollection(parameters))
+        {
+        }
+
+        public FireboltCommand(FireboltConnection? connection, string? commandText, DbParameterCollection parameters)
+        {
+            _connection = connection;
+            _commandText = commandText;
+            _parameters = parameters;
+            SetParamList = _connection?.SetParamList ?? new();
         }
 
         /// <summary>
@@ -73,14 +85,22 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets or sets the <see cref="FireboltConnection"/> used by this command.
         /// </summary>
-        private new FireboltConnection? Connection { get; }
+        private new FireboltConnection? Connection
+        {
+            get => _connection;
+            set => _connection = value;
+        }
 
         /// <summary>
         /// Gets or sets the connection within which the command executes. Always returns <b>null</b>.
         /// </summary>
         /// <returns><b>null</b></returns>
         /// <exception cref="NotSupportedException">The value set is not <b>null</b>.</exception>
-        protected override DbConnection? DbConnection { get; set; }
+        protected override DbConnection? DbConnection
+        {
+            get => _connection;
+            set => _connection = value == null ? null : (FireboltConnection)value;
+        }
 
 
         /// <summary>
@@ -94,7 +114,9 @@ namespace FireboltDotNetSdk.Client
             set
             {
                 if (value != null)
+                {
                     throw new NotSupportedException($"{nameof(DbTransaction)} is read only.'");
+                }
             }
         }
 
@@ -113,17 +135,28 @@ namespace FireboltDotNetSdk.Client
             set => throw new NotImplementedException();
         }
 
-        internal FireboltCommand(FireboltConnection connection) =>
-            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-
-        public QueryResult? Execute(string commandText)
+        internal QueryResult? Execute(string commandText)
         {
+            string? response = ExecuteCommandAsync(commandText).GetAwaiter().GetResult();
+            return response == null ? new QueryResult() : GetOriginalJsonData(response);
+        }
+
+        private async Task<string?> ExecuteCommandAsync(string commandText)
+        {
+            if (Connection == null)
+            {
+                throw new FireboltException("Unable to execute SQL as no connection was initialised. Create command using working connection");
+            }
+            if (Connection.Client == null)
+            {
+                throw new FireboltException("Client is undefined. Initialize connection properly");
+            }
             var engineUrl = Connection?.EngineUrl;
             if (commandText.Trim().StartsWith("SET"))
             {
                 commandText = commandText.Remove(0, 4).Trim();
                 SetParamList.Add(commandText);
-                return new QueryResult();
+                return await Task.FromResult<string?>(null);
             }
             string newCommandText = commandText;
             if (Parameters.Any())
@@ -131,22 +164,17 @@ namespace FireboltDotNetSdk.Client
                 newCommandText = GetParamQuery(commandText);
             }
 
-            if (Connection != null)
-            {
-                var database = Connection.Database != string.Empty ? Connection.Database : null;
-                Response = Connection.Client?
-                    .ExecuteQuery(engineUrl, database, Connection.AccountId, SetParamList, newCommandText)
-                    .GetAwaiter().GetResult();
-            }
-
-            return GetOriginalJsonData();
+            var database = Connection?.Database != string.Empty ? Connection?.Database : null;
+            Task<string?> t = Connection!.Client.ExecuteQuery(engineUrl, database, Connection?.AccountId, SetParamList, newCommandText);
+            return await t;
         }
+
 
         /// <summary>
         /// Get query with ready parse parameters<b>null</b>.
         /// </summary>
         /// <returns><b>null</b></returns>
-        public string GetParamQuery(string commandText)
+        private string GetParamQuery(string commandText)
         {
             var escape_chars = new Dictionary<string, string>
             {
@@ -158,7 +186,6 @@ namespace FireboltDotNetSdk.Client
             {
                 foreach (var item in Parameters.ToList())
                 {
-                    //if (item.Value == null) { throw new FireboltException("Query parameter value cannot be null"); }
                     string pattern = string.Format(@"\{0}\b", item.ParameterName);
                     RegexOptions regexOptions = RegexOptions.IgnoreCase;
                     var verifyParameters = item.Value?.ToString() ?? "";
@@ -187,41 +214,20 @@ namespace FireboltDotNetSdk.Client
                     }
                     else if (item.Value is bool)
                     {
-                        if ((bool)item.Value)
-                            verifyParameters = "1";
-                        else
-                            verifyParameters = "0";
+                        verifyParameters = (bool)item.Value ? "1" : "0";
                     }
                     else if (item.Value is IList && item.Value.GetType().IsGenericType)
                     {
                         throw new FireboltException("Array query parameters are not supported yet.");
                     }
-                    else if (item.Value is int || item.Value is long || item.Value is double || item.Value is float ||
-                             item.Value is decimal)
+                    else if (item.Value is IConvertible)
                     {
-                        switch (item.Value.GetType().Name)
-                        {
-                            case "Decimal":
-                                var decValue = (decimal)item.Value;
-                                verifyParameters = decValue.ToString().Replace(',', '.');
-                                break;
-                            case "Double":
-                                var doubleValue = (double)item.Value;
-                                verifyParameters = doubleValue.ToString().Replace(',', '.');
-                                break;
-                            case "Single":
-                                var floatValue = (float)item.Value;
-                                verifyParameters = floatValue.ToString().Replace(',', '.');
-                                break;
-                            case "Int32":
-                                var intValue = (int)item.Value;
-                                verifyParameters = intValue.ToString();
-                                break;
-                            case "Int64":
-                                var longValue = (long)item.Value;
-                                verifyParameters = longValue.ToString();
-                                break;
-                        }
+                        // IConvertable is s a common interface for many numeric types.
+                        // String representation of numbers (result of ToString()) depends on the current locale. 
+                        // Some locales use comma instead or period to separate integer from the fractional part of number, 
+                        // so making this representation portable requires replacing comma by dot in string. 
+                        // The easier solution is to specify "standard" locale e.g. en_US.
+                        verifyParameters = ((IConvertible)item.Value).ToString(new CultureInfo("en-US", false));
                     }
                     commandText = Regex.Replace(commandText, pattern, verifyParameters, regexOptions);
                 }
@@ -231,37 +237,23 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Error while verifying parameters for query", ex);
             }
-
         }
 
         /// <summary>
         /// Gets original data in JSON format for further manipulation<b>null</b>.
         /// </summary>
         /// <returns><b>null</b></returns>
-        public QueryResult? GetOriginalJsonData()
+        private QueryResult? GetOriginalJsonData(string? Response)
         {
             if (Response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
             var prettyJson = JToken.Parse(Response).ToString(Formatting.Indented);
             return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
         }
 
-        /// <summary>
-        /// Gets rowscount parameter from return data<b>null</b>.
-        /// </summary>
-        /// <returns><b>null</b></returns>
-        public int RowCount()
-        {
-            var prettyJson = JToken.Parse(Response ?? throw new FireboltException("RowCount is missing"))
-                .ToString(Formatting.Indented);
-            var data = JsonConvert.DeserializeObject<QueryResult>(prettyJson);
-            return ((int)(data?.Rows ?? -1))!;
-        }
-
         public void ClearSetList()
         {
-            SetParamList.Clear();
+            _connection?.SetParamList.Clear();
         }
-
 
         /// <summary>
         /// Not supported. To cancel a command execute it asynchronously with an appropriate cancellation token.
@@ -284,9 +276,27 @@ namespace FireboltDotNetSdk.Client
             set => throw new NotImplementedException();
         }
 
+        new public DbDataReader ExecuteReader()
+        {
+            return ExecuteReader(CommandBehavior.Default);
+        }
+        new public DbDataReader ExecuteReader(CommandBehavior behavior)
+        {
+            return ExecuteDbDataReader(behavior);
+        }
+
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
-            throw new NotImplementedException();
+            if (_commandText == null)
+            {
+                throw new InvalidOperationException("Command is undefined");
+            }
+            QueryResult? result = Execute(_commandText);
+            if (result == null)
+            {
+                throw new InvalidOperationException("No result produced");
+            }
+            return new FireboltDataReader(null, result, 0);
         }
 
         protected override DbParameter CreateDbParameter()
@@ -296,7 +306,7 @@ namespace FireboltDotNetSdk.Client
 
         public override int ExecuteNonQuery()
         {
-            throw new NotImplementedException();
+            return ExecuteNonQueryAsync().GetAwaiter().GetResult();
         }
 
         public override object ExecuteScalar()
@@ -307,6 +317,16 @@ namespace FireboltDotNetSdk.Client
         public override void Prepare()
         {
             throw new NotImplementedException();
+        }
+
+        public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
+        {
+            if (_commandText == null)
+            {
+                throw new InvalidOperationException("SQL command is null");
+            }
+            await ExecuteCommandAsync(_commandText);
+            return await Task.FromResult<int>(0);
         }
     }
 }
