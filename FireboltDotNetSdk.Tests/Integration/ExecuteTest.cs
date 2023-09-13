@@ -1,4 +1,5 @@
 using System.Text;
+using System.Data.Common;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 
@@ -8,6 +9,10 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class ExecutionTest : IntegrationTest
     {
+        private static string SYSTEM_CONNECTION_STRING = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
+        private static string USER_CONNECTION_STRING = $"{SYSTEM_CONNECTION_STRING};engine={EngineName}";
+        private static string SYSTEM_WRONG_CREDENTIALS = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account};env={Env}";
+
         [TestCase("SELECT 1")]
         [TestCase("SELECT 1, 'a'")]
         [TestCase("SELECT 1 as uint8")]
@@ -17,49 +22,50 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT -80000 as int32")]
         [TestCase("SELECT 30000000000 as uint64")]
         [TestCase("SELECT -30000000000 as int64")]
-        public void ExecuteTest(string commandText)
+        public void ExecuteSelectTest(string commandText)
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-            executeTest(connString, commandText, null);
+            executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
         [Ignore("sleepEachRow function is currently not supported on staging")]
         [TestCase("select sleepEachRow(1) from numbers(5)")]
         public void ExecuteSetTest(string commandText)
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-            executeTest(connString, commandText, "SET use_standard_sql=0");
+            executeTest(SYSTEM_CONNECTION_STRING, commandText, "SET use_standard_sql=0", true);
         }
 
         [TestCase("select * from information_schema.tables")]
         public void ExecuteSetEngineTest(string commandText)
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-            executeTest(connString, commandText, null);
+            executeTest(USER_CONNECTION_STRING, commandText, null, false);
         }
 
-        private void executeTest(string connString, string commandText, string? additionalCommand)
+        private void executeTest(string connString, string commandText, string? additionalCommandText, bool noNextLine)
         {
             using var conn = new FireboltConnection(connString);
             conn.Open();
-
-            var cursor = conn.CreateCursor();
-            if (additionalCommand != null)
+            if (additionalCommandText != null)
             {
-                cursor.Execute(additionalCommand);
+                DbCommand addCommand = conn.CreateCommand();
+                addCommand.CommandText = additionalCommandText;
+                addCommand.ExecuteNonQuery();
             }
-
-            var value = cursor.Execute(commandText);
-            Assert.NotNull(value);
-            Assert.IsNotEmpty(value!.Data);
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = commandText;
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.NotNull(reader.GetValue(0));
+            if (noNextLine)
+            {
+                Assert.That(reader.Read(), Is.EqualTo(false));
+            }
         }
 
         [Test]
         public void ExecuteTestInvalidCredentials()
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account};env={Env}";
-            using var conn = new FireboltConnection(connString);
+            using var conn = new FireboltConnection(SYSTEM_WRONG_CREDENTIALS);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
@@ -69,151 +75,158 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteSelectTimestampNtz()
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SELECT '2022-05-10 23:01:02.123455'::timestampntz");
-            DateTime dt = new DateTime(2022, 5, 10, 23, 1, 2, 0).AddTicks(1234550);
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Meta, Is.EqualTo("DateTime"));
-            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
+            ExecuteDateTimeTest(
+                USER_CONNECTION_STRING,
+                "SELECT '2022-05-10 23:01:02.123455'::timestampntz",
+                new string[0],
+                new DateTime(2022, 5, 10, 23, 1, 2, 0).AddTicks(1234550));
         }
 
         [Test]
         public void ExecuteSelectTimestampPgDate()
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SELECT '2022-05-10'::pgdate");
-            DateTime dt = new DateTime(2022, 5, 10, 0, 0, 0);
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Meta, Is.EqualTo("Date"));
-            Assert.That(newMeta.Data[0], Is.EqualTo(DateOnly.FromDateTime(dt)));
+            ExecuteDateTimeTest(
+                USER_CONNECTION_STRING,
+                "SELECT '2022-05-10'::pgdate",
+                new string[0],
+                new DateTime(2022, 5, 10, 0, 0, 0),
+                new DateOnly(2022, 5, 10));
         }
 
         [Test]
         public void ExecuteSelectTimestampTz()
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-
-            using var conn = new FireboltConnection(connString);
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SELECT '2022-05-10 23:01:02.123456 Europe/Berlin'::timestamptz");
-
-            DateTime dt = DateTime.Parse("2022-05-10 21:01:02.123456Z");
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
-
+            ExecuteDateTimeTest(
+                USER_CONNECTION_STRING,
+                "SELECT '2022-05-10 23:01:02.123456 Europe/Berlin'::timestamptz",
+                new string[0],
+                DateTime.Parse("2022-05-10 21:01:02.123456Z"));
         }
 
         [Test]
         public void ExecuteSelectTimestampTzWithMinutesInTz()
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SET advanced_mode=1");
-            command.Execute("SET time_zone=Asia/Calcutta");
-            command.Execute("SELECT '2022-05-11 23:01:02.123123 Europe/Berlin'::timestamptz");
-
-            DateTime dt = DateTime.Parse("2022-05-11 21:01:02.123123Z");
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+            ExecuteDateTimeTest(
+                USER_CONNECTION_STRING,
+                "SELECT '2022-05-11 23:01:02.123123 Europe/Berlin'::timestamptz",
+                new string[] { "SET advanced_mode=1", "SET time_zone=Asia/Calcutta" },
+                DateTime.Parse("2022-05-11 21:01:02.123123Z"));
         }
 
         [Test]
         public void ExecuteSelectTimestampTzWithTzWithMinutesAndSecondsInTz()
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SET advanced_mode=1");
-            command.Execute("SET time_zone=Asia/Calcutta");
-            command.Execute("SELECT '1111-01-05 17:04:42.123456'::timestamptz");
-
-            DateTime dt = DateTime.Parse("1111-01-05 11:11:14.123456Z");
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+            ExecuteDateTimeTest(
+                USER_CONNECTION_STRING,
+                "SELECT '1111-01-05 17:04:42.123456'::timestamptz",
+                new string[] { "SET advanced_mode=1", "SET time_zone=Asia/Calcutta" },
+                DateTime.Parse("1111-01-05 11:11:14.123456Z"));
         }
 
         [Test]
         public void ExecuteSelectTimestampTzWithTzWithDefaultTz()
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
+            ExecuteDateTimeTest(
+                USER_CONNECTION_STRING,
+                "SELECT '2022-05-01 12:01:02.123456'::timestamptz",
+                new string[0],
+                DateTime.Parse("2022-05-01 12:01:02.123456Z"));
+        }
+
+        private void ExecuteDateTimeTest(string connString, string commandText, string[] additionalCommands, DateTime expectedDateTime)
+        {
+            ExecuteDateTimeTest(connString, commandText, additionalCommands, expectedDateTime, expectedDateTime);
+        }
+
+        private void ExecuteDateTimeTest(string connString, string commandText, string[] additionalCommands, DateTime expectedDateTime, object expectedValue)
+        {
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SELECT '2022-05-01 12:01:02.123456'::timestamptz");
-
-            DateTime dt = DateTime.Parse("2022-05-01 12:01:02.123456Z");
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(dt));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+            foreach (string cmd in additionalCommands)
+            {
+                DbCommand addCommand = conn.CreateCommand();
+                addCommand.CommandText = cmd;
+                addCommand.ExecuteNonQuery();
+            }
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = commandText;
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.That(reader.GetDateTime(0), Is.EqualTo(expectedDateTime));
+            Assert.That(reader.GetValue(0), Is.EqualTo(expectedValue));
+            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(DateTime)));
+            Assert.That(reader.Read(), Is.EqualTo(false));
+            conn.Close();
         }
+
 
         [Test]
         public void ExecuteSelectBoolean()
         {
-            var connString =
-                $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-
-            using var conn = new FireboltConnection(connString);
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SET advanced_mode=1");
-            command.Execute("SET output_format_firebolt_type_names=true");
-            command.Execute("SET bool_output_format=postgres");
-            command.Execute("SELECT true::boolean");
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
-            Assert.That(newMeta.Data[0], Is.EqualTo(true));
+
+            DbCommand command = conn.CreateCommand();
+            new List<string>()
+            {
+                "SET advanced_mode=1", "SET output_format_firebolt_type_names=true", "SET bool_output_format=postgres"
+            }
+            .ForEach(set => { command.CommandText = set; command.ExecuteNonQuery(); });
+            command.CommandText = "SELECT true::boolean";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.IsTrue(reader.Read());
+            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(bool)));
+            Assert.That(reader.GetBoolean(0), Is.EqualTo(true));
+            Assert.IsFalse(reader.Read());
         }
 
         [Test]
         public void ExecuteServiceAccountLogin()
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-            using var conn = new FireboltConnection(connString);
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
-            var command = conn.CreateCursor();
-            var value = command.Execute("SELECT 1");
-            Assert.NotNull(value);
-            Assert.That(value!.Data[0][0], Is.EqualTo(1));
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = "SELECT 1";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.That(reader.GetInt16(0), Is.EqualTo(1));
+            Assert.That(reader.Read(), Is.EqualTo(false));
+            conn.Close();
         }
+
+        [Test]
+        public void ExecuteInformationSchema()
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = "SELECT table_name, number_of_rows from information_schema.tables";
+            DbDataReader reader = command.ExecuteReader();
+            List<string> tableNames = new List<string>();
+            while (reader.Read())
+            {
+                string name = reader.GetString(0);
+                tableNames.Add(name);
+                long rowsCount = reader.GetInt64(1);
+                Assert.That(rowsCount, Is.GreaterThanOrEqualTo(0));
+            }
+            List<string> expectedTables = new List<string>() { "databases", "engines", "tables", "views", "columns", "accounts", "users" };
+            expectedTables.ForEach(table => Assert.That(tableNames.Contains(table), Is.EqualTo(true)));
+        }
+
 
         [Test]
         public void ExecuteServiceAccountLoginWithInvalidCredentials()
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account};env={Env}";
-            using var conn = new FireboltConnection(connString);
+            using var conn = new FireboltConnection(SYSTEM_WRONG_CREDENTIALS);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
             Assert.IsTrue(exception!.Message.Contains("401"));
         }
+
         [Test]
         public void ExecuteServiceAccountLoginWithMissingSecret()
         {
@@ -222,52 +235,44 @@ namespace FireboltDotNetSdk.Tests
             Assert.NotNull(exception);
             Assert.IsTrue(exception!.Message.Contains("ClientSecret parameter is missing in the connection string"));
         }
+
         [Test]
         public void ExecuteSelectArray()
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var command = conn.CreateCursor();
-            var res = command.Execute("select [1,NULL,3]");
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(new int?[] { 1, null, 3 }));
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,NULL,3]", new int?[] { 1, null, 3 }, typeof(int[]));
         }
 
         [Test]
         public void ExecuteSelectTwoDimensionalArray()
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,NULL,3]]", new int?[1][] { new int?[] { 1, null, 3 } }, typeof(int[][]));
+        }
+
+        private void ExecuteTest(string connString, string commandText, object expectedValue, Type expectedType)
+        {
             using var conn = new FireboltConnection(connString);
             conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("select [[1,NULL,3]]");
-            int?[][] jaggedArray = new int?[1][];
-            jaggedArray[0] = new int?[] { 1, null, 3 };
-            Assert.NotNull(command.Response);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(jaggedArray));
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = commandText;
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.That(reader.GetValue(0), Is.EqualTo(expectedValue));
+            //Assert.That(reader.GetFieldType(0), Is.EqualTo(expectedType)); //TODO: improve type discovery and uncomment this line
+            Assert.That(reader.Read(), Is.EqualTo(false));
+            conn.Close();
         }
 
         [Test]
         public void ExecuteSelectByteA()
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var command = conn.CreateCursor();
-            command.Execute("SELECT 'hello_world_123ツ\n\u0048'::bytea");
-            Assert.NotNull(command.Response == null);
-            NewMeta newMeta = ResponseUtilities.getFirstRow(command.Response!);
-            Assert.That(newMeta.Data[0], Is.EqualTo(Encoding.UTF8.GetBytes("hello_world_123ツ\n\u0048")));
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "SELECT 'hello_world_123ツ\n\u0048'::bytea", Encoding.UTF8.GetBytes("hello_world_123ツ\n\u0048"), typeof(byte[]));
         }
 
         [Test]
         public void ShouldThrowExceptionWhenEngineIsNotFound()
         {
-            var connString =
-                $"database={Database};ClientId={ClientId};ClientSecret={ClientSecret};endpoint={Endpoint};account={Account};engine=InexistantEngine;env={Env}";
+            var connString = $"{SYSTEM_CONNECTION_STRING};engine=InexistantEngine";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.That(exception!.Message, Is.EqualTo($"Engine InexistantEngine not found."));
@@ -276,14 +281,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void SetEngine()
         {
-            var connString =
-                $"database={Database};ClientId={ClientId};ClientSecret={ClientSecret};endpoint={Endpoint};account={Account};engine={EngineName};env={Env}";
-            using var conn = new FireboltConnection(connString);
-            conn.Open();
-            var command = conn.CreateCursor();
-            var value = command.Execute("SELECT 1");
-            Assert.NotNull(value);
-            Assert.That(value!.Data[0][0], Is.EqualTo(1));
+            ExecuteTest(USER_CONNECTION_STRING, "SELECT 1", 1, typeof(int));
         }
     }
 }

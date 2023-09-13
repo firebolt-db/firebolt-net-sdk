@@ -12,38 +12,76 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public sealed class FireboltParameter : DbParameter
     {
+        internal const string defaultParameterName = "parameter";
         private static readonly Regex ParameterNameRegex = new Regex("^[a-zA-Z_][0-9a-zA-Z_]*$");
+        private static ISet<DbType> unsupportedTypes = new HashSet<DbType>()
+        {
+            DbType.Currency, DbType.VarNumeric, DbType.AnsiStringFixedLength, DbType.StringFixedLength, DbType.Xml, DbType.DateTime2, DbType.Single
+        };
+
+        private static IDictionary<Type, DbType> dbTypes = new Dictionary<Type, DbType>
+        {
+            { typeof(byte), DbType.Byte },
+            { typeof(bool), DbType.Boolean },
+            { typeof(short), DbType.Int16 },
+            { typeof(int), DbType.Int32 },
+            { typeof(long), DbType.Int64 },
+            { typeof(sbyte), DbType.SByte },
+            { typeof(ushort), DbType.UInt16 },
+            { typeof(uint), DbType.UInt32 },
+            { typeof(ulong), DbType.UInt64 },
+            { typeof(float), DbType.Decimal },
+            { typeof(double), DbType.Double },
+            { typeof(decimal), DbType.Decimal },
+            { typeof(Guid), DbType.Guid },
+            { typeof(string), DbType.String },
+            { typeof(byte[]), DbType.Binary },
+            { typeof(DateOnly), DbType.Date },
+            { typeof(DateTime), DbType.DateTime },
+            { typeof(DateTimeOffset), DbType.DateTimeOffset },
+            { typeof(TimeOnly), DbType.Time },
+        };
+
+        private static IDictionary<Type, int> dbTypeSizes = new Dictionary<Type, int>
+        {
+            { typeof(byte), 1 },
+            { typeof(bool), 1 },
+            { typeof(short), 2 },
+            { typeof(int), 4 },
+            { typeof(long), 8 },
+            { typeof(sbyte), 1 },
+            { typeof(ushort), 2 },
+            { typeof(uint), 4 },
+            { typeof(ulong), 8 },
+            { typeof(float), 4 },
+            { typeof(double), 8 },
+            { typeof(decimal), 16 },
+            { typeof(Guid), 16 },
+            { typeof(string), int.MaxValue }, // limitation of C#. Firebolt DB does not have limitation on string  size
+            { typeof(byte[]), int.MaxValue },
+            { typeof(DateOnly), 4 },
+            { typeof(DateTime), 16 },
+            { typeof(DateTimeOffset), 10 },
+            { typeof(TimeOnly), 8 },
+        };
+
+        // This constant is copied from Microsoft's System.Data.SqlTypes.SQLDecimal, but its value is changed from 17 to 15 according to the Firebolt standard
+        private const uint DBL_DIG = 15; // Max decimal digits of double
 
         private string _parameterName;
-
         private object? _value;
-        private int _size;
-        private TimeZoneInfo? _timeZone;
-
-        private bool? _forcedNullable;
-        private FireboltDbType? _forcedType;
-        private byte? _forcedScale;
-        private byte? _forcedPrecision;
-        private int? _forcedArrayRank;
-
+        private int? _size;
+        private bool _nullable = true;
+        private bool _sourceColumnNullable = true;
+        private DbType? _dbType;
+        private DbType? _initialDbType;
         private string? _sourceColumn;
-
         internal string Id { get; private set; }
 
         /// <summary>
         /// Gets the collection to which this parameter is attached.
         /// </summary>
         public FireboltParameterCollection? Collection { get; internal set; }
-
-        /// <summary>
-        /// Gets or sets the <see cref="FireboltDbType"/> of the parameter.
-        /// </summary>
-        /// <returns>One of the <see cref="FireboltDbType"/> values. The default value is defined based on the type of the parameter's value.</returns>
-        public FireboltDbType? FireboltDbType
-        {
-            get => _forcedType;
-            set => _forcedType = value;
-        }
 
         /// <summary>
         /// Gets or sets the <see cref="DbType"/> of the parameter.
@@ -54,12 +92,15 @@ namespace FireboltDotNetSdk.Client
         /// </returns>        
         public override DbType DbType
         {
-            get
+            get => _dbType ?? throw new InvalidOperationException("Type of parameter is not initialized");
+            set
             {
-                var chType = FireboltDbType ?? global::FireboltDbType.String;
-                return (DbType)chType;
+                if (unsupportedTypes.Contains(value))
+                {
+                    throw new NotSupportedException($"Parameter type {value} is not supported");
+                }
+                _dbType = value;
             }
-            set => FireboltDbType = (FireboltDbType)value;
         }
 
         /// <summary>
@@ -86,37 +127,8 @@ namespace FireboltDotNetSdk.Client
             get => _parameterName;
             set
             {
-                var id = GetId(value);
-                Debug.Assert(value != null);
-
-                if (StringComparer.Ordinal.Equals(id, Id))
-                {
-                    _parameterName = value;
-                    return;
-                }
-
-                if (Collection == null)
-                {
-                    Id = id;
-                    _parameterName = value;
-                    return;
-                }
-
-                var oldId = Id;
-                var oldParameterName = _parameterName;
-                Id = id;
-                _parameterName = value;
-
-                try
-                {
-                    Collection.OnParameterIdChanged(oldId, this);
-                }
-                catch
-                {
-                    Id = oldId;
-                    _parameterName = oldParameterName;
-                    throw;
-                }
+                _parameterName = value ?? throw new ArgumentNullException();
+                Id = GetId(value);
             }
         }
 
@@ -136,110 +148,72 @@ namespace FireboltDotNetSdk.Client
             set
             {
                 _value = value;
+                if (_size == null)
+                {
+                    _size = GetSize(value);
+                }
             }
         }
-
 
         /// <summary>
         /// Gets or sets the encoding that will be used when writing a string value to the database.
         /// </summary>
         public Encoding? StringEncoding { get; set; }
 
-        /// <summary>
-        /// This property allows to specify the timezone for datetime types (<see cref="FireboltClient.FireboltDbType.DateTime"/>,
-        /// <see cref="FireboltClient.FireboltDbType.DateTimeOffset"/>, <see cref="FireboltClient.FireboltDbType.DateTime2"/>
-        /// and <see cref="FireboltClient.FireboltDbType.DateTime64"/>).
-        /// </summary>
-        public TimeZoneInfo? TimeZone
+        public override bool IsNullable
         {
-            get => _timeZone;
+            get => _nullable;
             set
             {
-                _timeZone = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the value indicating whether the type is an array.
-        /// </summary>
-        /// <returns><see langword="true"/> if the value is an array; otherwise <see langword="false"/>. The default value is defined based on the <see cref="ArrayRank"/>.</returns>
-        public bool IsArray
-        {
-            get => ArrayRank > 0;
-            set
-            {
-                if (value)
+                if (value && !_sourceColumnNullable)
                 {
-                    if (_forcedArrayRank == null || ArrayRank == 0)
-                        ArrayRank = 1;
+                    throw new ArgumentException($"Parameter {_parameterName} cannot be null because it is mapped to not nullable column");
                 }
-                else
-                {
-                    if (_forcedArrayRank == null || ArrayRank > 0)
-                        ArrayRank = 0;
-                }
+                _nullable = value;
             }
         }
 
-        /// <summary>
-        /// Gets or sets the rank (a number of dimensions) of an array.
-        /// </summary>
-        /// <returns>The rank of an array. 0 if the type is not an array. The default value is defined based on the type of the parameter's value.</returns>
-        public int ArrayRank
+        public override byte Scale
         {
-            get
-            {
-                if (_forcedArrayRank != null) return _forcedArrayRank.Value;
-                return 0;
-            }
-            set
-            {
-                if (value < 0)
-                    throw new ArgumentException("The rank of an array must be a non-negative number.", nameof(value));
-
-                _forcedArrayRank = value;
-            }
+            get => (byte)(_dbType == DbType.Decimal ? DBL_DIG : 0);
+            set => throw new NotImplementedException();
         }
-
-        public override bool IsNullable { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public override int Size { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public override bool SourceColumnNullMapping { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override int Size { get => _size ?? 0; set => _size = value; }
+        public override bool SourceColumnNullMapping { get => _sourceColumnNullable; set => _sourceColumnNullable = value; }
 
         /// <summary>
         /// Initializes a new instance of <see cref="FireboltParameter"/> with the default name.
         /// </summary>
-        public FireboltParameter()
-            : this("parameter")
+        public FireboltParameter() : this(defaultParameterName, null)
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of <see cref="FireboltParameter"/> with the specified name.
-        /// </summary>
-        /// <param name="parameterName">The name of the parameter.</param>
-        public FireboltParameter(string parameterName)
+        public FireboltParameter(string parameterName, object? value) : this(parameterName, GetType(value), value)
         {
-            if (parameterName == null)
-                throw new ArgumentNullException(nameof(parameterName));
+        }
 
+        public FireboltParameter(string parameterName, DbType? dbType, object? value)
+        {
             Id = GetId(parameterName);
             _parameterName = parameterName;
+            if (dbType != null)
+            {
+                DbType = dbType ?? throw new InvalidOperationException();
+                _initialDbType = DbType;
+            }
+            else if (value != null)
+            {
+                DbType = dbTypes[value.GetType()];
+                _initialDbType = DbType;
+            }
+            _value = value;
         }
 
         /// <inheritdoc/>
         public override void ResetDbType()
         {
-            _forcedType = null;
-            _forcedNullable = null;
-            _forcedPrecision = null;
-            _forcedScale = null;
-            _forcedArrayRank = null;
-
-            _size = 0;
-            StringEncoding = null;
-            _timeZone = null;
+            _dbType = _initialDbType;
         }
-
 
         private static string GetId(string? parameterName)
         {
@@ -276,32 +250,15 @@ namespace FireboltDotNetSdk.Client
             return parameterName;
         }
 
-        private class ParameterColumnTypeDescriptorAdapter
+        private static int GetSize(object? value)
         {
-            private readonly FireboltParameter _parameter;
+            //TODO: improve this: sime types (e.g. string, decimal) can be limite on table level
+            return value == null ? 0 : dbTypeSizes[value.GetType()];
+        }
 
-            public string ColumnName => _parameter.Id;
-
-            public FireboltDbType? FireboltDbType => _parameter._forcedType;
-
-            public Type ValueType => _parameter?.Value?.GetType() ?? typeof(DBNull);
-
-            public bool? IsNullable => _parameter._forcedNullable;
-
-            public int Size => _parameter._size;
-
-            public byte? Precision => _parameter._forcedPrecision;
-
-            public byte? Scale => _parameter._forcedScale;
-
-            public TimeZoneInfo? TimeZone => _parameter.TimeZone;
-
-            public int? ArrayRank => _parameter._forcedArrayRank;
-
-            public ParameterColumnTypeDescriptorAdapter(FireboltParameter parameter)
-            {
-                _parameter = parameter;
-            }
+        private static DbType? GetType(object? value)
+        {
+            return value == null ? null : dbTypes[value.GetType()];
         }
     }
 }

@@ -1,5 +1,7 @@
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
+using System.Data;
+using System.Data.Common;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -18,9 +20,8 @@ namespace FireboltDotNetSdk.Tests
             var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
             Connection = new FireboltConnection(connString);
             Connection.Open();
-            var cursor = Connection.CreateCursor();
-            CreateEngine(cursor, newEngineName, "SPEC = 'B1'");
-            CreateDatabase(cursor, newDatabaseName, newEngineName);
+            CreateEngine(newEngineName, "SPEC = 'B1'");
+            CreateDatabase(newDatabaseName, newEngineName);
         }
 
         [OneTimeTearDown]
@@ -28,75 +29,67 @@ namespace FireboltDotNetSdk.Tests
         {
             if (Connection != null)
             {
-                var cursor = Connection.CreateCursor();
                 try
                 {
                     //We first attach the engine to an existing database as it can't be dropped if not attached
-                    cursor.Execute($"ATTACH ENGINE {newEngineName} TO {Database}");
-                    cursor.Execute($"DROP ENGINE IF EXISTS {newEngineName}");
+                    CreateCommand($"ATTACH ENGINE {newEngineName} TO {Database}").ExecuteNonQuery();
+                    CreateCommand($"DROP ENGINE IF EXISTS {newEngineName}").ExecuteNonQuery();
                 }
                 catch (System.Exception) { }
                 try
                 {
-                    cursor.Execute($"DROP DATABASE IF EXISTS {newDatabaseName}");
+                    CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
                 }
                 catch (FireboltException) { };
             }
         }
 
-        private void CreateDatabase(FireboltCommand cursor, string dbName, string? attachedEngine = null)
+        private void CreateDatabase(string dbName, string? attachedEngine = null)
         {
             string sql = $"CREATE DATABASE IF NOT EXISTS {dbName}";
             if (attachedEngine != null)
             {
                 sql += $" WITH ATTACHED_ENGINES = ('{attachedEngine}')";
             }
-            cursor.Execute(sql);
+            CreateCommand(sql).ExecuteNonQuery();
         }
-        private void CreateEngine(FireboltCommand cursor, string engineName, string? spec = null)
+        private void CreateEngine(string engineName, string? spec = null)
         {
             var create_engine_sql = $"CREATE ENGINE IF NOT EXISTS {engineName}";
             if (spec != null)
             {
                 create_engine_sql += $" WITH {spec}";
             }
-            cursor.Execute(create_engine_sql);
+            CreateCommand(create_engine_sql).ExecuteNonQuery();
         }
 
         [TestCase("CREATE DIMENSION TABLE dummy(id INT)")]
         public void ErrorsTest(string query)
         {
-            var cursor = Connection.CreateCursor();
-
-            Assert.Throws<FireboltException>(
-        () => { cursor.Execute(query); }
-            );
+            var command = CreateCommand(query);
+            Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); });
         }
 
         [Test]
         public void ShowDatabasesTest()
         {
-            var cursor = Connection.CreateCursor();
-
-            var res = cursor.Execute("SHOW DATABASES");
-            Assert.NotNull(res);
-            Assert.That(res!.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(newDatabaseName));
-
+            DbCommand command = Connection.CreateCommand();
+            command.CommandText = "SHOW DATABASES";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(newDatabaseName));
         }
 
-        private void CheckEngineExistsWithDB(FireboltCommand cursor, string engineName, string dbName)
+        private void CheckEngineExistsWithDB(DbCommand command, string engineName, string dbName)
         {
-            var res = cursor.Execute("SHOW ENGINES");
+            command.CommandText = "SHOW ENGINES";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(newDatabaseName));
 
-            Assert.NotNull(res);
+            reader = command.ExecuteReader();
             Assert.That(
-        res!.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
-        "Engine {engineName} is missing in SHOW ENGINES"
-        );
-            Assert.That(
-                res.Data.Select(
-                    item => new object[] { item[0] ?? "", item[5] ?? "" }
-                ),
+                readItems(reader, 0, 5),
                 Has.Exactly(1).EqualTo(new object[] { engineName, dbName }),
                 $"Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
             );
@@ -105,35 +98,29 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void AttachDetachEngineTest()
         {
-            var cursor = Connection.CreateCursor();
+            var command = Connection.CreateCommand();
 
-            CheckEngineExistsWithDB(cursor, newEngineName, newDatabaseName);
+            CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
 
-            cursor.Execute($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}");
+            CreateCommand($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}").ExecuteNonQuery();
 
-            CheckEngineExistsWithDB(cursor, newEngineName, "-");
+            CheckEngineExistsWithDB(command, newEngineName, "-");
 
-            cursor.Execute($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}");
+            CreateCommand($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}").ExecuteNonQuery();
 
-            CheckEngineExistsWithDB(cursor, newEngineName, newDatabaseName);
+            CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
 
         }
-        private void VerifyEngineSpec(FireboltCommand cursor, string engineName, string spec)
+        private void VerifyEngineSpec(DbCommand command, string engineName, string spec)
         {
-            var res = cursor.Execute($"SHOW ENGINES");
+            command.CommandText = "SHOW ENGINES";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(engineName));
 
-            Assert.NotNull(res);
+            reader = command.ExecuteReader();
             Assert.That(
-                res!.Data.Select(
-                    item => item[0]
-                ),
-                Has.Exactly(1).EqualTo(engineName),
-                $"Engine {engineName} is missing in SHOW ENGINES"
-            );
-            Assert.That(
-                res.Data.Select(
-                    item => new object[] { item[0] ?? "", item[2] ?? "" }
-                ),
+                readItems(reader, 0, 2),
                 Has.Exactly(1).EqualTo(new object[] { newEngineName, spec }),
                 $"Engine {engineName} should have {spec} spec in SHOW ENGINES"
             );
@@ -142,51 +129,79 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void AlterEngineTest()
         {
-            var cursor = Connection.CreateCursor();
+            var command = Connection.CreateCommand();
 
-            VerifyEngineSpec(cursor, newEngineName, "B1");
+            VerifyEngineSpec(command, newEngineName, "B1");
 
-            cursor.Execute($"ALTER ENGINE {newEngineName} SET SPEC = 'B2'");
+            CreateCommand($"ALTER ENGINE {newEngineName} SET SPEC = 'B2'").ExecuteNonQuery();
 
-            VerifyEngineSpec(cursor, newEngineName, "B2");
+            VerifyEngineSpec(command, newEngineName, "B2");
 
         }
 
-        private void VerifyEngineStatus(FireboltCommand cursor, string engineName, string status)
+        private void VerifyEngineStatus(DbCommand command, string engineName, string status)
         {
-            var res = cursor.Execute("SHOW ENGINES");
+            command.CommandText = "SHOW ENGINES";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(engineName), "Engine {engineName} is missing in SHOW ENGINES");
 
-            Assert.NotNull(res);
+            reader = command.ExecuteReader();
             Assert.That(
-            res!.Data.Select(item => item[0]), Has.Exactly(1).EqualTo(engineName),
-            "Engine {engineName} is missing in SHOW ENGINES"
-            );
-            Assert.That(
-                res.Data.Select(
-                    item => new object[] { item[0] ?? "", item[4] ?? "" }
-                ),
+                readItems(reader, 0, 4),
                 Has.Exactly(1).EqualTo(new object[] { engineName, status }),
-                "Engine {engineName} should have {status} status"
+                $"Engine {engineName} should have {status} status"
             );
         }
 
         [Test]
         public void StartStopEngineAndDropDbTest()
         {
-            var cursor = Connection.CreateCursor();
+            DbCommand command = Connection.CreateCommand();
 
-            VerifyEngineStatus(cursor, newEngineName, "Stopped");
+            VerifyEngineStatus(command, newEngineName, "Stopped");
 
-            cursor.Execute($"START ENGINE {newEngineName}");
+            CreateCommand($"START ENGINE {newEngineName}").ExecuteNonQuery();
 
-            VerifyEngineStatus(cursor, newEngineName, "Running");
+            VerifyEngineStatus(command, newEngineName, "Running");
 
-            cursor.Execute($"STOP ENGINE {newEngineName}");
+            CreateCommand($"STOP ENGINE {newEngineName}").ExecuteNonQuery();
 
-            VerifyEngineStatus(cursor, newEngineName, "Stopped");
-            cursor.Execute($"DROP DATABASE IF EXISTS {newDatabaseName}");
+            VerifyEngineStatus(command, newEngineName, "Stopped");
 
+            CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
         }
 
+        private DbCommand CreateCommand(string sql)
+        {
+            DbCommand command = Connection.CreateCommand();
+            command.CommandText = sql;
+            return command;
+        }
+
+        private List<string> readDabaseses(DbDataReader reader)
+        {
+            List<string> databases = new List<string>();
+            while (reader.Read())
+            {
+                databases.Add(reader.GetString(0));
+            }
+            return databases;
+        }
+
+        private List<object[]> readItems(DbDataReader reader, params int[] indexes)
+        {
+            List<object[]> rows = new List<object[]>();
+            while (reader.Read())
+            {
+                object[] row = new object[indexes.Length];
+                for (int i = 0; i < indexes.Length; i++)
+                {
+                    row[i] = reader.IsDBNull(indexes[i]) ? "" : reader.GetString(indexes[i]);
+                }
+                rows.Add(row);
+            }
+            return rows;
+        }
     }
 }

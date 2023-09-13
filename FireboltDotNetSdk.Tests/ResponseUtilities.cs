@@ -2,7 +2,7 @@ using FireboltDoNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Tests;
 
-public static class ResponseUtilities
+public class ResponseUtilities
 {
     public static NewMeta getFirstRow(string response)
     {

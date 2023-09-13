@@ -20,9 +20,17 @@ public class TypesConverterTest
     [TestCase("long", "5555555", 5555555)]
     [TestCase("int", "12345", 12345)]
     [TestCase("integer", "12345", 12345)]
+    [TestCase("short", "1234", 1234)]
     [TestCase("double", "15.18", 15.18d)]
     [TestCase("decimal(29,30)", "15.9999999999999999999999999999", 16)]
     [TestCase("decimal(29,30)", "15.5400000000000000000000000000", 15.54)]
+    [TestCase("decimal(29,30)", "32", 32)]
+    [TestCase("decimal(29,30)", "-15.5400000000000000000000000000", -15.54)]
+    [TestCase("decimal(29,30)", "-32", -32)]
+    [TestCase("decimal(29,30)", "-0", 0)]
+    [TestCase("decimal(29,30)", "0", 0)]
+    [TestCase("decimal(29,30)", "0.321", 0.321)]
+    [TestCase("decimal(29,30)", "12345678901234567890", 12345678901234567890)] // number longer thant 19 characters
     [TestCase("timestampntz", null, null)]
     [TestCase("timestamptz", null, null)]
     [TestCase("pgdate", null, null)]
@@ -55,7 +63,18 @@ public class TypesConverterTest
         Assert.That(result, Is.EqualTo(expectedValue));
     }
 
-    [Test]
+    [TestCase("timestamp")]
+    [TestCase("timestamp_ext")]
+    [TestCase("datetime")]
+    public void ConvertTimestamp(string type)
+    {
+        ColumnType columnType = ColumnType.Of(type);
+        var value = "2022-05-10 23:01:02";
+        DateTime expectedValue = new DateTime(2022, 5, 10, 23, 1, 2, 0);
+        object? result = TypesConverter.ConvertToCSharpVal(value, columnType);
+        Assert.That(result, Is.EqualTo(expectedValue));
+    }
+
     [TestCase("date")]
     [TestCase("date_ext")]
     [TestCase("pgDate")]
@@ -66,6 +85,18 @@ public class TypesConverterTest
         object? result = TypesConverter.ConvertToCSharpVal(value, columnType);
         DateOnly expectedDate = DateOnly.FromDateTime(new DateTime(2022, 5, 10, 23, 1, 2, 0));
         Assert.That(result, Is.EqualTo(expectedDate));
+    }
+
+    [TestCase("date")]
+    [TestCase("date_ext")]
+    [TestCase("pgDate")]
+    [TestCase("TimestampTz")]
+    [TestCase("TimestampNtz")]
+    public void ConvertNotDateToDate(string type)
+    {
+        ColumnType columnType = ColumnType.Of(type);
+        var value = "something that is not date";
+        Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
     }
 
     [Test]
@@ -80,12 +111,14 @@ public class TypesConverterTest
         Assert.That(exception!.InnerException!.GetType(), Is.EqualTo(typeof(FormatException)));
     }
 
-    [Test]
-    public void ParseJsonResponseWithNullResponse()
+    [TestCase(null, "JSON data is missing", "JSON data is missing")]
+    [TestCase("null", "Error while parsing response", "Unable to parse data to JSON")]
+    [TestCase("invalid response", "Error while parsing response", "Unexpected character encountered while parsing value: i. Path '', line 0, position 0.")]
+    public void ParseWrongJsonResponse(string? json, string? expectedMessage, string? expectedBaseMessage)
     {
-        FireboltException? exception =
-            Assert.Throws<FireboltException>(() => TypesConverter.ParseJsonResponse(null));
-        Assert.That(exception?.Message, Is.EqualTo("JSON data is missing"));
+        FireboltException? exception = Assert.Throws<FireboltException>(() => TypesConverter.ParseJsonResponse(json));
+        Assert.That(exception?.Message, Is.EqualTo(expectedMessage));
+        Assert.That(exception.GetBaseException().Message, Is.EqualTo(expectedBaseMessage));
     }
 
     [Test]
@@ -108,17 +141,6 @@ public class TypesConverterTest
         }
 
         Assert.NotNull(res);
-    }
-
-    [Test]
-    public void InvalidResponseParsingTest()
-    {
-        var responseWithNewTypes = "invalid response";
-        FireboltException? exception = Assert.Throws<FireboltException>(() => TypesConverter.ParseJsonResponse(responseWithNewTypes));
-        Assert.NotNull(exception);
-        Assert.IsTrue(exception!.Message.Contains("Error while parsing response"));
-        Assert.NotNull(exception.InnerException);
-        Assert.That(exception!.InnerException!.GetType(), Is.EqualTo(typeof(JsonReaderException)));
     }
 
     [Test]
@@ -146,5 +168,15 @@ public class TypesConverterTest
         Assert.Null(TypesConverter.ConvertToCSharpVal(null, columnType));
     }
 
+    [Test]
+    public void ConvertNotNullValueOfNullType()
+    {
+        Assert.That(Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal("hello", ColumnType.Of("null"))).GetBaseException().Message, Is.EqualTo("Not null value in null type"));
+    }
 
+    [Test]
+    public void ConvertWrongType()
+    {
+        Assert.That(Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal("hello", ColumnType.Of("something wrong"))).GetBaseException().Message, Is.EqualTo("The data type returned from the server is not supported: something wrong"));
+    }
 }
