@@ -250,17 +250,25 @@ namespace FireboltDotNetSdk.Tests
 
         private void ExecuteTest(string connString, string commandText, object expectedValue, Type expectedType)
         {
-            using var conn = new FireboltConnection(connString);
+            var conn = new FireboltConnection(connString);
             conn.Open();
+            DbDataReader reader = ExecuteTest(conn, commandText, expectedValue, null); //TODO: improve type discovery and send expectedType here
+            Assert.That(reader.Read(), Is.EqualTo(false));
+            conn.Close();
+        }
+        private DbDataReader ExecuteTest(DbConnection conn, string commandText, object expectedValue, Type? expectedType)
+        {
             DbCommand command = conn.CreateCommand();
             command.CommandText = commandText;
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
             Assert.That(reader.Read(), Is.EqualTo(true));
             Assert.That(reader.GetValue(0), Is.EqualTo(expectedValue));
-            //Assert.That(reader.GetFieldType(0), Is.EqualTo(expectedType)); //TODO: improve type discovery and uncomment this line
-            Assert.That(reader.Read(), Is.EqualTo(false));
-            conn.Close();
+            if (expectedType != null)
+            {
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(expectedType));
+            }
+            return reader;
         }
 
         [Test]
@@ -279,9 +287,26 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void SetEngine()
+        public void Select1()
         {
             ExecuteTest(USER_CONNECTION_STRING, "SELECT 1", 1, typeof(int));
+        }
+
+        [TestCase("SELECT 1/0", double.PositiveInfinity, float.PositiveInfinity)]
+        [TestCase("SELECT 1/0  as int16", double.PositiveInfinity, float.PositiveInfinity)]
+        [TestCase("SELECT -1/0", double.NegativeInfinity, float.NegativeInfinity)]
+        public void SelectInfinity(string query, double doubleExpected, float floatExpected)
+        {
+            var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+            DbDataReader reader = ExecuteTest(conn, query, doubleExpected, typeof(double));
+            Assert.That(reader.GetDouble(0), Is.EqualTo(doubleExpected));
+            Assert.That(reader.GetFloat(0), Is.EqualTo(floatExpected));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
+            Assert.That(reader.Read(), Is.EqualTo(false));
+            conn.Close();
         }
     }
 }

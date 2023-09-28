@@ -78,13 +78,15 @@ namespace FireboltDotNetSdk.Tests
         public void GetOriginalJsonDataTest()
         {
             string response =
-            "{\"query\":{\"query_id\": \"16FDB86662938757\"},\"meta\":[{\"name\": \"uint8\",\"type\": \"int\"}],\"data\":[[1]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.000620069,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000409657,\"time_to_execute\": 0.000208377,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
+            "{\"query\":{\"query_id\": \"16FDB86662938757\"},\"meta\":[{\"name\": \"uint8\",\"type\": \"int\"}, {\"name\": \"dinf\",\"type\": \"double\"}],\"data\":[[1, \"inf\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.000620069,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000409657,\"time_to_execute\": 0.000208377,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
 
             var cs = createCommand("select 1", response);
             DbDataReader reader = cs.ExecuteReader();
             Assert.True(reader.Read());
             Assert.That(reader.GetInt16(0), Is.EqualTo(1));
             Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+            Assert.That(reader.GetDouble(1), Is.EqualTo(double.PositiveInfinity));
+            Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(double)));
             Assert.False(reader.Read());
         }
 

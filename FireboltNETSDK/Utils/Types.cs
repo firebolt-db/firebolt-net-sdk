@@ -13,6 +13,7 @@ using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NodaTime.Text;
+using Windows.UI.Xaml;
 
 namespace FireboltDoNetSdk.Utils
 {
@@ -27,6 +28,22 @@ namespace FireboltDoNetSdk.Utils
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
         private const string ByteAPrefix = "\\x";
+        internal static IDictionary<string, double> doubleInfinity = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "inf", double.PositiveInfinity },
+            { "+inf", double.PositiveInfinity },
+            { "-inf", double.NegativeInfinity },
+        };
+        internal static IDictionary<string, float> floatInfinity = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "inf", float.PositiveInfinity },
+            { "+inf", float.PositiveInfinity },
+            { "-inf", float.NegativeInfinity },
+        };
+        internal static ISet<object> infinityValues = new HashSet<object>()
+        {
+            double.PositiveInfinity, double.NegativeInfinity, float.PositiveInfinity, float.NegativeInfinity
+        };
 
         public static object? ConvertToCSharpVal(string? val, ColumnType columnType)
         {
@@ -46,6 +63,7 @@ namespace FireboltDoNetSdk.Utils
         {
             try
             {
+                string str = srcVal.ToString();
                 switch (columnType.Type)
                 {
                     case FireboltDataType.Long:
@@ -66,13 +84,13 @@ namespace FireboltDoNetSdk.Utils
                         int s = FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
                         return checked((short)s);
                     case FireboltDataType.Double:
-                        return Convert.ToDouble(srcVal.ToString(), CultureInfo.InvariantCulture);
+                        return doubleInfinity.ContainsKey(str) ? doubleInfinity[str] : Convert.ToDouble(str, CultureInfo.InvariantCulture);
                     case FireboltDataType.Float:
-                        return Convert.ToSingle(srcVal.ToString(), CultureInfo.InvariantCulture);
+                        return floatInfinity.ContainsKey(str) ? floatInfinity[str] : Convert.ToSingle(str, CultureInfo.InvariantCulture);
                     case FireboltDataType.Boolean:
-                        return bool.Parse(srcVal.ToString());
+                        return bool.Parse(str);
                     case FireboltDataType.Array:
-                        return ArrayHelper.TransformToSqlArray(srcVal.ToString(), columnType);
+                        return ArrayHelper.TransformToSqlArray(str, columnType);
                     case FireboltDataType.ByteA:
                         return ConvertHexStringToByteArray(str);
                     case FireboltDataType.Null:
@@ -367,6 +385,11 @@ namespace FireboltDoNetSdk.Utils
                     ));
                 }
             return newListData;
+        }
+
+        public static bool isInfinity(object value)
+        {
+            return infinityValues.Contains(value);
         }
     }
 }
