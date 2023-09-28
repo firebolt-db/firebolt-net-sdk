@@ -18,14 +18,10 @@
 using System.Collections;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics.CodeAnalysis;
-using System.Net.Mime;
 using System.Text.RegularExpressions;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -272,7 +268,7 @@ namespace FireboltDotNetSdk.Client
 
         public override short GetInt16(int ordinal)
         {
-            object value = GetValue(ordinal);
+            object value = ThrowIfInfinity(GetValue(ordinal), typeof(short));
             switch (value)
             {
                 case float f: return (short)f;
@@ -289,7 +285,7 @@ namespace FireboltDotNetSdk.Client
 
         public override int GetInt32(int ordinal)
         {
-            object value = GetValue(ordinal);
+            object value = ThrowIfInfinity(GetValue(ordinal), typeof(int));
             switch (value)
             {
                 case float f: return (int)f;
@@ -305,7 +301,7 @@ namespace FireboltDotNetSdk.Client
         }
         public override long GetInt64(int ordinal)
         {
-            object value = GetValue(ordinal);
+            object value = ThrowIfInfinity(GetValue(ordinal), typeof(long));
             switch (value)
             {
                 case float f: return (long)f;
@@ -318,6 +314,15 @@ namespace FireboltDotNetSdk.Client
                 case string s: return long.Parse(s);
                 default: throw new InvalidCastException($"Cannot cast ({value.GetType()}){value} to long");
             }
+        }
+
+        private static object ThrowIfInfinity(object value, Type type)
+        {
+            if (TypesConverter.isInfinity(value))
+            {
+                throw new InvalidCastException($"Cannot convert {value} to {type.Name}");
+            }
+            return value;
         }
 
         public override string GetName(int ordinal)

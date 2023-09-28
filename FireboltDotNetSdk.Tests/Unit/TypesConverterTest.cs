@@ -35,11 +35,31 @@ public class TypesConverterTest
     [TestCase("timestamptz", null, null)]
     [TestCase("pgdate", null, null)]
     [TestCase("date_ext", null, null)]
-    public void ConvertProvidedValues(String columnTypeName, string value, object expectedValue)
+    [TestCase("float", "inf", float.PositiveInfinity)]
+    [TestCase("float", "+inf", float.PositiveInfinity)]
+    [TestCase("float", "-inf", float.NegativeInfinity)]
+    [TestCase("double", "inf", double.PositiveInfinity)]
+    [TestCase("double", "+inf", double.PositiveInfinity)]
+    [TestCase("double", "-inf", double.NegativeInfinity)]
+    public void ConvertProvidedValues(string columnTypeName, string value, object expectedValue)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
         object? result = TypesConverter.ConvertToCSharpVal(value, columnType);
         Assert.That(expectedValue, Is.EqualTo(result));
+    }
+
+    [TestCase("int", "+inf")]
+    [TestCase("int", "-inf")]
+    [TestCase("int", "inf")]
+    [TestCase("long", "+inf")]
+    [TestCase("long", "-inf")]
+    [TestCase("long", "inf")]
+    public void FailingConvertProvidedValues(string columnTypeName, string value)
+    {
+        ColumnType columnType = ColumnType.Of(columnTypeName);
+        FireboltException e = Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
+        string visualTypeName = char.ToUpper(columnTypeName[0]) + columnTypeName.Substring(1);
+        Assert.That(e.Message, Is.EqualTo($"Error converting {value} to {visualTypeName}"));
     }
 
     [Test]
