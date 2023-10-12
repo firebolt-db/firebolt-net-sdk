@@ -143,7 +143,7 @@ public class FireboltClient
     {
         if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(query))
             throw new FireboltException(
-                $"Some parameters are null or empty: engineEndpoint: {engineEndpoint}, databaseName: {databaseName} or query: {query}");
+                $"Some parameters are null or empty: engineEndpoint: {engineEndpoint} or query: {query}");
 
         var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
         var urlBuilder = new UriBuilder(engineEndpoint)
