@@ -36,13 +36,21 @@ namespace FireboltDotNetSdk.Client
 
         private const string engineStatusRunning = "Running";
 
-        public FireboltClient? Client { get; internal set; }
+        public FireboltClient Client
+        {
+            get
+            {
+                return _fireboltClient!;
+            }
+            internal set => _fireboltClient = value;
+        }
         public string? EngineUrl { get; internal set; }
         private string? _accountId = null;
         private bool _isSystem = true;
         private string _database;
         private string _connectionString;
         private string? _serverVersion;
+        private FireboltClient? _fireboltClient;
         public readonly HashSet<string> SetParamList = new();
 
         /// <summary>
@@ -170,7 +178,7 @@ namespace FireboltDotNetSdk.Client
         /// Initializes a new instance of <see cref="FireboltConnection"/> with the settings.
         /// </summary>
         /// <param name="stringBuilder">The connection string builder which will be used for building the connection settings.</param>
-        public FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
+        private FireboltConnection(FireboltConnectionStringBuilder stringBuilder)
         {
             if (stringBuilder == null)
                 throw new ArgumentNullException(nameof(stringBuilder));
@@ -241,7 +249,10 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
         public override async Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
-            Client = new FireboltClient(ClientId, ClientSecret, Endpoint, Env, HttpClientSingleton.GetInstance());
+            if (_fireboltClient == null)
+            {
+                _fireboltClient = new FireboltClient(ClientId, ClientSecret, Endpoint, Env, HttpClientSingleton.GetInstance());
+            }
             await Client.EstablishConnection();
             // Connecting to system engine by default
             var result = await Client.GetSystemEngineUrl(Account);
@@ -258,7 +269,7 @@ namespace FireboltDotNetSdk.Client
                 var database = GetEngineDatabase(EngineName);
                 if (database == null)
                 {
-                    throw new FireboltException($"Engine {EngineName} is attached to a dabase current user can not access");
+                    throw new FireboltException($"Engine {EngineName} is attached to a database current user can not access");
                 }
                 EngineUrl = GetEngineUrlByEngineNameAndDb(EngineName, database);
                 _database = database;
@@ -345,7 +356,7 @@ namespace FireboltDotNetSdk.Client
             }
             if (reader.Read())
             {
-                throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database ${database}");
+                throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database {database}");
             }
             return reader.GetString(0);
         }
@@ -367,7 +378,7 @@ namespace FireboltDotNetSdk.Client
         public override void Close()
         {
             _connectionState.State = ConnectionState.Closed;
-            Client = null;
+            _fireboltClient = null;
             _isSystem = true;
         }
 

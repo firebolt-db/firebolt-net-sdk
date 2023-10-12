@@ -20,7 +20,7 @@ namespace FireboltDotNetSdk.Tests
                     .GetAwaiter().GetResult());
 
             Assert.NotNull(exception);
-            Assert.That(exception!.Message, Is.EqualTo("Some parameters are null or empty: engineEndpoint: , databaseName: databaseName or query: commandText"));
+            Assert.That(exception!.Message, Is.EqualTo("Some parameters are null or empty: engineEndpoint:  or query: commandText"));
         }
 
         [Test]
@@ -122,7 +122,52 @@ namespace FireboltDotNetSdk.Tests
             Assert.IsTrue(exception!.Message.Contains("The operation is unauthorized"));
         }
 
-        private static HttpResponseMessage GetResponseMessage(Object responseObject, HttpStatusCode httpStatusCode)
+        [Test]
+        public void SuccessfulLoginWithCachedToken()
+        {
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, httpClientMock.Object);
+            FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
+            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK));
+            string token1 = client.EstablishConnection().GetAwaiter().GetResult();
+            Assert.That(token1, Is.EqualTo("access_token"));
+            string token2 = client.EstablishConnection().GetAwaiter().GetResult(); // next time the token is taken from cache
+            Assert.That(token2, Is.EqualTo("access_token"));
+            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
+        }
+
+        [Test]
+        public void SuccessfulLoginWhenOldTokenIsExpired()
+        {
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, httpClientMock.Object);
+            FireResponse.LoginResponse loginResponse1 = new FireResponse.LoginResponse("access_token1", "0", "Bearer");
+            FireResponse.LoginResponse loginResponse2 = new FireResponse.LoginResponse("access_token2", "3600", "Bearer");
+            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GetResponseMessage(loginResponse1, HttpStatusCode.OK))
+            .ReturnsAsync(GetResponseMessage(loginResponse2, HttpStatusCode.OK));
+            string token1 = client.EstablishConnection().GetAwaiter().GetResult();
+            Assert.That(token1, Is.EqualTo("access_token1"));
+            Task.Delay(new TimeSpan(0, 0, 2)).GetAwaiter().GetResult(); // wait 1 seccond; the first token should be expired within 1 millisecond
+            string token2 = client.EstablishConnection().GetAwaiter().GetResult(); // retrieve access token again because the first one is expired
+            Assert.That(token2, Is.EqualTo("access_token2"));
+            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public void NotAuthorizedLogin()
+        {
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, httpClientMock.Object);
+            string errorMessage = "login failed";
+            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(GetResponseMessage(errorMessage, HttpStatusCode.Unauthorized));
+            string actualErrorMessage = Assert.ThrowsAsync<FireboltException>(() => client.EstablishConnection()).Message;
+            Assert.IsTrue(actualErrorMessage.Contains("The operation is unauthorized"));
+            Assert.IsTrue(actualErrorMessage.Contains(errorMessage));
+            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
+        }
+
+        internal static HttpResponseMessage GetResponseMessage(Object responseObject, HttpStatusCode httpStatusCode)
         {
             HttpResponseMessage response = GetResponseMessage(httpStatusCode);
             if (responseObject is string)
