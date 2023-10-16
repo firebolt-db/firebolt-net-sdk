@@ -256,6 +256,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
         }
+
         private DbDataReader ExecuteTest(DbConnection conn, string commandText, object expectedValue, Type? expectedType)
         {
             DbCommand command = conn.CreateCommand();
@@ -290,6 +291,30 @@ namespace FireboltDotNetSdk.Tests
         public void Select1()
         {
             ExecuteTest(USER_CONNECTION_STRING, "SELECT 1", 1, typeof(int));
+        }
+
+        [Test]
+        public void WrongQuerySystemEngine()
+        {
+            WrongQuery(SYSTEM_CONNECTION_STRING);
+        }
+
+        [Test]
+        public void WrongQueryUserEngine()
+        {
+            WrongQuery(USER_CONNECTION_STRING);
+        }
+
+        private void WrongQuery(string connString)
+        {
+            using (var conn = new FireboltConnection(connString))
+            {
+                conn.Open();
+                DbCommand command = conn.CreateCommand();
+                command.CommandText = "wrong query";
+                Assert.Throws<FireboltException>(() => command.ExecuteReader());
+                Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
+            }
         }
 
         [TestCase("SELECT 1/0", double.PositiveInfinity, float.PositiveInfinity)]
