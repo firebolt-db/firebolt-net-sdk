@@ -157,7 +157,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void SetConnectionStringFirstWrongThenGood()
+        public void SetEngineUsingConnectionStringFirstWrongThenGood()
         {
             var connString1 = $"clientid=ClientId;clientsecret=ClientSecret;account=Account;env=Env;database=Database;engine=EngineName";
             var connString2 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
@@ -165,7 +165,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void SetConnectionStringFirstGoodThenWrong()
+        public void SetEngineUsingConnectionStringFirstGoodThenWrong()
         {
             var connString1 = $"clientid={ClientId};clientsecret={ClientSecret};account={Account};env={Env};database={Database};engine={EngineName}";
             var connString2 = $"clientid=ClientId;clientsecret=ClientSecret;account=Account;env=Env;database=Database;engine=EngineName";

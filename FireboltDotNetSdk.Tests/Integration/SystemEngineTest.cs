@@ -101,16 +101,19 @@ namespace FireboltDotNetSdk.Tests
             var command = Connection.CreateCommand();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
 
             CreateCommand($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, "-");
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
 
             CreateCommand($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
         }
+
         private void VerifyEngineSpec(DbCommand command, string engineName, string spec)
         {
             command.CommandText = "SHOW ENGINES";
@@ -124,6 +127,18 @@ namespace FireboltDotNetSdk.Tests
                 Has.Exactly(1).EqualTo(new object[] { newEngineName, spec }),
                 $"Engine {engineName} should have {spec} spec in SHOW ENGINES"
             );
+        }
+
+        private void ConnectAndRunQuery()
+        {
+            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env};engine={newEngineName};database={newDatabaseName}";
+            using (var userConnection = new FireboltConnection(connString))
+            {
+                userConnection.Open();
+                DbCommand command = userConnection.CreateCommand();
+                command.CommandText = "SELECT 1";
+                command.ExecuteReader();
+            }
         }
 
         [Test]
@@ -160,14 +175,15 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = Connection.CreateCommand();
 
             VerifyEngineStatus(command, newEngineName, "Stopped");
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
 
             CreateCommand($"START ENGINE {newEngineName}").ExecuteNonQuery();
-
             VerifyEngineStatus(command, newEngineName, "Running");
+            ConnectAndRunQuery();
 
             CreateCommand($"STOP ENGINE {newEngineName}").ExecuteNonQuery();
-
             VerifyEngineStatus(command, newEngineName, "Stopped");
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
 
             CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
         }
