@@ -225,7 +225,7 @@ namespace FireboltDotNetSdk.Client
         //[EditorBrowsable(EditorBrowsableState.Never)]
         public override IEnumerator GetEnumerator()
         {
-            return new List<IDataRecord>().GetEnumerator();
+            return new DbEnumerator(this);
         }
 
         public override Type GetFieldType(int ordinal)
@@ -453,6 +453,7 @@ namespace FireboltDotNetSdk.Client
         {
             Dispose();
         }
+
         protected override DbDataReader GetDbDataReader(int ordinal)
         {
             QueryResult queryResult = new QueryResult
