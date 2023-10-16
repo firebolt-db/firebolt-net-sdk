@@ -29,6 +29,22 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void EmptyEnumerator()
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 0,
+                Meta = new List<Meta>(),
+                Data = new()
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            IEnumerator enumerator = reader.GetEnumerator();
+            Assert.False(enumerator.MoveNext());
+            reader.Close();
+        }
+
+        [Test]
         public void Close()
         {
             DbDataReader reader = new FireboltDataReader(null, new QueryResult { Rows = 0, Data = new() });
@@ -77,6 +93,28 @@ namespace FireboltDotNetSdk.Tests
             Assert.Throws<IndexOutOfRangeException>(() => reader.GetValue(-1));
             Assert.Throws<IndexOutOfRangeException>(() => reader.GetValue(2));
             Assert.That(reader.Read(), Is.EqualTo(false));
+        }
+
+        [Test]
+        public void OneRowEnumerator()
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>() { new Meta() { Name = "number", Type = "int" }, new Meta() { Name = "name", Type = "text" } },
+                Data = new List<List<object?>>() { new List<object?>() { 1, "one" } }
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            IEnumerator enumerator = reader.GetEnumerator();
+            Assert.True(enumerator.MoveNext());
+            object row = enumerator.Current;
+            Assert.NotNull(row);
+            DbDataRecord record = (DbDataRecord)row;
+            Assert.That(record.GetInt32(0), Is.EqualTo(1));
+            Assert.That(record.GetString(1), Is.EqualTo("one"));
+            Assert.False(enumerator.MoveNext());
+            reader.Close();
         }
 
         [Test]
