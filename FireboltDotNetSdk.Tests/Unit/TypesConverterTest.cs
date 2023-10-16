@@ -3,6 +3,7 @@ using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
+using NodaTime.Text;
 
 namespace FireboltDotNetSdk.Tests;
 
@@ -57,9 +58,9 @@ public class TypesConverterTest
     public void FailingConvertProvidedValues(string columnTypeName, string value)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
-        FireboltException e = Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
+        FormatException e = Assert.Throws<FormatException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
         string visualTypeName = char.ToUpper(columnTypeName[0]) + columnTypeName.Substring(1);
-        Assert.That(e.Message, Is.EqualTo($"Error converting {value} to {visualTypeName}"));
+        Assert.That(e.Message, Is.EqualTo($"Input string was not in a correct format."));
     }
 
     [Test]
@@ -116,7 +117,7 @@ public class TypesConverterTest
     {
         ColumnType columnType = ColumnType.Of(type);
         var value = "something that is not date";
-        Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
+        Assert.Throws<UnparsableValueException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
     }
 
     [Test]
@@ -124,11 +125,9 @@ public class TypesConverterTest
     {
         ColumnType columnType = ColumnType.Of("integer");
         var value = "hello";
-        FireboltException? exception = Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
+        FormatException? exception = Assert.Throws<FormatException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
         Assert.NotNull(exception);
-        Assert.That(exception!.Message, Is.EqualTo("Error converting hello to Int"));
-        Assert.NotNull(exception?.InnerException);
-        Assert.That(exception!.InnerException!.GetType(), Is.EqualTo(typeof(FormatException)));
+        Assert.That(exception!.Message, Is.EqualTo("Input string was not in a correct format."));
     }
 
     [TestCase(null, "JSON data is missing", "JSON data is missing")]
@@ -178,7 +177,7 @@ public class TypesConverterTest
         ColumnType columnType = ColumnType.Of("ByteA");
         //invalid because a valid hex string contains an even number of digits;
         var invalidHexString = "\\x686";
-        Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal(invalidHexString, columnType));
+        Assert.Throws<FormatException>(() => TypesConverter.ConvertToCSharpVal(invalidHexString, columnType));
     }
 
     [Test]

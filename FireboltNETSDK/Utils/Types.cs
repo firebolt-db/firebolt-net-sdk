@@ -13,7 +13,6 @@ using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NodaTime.Text;
-using Windows.UI.Xaml;
 
 namespace FireboltDoNetSdk.Utils
 {
@@ -51,221 +50,40 @@ namespace FireboltDoNetSdk.Utils
             {
                 return null;
             }
-            // Create an UTF8Buffer with an offset to get better testing
-            var b1 = Encoding.UTF8.GetBytes(val);
-            var b2 = new byte[b1.Length + 100];
-            Array.Copy(b1, 0, b2, 100, b1.Length);
-            var v = new Utf8Buffer(b2, 100, b1.Length);
-            return ToCSharpValues(v, columnType);
-        }
-
-        private static object ToCSharpValues(Utf8Buffer srcVal, ColumnType columnType)
-        {
-            try
+            string str = val;
+            switch (columnType.Type)
             {
-                string str = srcVal.ToString();
-                switch (columnType.Type)
-                {
-                    case FireboltDataType.Long:
-                        return FastParseInt64(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case FireboltDataType.Int:
-                        return FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case FireboltDataType.Decimal:
-                        return FastParseDecimal(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                    case FireboltDataType.String:
-                        return srcVal.ToString();
-                    case FireboltDataType.DateTime:
-                    case FireboltDataType.TimestampTz:
-                    case FireboltDataType.TimestampNtz:
-                        return ConvertToDateTime(srcVal, FireboltDataType.DateTime);
-                    case FireboltDataType.Date:
-                        return ConvertToDate(srcVal, FireboltDataType.Date);
-                    case FireboltDataType.Short:
-                        int s = FastParseInt32(srcVal.Buffer, srcVal.Offset, srcVal.Length);
-                        return checked((short)s);
-                    case FireboltDataType.Double:
-                        return doubleInfinity.ContainsKey(str) ? doubleInfinity[str] : Convert.ToDouble(str, CultureInfo.InvariantCulture);
-                    case FireboltDataType.Float:
-                        return floatInfinity.ContainsKey(str) ? floatInfinity[str] : Convert.ToSingle(str, CultureInfo.InvariantCulture);
-                    case FireboltDataType.Boolean:
-                        return bool.Parse(str);
-                    case FireboltDataType.Array:
-                        return ArrayHelper.TransformToSqlArray(str, columnType);
-                    case FireboltDataType.ByteA:
-                        return ConvertHexStringToByteArray(str);
-                    case FireboltDataType.Null:
-                        throw new FireboltException("Not null value in null type");
-                    default:
-                        throw new FireboltException("Invalid destination type: " + columnType.Type);
-                }
+                case FireboltDataType.Long:
+                    return Convert.ToInt64(str);
+                case FireboltDataType.Int:
+                    return Convert.ToInt32(str);
+                case FireboltDataType.Decimal:
+                    return Convert.ToDecimal(str);
+                case FireboltDataType.String:
+                    return str;
+                case FireboltDataType.DateTime:
+                case FireboltDataType.TimestampTz:
+                case FireboltDataType.TimestampNtz:
+                    return ParseDateTime(str);
+                case FireboltDataType.Date:
+                    return DateOnly.FromDateTime(ParseDateTime(str));
+                case FireboltDataType.Short:
+                    return Convert.ToInt16(str);
+                case FireboltDataType.Double:
+                    return doubleInfinity.ContainsKey(str) ? doubleInfinity[str] : Convert.ToDouble(str, CultureInfo.InvariantCulture);
+                case FireboltDataType.Float:
+                    return floatInfinity.ContainsKey(str) ? floatInfinity[str] : Convert.ToSingle(str, CultureInfo.InvariantCulture);
+                case FireboltDataType.Boolean:
+                    return bool.Parse(str);
+                case FireboltDataType.Array:
+                    return ArrayHelper.TransformToSqlArray(str, columnType);
+                case FireboltDataType.ByteA:
+                    return Convert.FromHexString(str.Remove(0, 2));
+                case FireboltDataType.Null:
+                    throw new FireboltException("Not null value in null type");
+                default:
+                    throw new FireboltException("Invalid destination type: " + columnType.Type);
             }
-            catch (Exception exception)
-            {
-                throw new FireboltException($"Error converting {srcVal} to {columnType.Type}", exception);
-            }
-        }
-
-        private static decimal FastParseDecimal(byte[] s, int offset, int len)
-        {
-            // Find any decimal point
-            // Parse integer part and decimal part as 64-bit numbers
-            // Calculate decimal number to return
-            var decimalPos = Array.IndexOf(s, (byte)'.', offset, len);
-
-            // No decimal point found, just parse as integer
-            if (decimalPos < 0)
-            {
-                // If len > 19 (the number of digits in int64.MaxValue), the value is likely bigger
-                // than max int64. Potentially, if it is a negative number it could be ok, but it 
-                // is better to not to find out during the call to FastParseInt64.
-                // Fallback to regular decimal constructor from string instead.
-                if (len > 19)
-                    return decimal.Parse(Utf8Buffer.Utf8.GetString(s, offset, len));
-
-                try
-                {
-                    long i1 = FastParseInt64(s, offset, len);
-                    return i1;
-                }
-                catch (OverflowException)
-                {
-                    // Fallback to regular decimal constructor from string instead.
-                    return decimal.Parse(Utf8Buffer.Utf8.GetString(s, offset, len));
-                }
-            }
-            else
-            {
-                decimalPos -= offset;
-                var decimalLen = len - decimalPos - 1;
-                long intPart;
-                long decimalPart;
-                try
-                {
-                    intPart = FastParseInt64(s, offset, decimalPos);
-                    decimalPart = FastParseInt64(s, offset + decimalPos + 1, decimalLen);
-
-                    var isMinus = false;
-                    if (decimalPart < 0)
-                        throw new FormatException();
-                    switch (intPart)
-                    {
-                        case < 0:
-                            {
-                                isMinus = true;
-                                intPart = -intPart;
-                                if (intPart < 0)
-                                    throw new OverflowException();
-                                break;
-                            }
-                        case 0:
-                            {
-                                // Sign is stripped from the Int64 for value of "-0"
-                                if (s[offset] == '-')
-                                {
-                                    isMinus = true;
-                                }
-
-                                break;
-                            }
-                    }
-                    var d1 = new decimal(intPart);
-                    var d2 = new decimal((int)(decimalPart & 0xffffffff), (int)((decimalPart >> 32) & 0xffffffff), 0, false, (byte)decimalLen);
-                    var result = d1 + d2;
-                    if (isMinus)
-                        result = -result;
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    if (ex is OverflowException ||
-                        ex is ArgumentOutOfRangeException)
-                    {
-                        // Fallback to regular decimal constructor from string instead.
-                        return decimal.Parse(Utf8Buffer.Utf8.GetString(s, offset, len));
-                    }
-                    throw;
-                }
-            }
-        }
-
-        private static Int64 FastParseInt64(byte[] s, int offset, int len)
-        {
-            long result = 0;
-            var i = offset;
-            var isMinus = false;
-            if (len > 0 && s[i] == '-')
-            {
-                isMinus = true;
-                i++;
-            }
-            var end = len + offset;
-            for (; i < end; i++)
-            {
-                if ((ulong)result > (0x7fffffffffffffff / 10))
-                    throw new OverflowException();
-                var c = s[i] - '0';
-                if (c < 0 || c > 9)
-                    throw new FormatException();
-                result = result * 10 + c;
-            }
-            if (isMinus)
-            {
-                result = -result;
-                if (result > 0)
-                    throw new OverflowException();
-            }
-            else
-            {
-                if (result < 0)
-                    throw new OverflowException();
-            }
-            return result;
-        }
-
-        private static int FastParseInt32(byte[] s, int offset, int len)
-        {
-            var result = 0;
-            var i = offset;
-            var isMinus = false;
-            if (len > 0 && s[i] == '-')
-            {
-                isMinus = true;
-                i++;
-            }
-            var end = len + offset;
-            for (; i < end; i++)
-            {
-                if ((uint)result > (0x7fffffff / 10))
-                    throw new OverflowException();
-                var c = s[i] - '0';
-                if (c is < 0 or > 9)
-                    throw new FormatException();
-                result = result * 10 + c;
-            }
-            if (isMinus)
-            {
-                result = -result;
-                if (result > 0)
-                    throw new OverflowException();
-            }
-            else
-            {
-                if (result < 0)
-                    throw new OverflowException();
-            }
-            return result;
-        }
-
-        private static DateTime ConvertToDateTime(Utf8Buffer srcVal, FireboltDataType srcType)
-        {
-            if (srcType != FireboltDataType.DateTime
-                && srcType != FireboltDataType.TimestampNtz
-                && srcType != FireboltDataType.TimestampTz
-               )
-            {
-                throw new FireboltException("Cannot convert to DateTime object - wrong timestamp type: " + srcType);
-            }
-            return ParseDateTime(srcVal.ToString());
         }
 
         public static DateTime ParseDateTime(string str)
@@ -286,27 +104,6 @@ namespace FireboltDoNetSdk.Utils
                 var pattern = OffsetDateTimePattern.CreateWithInvariantCulture("yyyy-MM-dd HH:mm:ss.FFFFFFo<+HH:mm:ss>");
                 return pattern.Parse(str).Value.InFixedZone().ToDateTimeUtc().ToLocalTime();
             }
-        }
-
-
-        private static DateOnly ConvertToDate(Utf8Buffer srcVal, FireboltDataType srcType)
-        {
-            if (srcType != FireboltDataType.Date)
-            {
-                throw new FireboltException("Cannot convert to DateOnly object - wrong date type: " + srcType);
-            }
-            return DateOnly.FromDateTime(ConvertToDateTime(srcVal, FireboltDataType.DateTime));
-        }
-
-        private static byte[] ConvertHexStringToByteArray(string hexString)
-        {
-            if (!hexString.StartsWith(ByteAPrefix))
-            {
-                throw new FireboltException($"The hexadecimal string must start with {ByteAPrefix}: {hexString}");
-
-            }
-            hexString = hexString.Remove(0, 2);
-            return Convert.FromHexString(hexString);
         }
 
         public static FireboltDataType MapColumnTypeToFireboltDataType(string columnType)
@@ -370,7 +167,6 @@ namespace FireboltDoNetSdk.Utils
             }
         }
 
-
         private static IEnumerable<NewMeta> ProcessQueryResult(QueryResult result)
         {
             var newListData = new List<NewMeta>();
@@ -405,26 +201,6 @@ public class NewMeta
     }
     public ArrayList Data { get; set; }
     public string Meta { get; set; }
-}
-
-public class Utf8Buffer
-{
-    // Cache for maximum performance
-    public static readonly Encoding Utf8 = Encoding.UTF8;
-
-    public readonly byte[] Buffer;
-    public readonly int Offset;
-    public readonly int Length;
-
-    public Utf8Buffer(byte[] buffer, int offset, int length)
-    {
-        this.Buffer = buffer;
-        this.Offset = offset;
-        this.Length = length;
-    }
-
-    public override string ToString() => Utf8.GetString(Buffer, Offset, Length);
-
 }
 
 /// <summary>
