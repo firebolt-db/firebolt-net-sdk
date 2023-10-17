@@ -18,6 +18,7 @@
 using System.Collections;
 using System.Data;
 using System.Data.Common;
+using System.Text;
 using System.Text.RegularExpressions;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
@@ -135,7 +136,7 @@ namespace FireboltDotNetSdk.Client
 
         public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
         {
-            return GetBuffer<byte>(ordinal, dataOffset, buffer, bufferOffset, length);
+            return GetBuffer(Encoding.UTF8.GetBytes(GetString(ordinal)), dataOffset, buffer, bufferOffset, length);
         }
 
         public override char GetChar(int ordinal)
@@ -157,18 +158,18 @@ namespace FireboltDotNetSdk.Client
 
         public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
         {
-            return GetBuffer<char>(ordinal, dataOffset, buffer, bufferOffset, length);
+            return GetBuffer(GetString(ordinal).ToCharArray(), dataOffset, buffer, bufferOffset, length);
         }
 
-        private long GetBuffer<T>(int ordinal, long dataOffset, T[]? buffer, int bufferOffset, int length)
+        private long GetBuffer<T>(T[] source, long dataOffset, T[]? buffer, int bufferOffset, int length)
         {
             if (buffer == null)
             {
                 return 0;
             }
-            string str = GetString(ordinal);
-            System.Buffer.BlockCopy(str.ToCharArray(), (int)dataOffset, buffer, bufferOffset, length);
-            return Math.Min(length, str.Length - (int)dataOffset);
+            int limit = Math.Min(length - (int)dataOffset + 1, buffer.Length);
+            Array.Copy(source, dataOffset, buffer, bufferOffset, limit);
+            return limit;
         }
 
         public override string GetDataTypeName(int ordinal)
@@ -347,10 +348,7 @@ namespace FireboltDotNetSdk.Client
 
         public override Stream GetStream(int ordinal)
         {
-            string str = GetString(ordinal);
-            byte[] bytes = new byte[str.Length * sizeof(char)];
-            System.Buffer.BlockCopy(str.ToCharArray(), 0, bytes, 0, bytes.Length);
-            return new MemoryStream(bytes);
+            return new MemoryStream(System.Text.Encoding.UTF8.GetBytes(GetString(ordinal)));
         }
 
         public override string GetString(int ordinal)

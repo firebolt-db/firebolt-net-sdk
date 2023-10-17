@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Collections;
 using System.Data;
+using System.Text;
 using FireboltDotNetSdk.Utils;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
@@ -154,10 +155,11 @@ namespace FireboltDotNetSdk.Tests
                     new Meta() { Name = "flag", Type = "boolean" },
                     new Meta() { Name = "real_number", Type = "text" },
                     new Meta() { Name = "int_number", Type = "text" },
+                    new Meta() { Name = "bool_string", Type = "text" },
                 },
                 Data = new List<List<object?>>()
                 {
-                    new List<object?>() { byteValue, shortValue, intValue, longValue, floatValue, 3.1415926, true, "2.71828", "123" }
+                    new List<object?>() { byteValue, shortValue, intValue, longValue, floatValue, 3.1415926, true, "2.71828", "123", "true" }
                 }
             };
 
@@ -173,6 +175,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetDouble(0), Is.EqualTo(byteValue));
             Assert.That(reader.GetDecimal(0), Is.EqualTo(byteValue));
             Assert.That(reader.GetBoolean(0), Is.EqualTo(true));
+            Assert.That(reader.GetChar(0), Is.EqualTo(Convert.ToChar(byteValue)));
 
             Assert.That(reader.GetByte(1), !Is.EqualTo(shortValue)); // shrunk
             Assert.That(reader.GetInt16(1), Is.EqualTo(shortValue));
@@ -182,6 +185,8 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetDouble(1), Is.EqualTo(shortValue));
             Assert.That(reader.GetDecimal(1), Is.EqualTo(shortValue));
             Assert.That(reader.GetBoolean(1), Is.EqualTo(true));
+            Assert.That(reader.GetChar(1), Is.EqualTo(Convert.ToChar(shortValue)));
+
 
             Assert.That(reader.GetByte(2), !Is.EqualTo(intValue)); // shrunk
             Assert.That(reader.GetInt16(2), !Is.EqualTo(intValue)); // shrunk
@@ -191,6 +196,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetDouble(2), Is.EqualTo(intValue));
             Assert.That(reader.GetDecimal(2), Is.EqualTo(intValue));
             Assert.That(reader.GetBoolean(2), Is.EqualTo(true));
+            Assert.That(reader.GetChar(2), Is.EqualTo((char)intValue));
 
             Assert.That(reader.GetByte(3), !Is.EqualTo(longValue)); // shrunk
             Assert.That(reader.GetInt16(3), !Is.EqualTo(longValue)); // shrunk
@@ -200,6 +206,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetDouble(3), Is.EqualTo(longValue));
             Assert.That(reader.GetDecimal(3), Is.EqualTo(longValue));
             Assert.That(reader.GetBoolean(3), Is.EqualTo(true));
+            Assert.That(reader.GetChar(3), Is.EqualTo((char)longValue));
 
             Assert.That(reader.GetByte(4), Is.EqualTo(2)); // shrunk
             Assert.That(reader.GetInt16(4), Is.EqualTo(2)); // shrunk
@@ -209,6 +216,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.True(Math.Abs(reader.GetDouble(4) - floatValue) <= 0.001);
             Assert.True(Math.Abs((double)reader.GetDecimal(4) - floatValue) <= 0.001);
             Assert.That(reader.GetBoolean(4), Is.EqualTo(true));
+            Assert.That(reader.GetChar(4), Is.EqualTo(Convert.ToChar((int)floatValue)));
 
             Assert.That(reader.GetByte(5), Is.EqualTo(3)); // shrunk
             Assert.That(reader.GetInt16(5), Is.EqualTo(3)); // shrunk
@@ -218,17 +226,23 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetDouble(5), Is.EqualTo(doubleValue));
             Assert.That(reader.GetDecimal(5), Is.EqualTo(doubleValue));
             Assert.That(reader.GetBoolean(5), Is.EqualTo(true));
+            Assert.That(reader.GetChar(5), Is.EqualTo(Convert.ToChar((int)doubleValue)));
 
             Assert.That(reader.GetBoolean(6), Is.EqualTo(true));
 
             Assert.True(Math.Abs((double)reader.GetFloat(7) - e) <= 0.001);
             Assert.That(reader.GetDouble(7), Is.EqualTo(e));
             Assert.That(reader.GetDecimal(7), Is.EqualTo(e));
+            Assert.Throws<FormatException>(() => reader.GetBoolean(7));
 
             Assert.That(reader.GetByte(8), Is.EqualTo(byteValue));
             Assert.That(reader.GetInt16(8), Is.EqualTo(byteValue));
             Assert.That(reader.GetInt32(8), Is.EqualTo(byteValue));
             Assert.That(reader.GetInt64(8), Is.EqualTo(byteValue));
+            Assert.Throws<FormatException>(() => reader.GetBoolean(8));
+
+            Assert.That(reader.GetBoolean(9), Is.EqualTo(true));
+            Assert.That(reader.GetChar(9), Is.EqualTo('t'));
 
             Assert.That(reader.Read(), Is.EqualTo(false));
 
@@ -289,6 +303,34 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetString(0), Is.EqualTo("6B29FC40-CA47-1067-B31D-00DD010662DA"));
             Assert.That(reader.GetString(1), Is.EqualTo("not guid"));
             Assert.That(reader.GetString(2), Is.EqualTo("123"));
+
+            char[] allChars = new char[3];
+            Assert.That(reader.GetChars(2, 0, allChars, 0, 3), Is.EqualTo("123".ToCharArray().Length));
+            Assert.That(allChars, Is.EqualTo("123".ToCharArray()));
+
+            char[] chars_0_2 = new char[2];
+            Assert.That(reader.GetChars(2, 0, chars_0_2, 0, 2), Is.EqualTo(2));
+            Assert.That(chars_0_2, Is.EqualTo("12".ToCharArray()));
+
+            char[] chars_1_2 = new char[2];
+            Assert.That(reader.GetChars(2, 1, chars_1_2, 0, 2), Is.EqualTo(2));
+            Assert.That(chars_1_2, Is.EqualTo("23".ToCharArray()));
+
+            char[] chars_1_1 = new char[1];
+            Assert.That(reader.GetChars(2, 1, chars_1_1, 0, 1), Is.EqualTo(1));
+            Assert.That(chars_1_1, Is.EqualTo("2".ToCharArray()));
+
+            Stream stream = reader.GetStream(1);
+            StreamReader streamReader = new StreamReader(stream, Encoding.UTF8);
+            Assert.That(streamReader.ReadToEnd(), Is.EqualTo("not guid"));
+
+            Assert.That(reader.GetChars(2, 0, null, 0, 3), Is.EqualTo(0));
+
+            byte[] allBytes = new byte[8];
+            Assert.That(reader.GetBytes(1, 0, allBytes, 0, 8), Is.EqualTo(8));
+            Assert.That(allBytes, Is.EqualTo(Encoding.UTF8.GetBytes("not guid")));
+
+            Assert.That(reader.GetTextReader(1).ReadToEnd(), Is.EqualTo("not guid"));
 
             Assert.That(reader.Read(), Is.EqualTo(false));
         }
@@ -365,7 +407,114 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.Read(), Is.EqualTo(true));
             Assert.That(reader.GetValue(0), Is.EqualTo(DBNull.Value));
             Assert.That(reader.IsDBNull(0), Is.EqualTo(true));
+            Assert.That(reader.IsDBNullAsync(0).Result, Is.EqualTo(true));
+
             Assert.That(reader.Read(), Is.EqualTo(false));
         }
+
+        [Test]
+        public void GetUnsupportedType()
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>()
+                {
+                    new Meta() { Name = "t", Type = "TimestampTz" },
+                    new Meta() { Name = "number", Type = "int" },
+                },
+                Data = new List<List<object?>>()
+                {
+                    new List<object?>() { "2022-05-10 21:01:02+00", 123 }
+                }
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.Throws<InvalidCastException>(() => reader.GetBoolean(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetByte(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetDecimal(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetDouble(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetFloat(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetGuid(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetChar(0));
+
+            Assert.Throws<InvalidCastException>(() => reader.GetDateTime(1));
+        }
+
+        [TestCase(null)]
+        [TestCase("my_table")]
+        public void GetSchemaTable(string? tableName)
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 0,
+                Meta = new List<Meta>(),
+                Data = new List<List<object?>>()
+            };
+
+            DbDataReader reader = new FireboltDataReader(tableName, result);
+
+            DataTable? dataTable = reader.GetSchemaTable();
+            Assert.That(dataTable?.TableName, Is.EqualTo(tableName));
+
+            DataTable? dataTableAsync = reader.GetSchemaTableAsync().Result;
+            Assert.That(dataTableAsync?.TableName, Is.EqualTo(tableName));
+        }
+
+        [Test]
+        public void InfiniteNumberValue()
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>()
+                {
+                    new Meta() { Name = "inf", Type = "double" },
+                    new Meta() { Name = "positive_inf", Type = "double" },
+                    new Meta() { Name = "negative_inf", Type = "double" },
+                },
+                Data = new List<List<object?>>()
+                {
+                    new List<object?>() { "inf", "+inf", "-inf" }
+                }
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.That(reader.GetFloat(0), Is.EqualTo(float.PositiveInfinity));
+            Assert.That(reader.GetFloat(1), Is.EqualTo(float.PositiveInfinity));
+            Assert.That(reader.GetFloat(2), Is.EqualTo(float.NegativeInfinity));
+
+            Assert.That(reader.GetDouble(0), Is.EqualTo(double.PositiveInfinity));
+            Assert.That(reader.GetDouble(1), Is.EqualTo(double.PositiveInfinity));
+            Assert.That(reader.GetDouble(2), Is.EqualTo(double.NegativeInfinity));
+
+            // String representation of infinity may depnd on environment. It looks like ∞ on local environment and Infinity on github.
+            string posInf = float.PositiveInfinity.ToString();
+            string negInf = float.NegativeInfinity.ToString();
+
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int16"));
+
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int16"));
+
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int32"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int32"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int32"));
+
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int64"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int64"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int64"));
+
+            Assert.That(reader.Read(), Is.EqualTo(false));
+        }
+
     }
 }
