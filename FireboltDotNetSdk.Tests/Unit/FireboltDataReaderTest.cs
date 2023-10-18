@@ -388,7 +388,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void NullValue()
+        public async Task NullValue()
         {
             QueryResult result = new QueryResult
             {
@@ -407,7 +407,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.Read(), Is.EqualTo(true));
             Assert.That(reader.GetValue(0), Is.EqualTo(DBNull.Value));
             Assert.That(reader.IsDBNull(0), Is.EqualTo(true));
-            Assert.That(reader.IsDBNullAsync(0).Result, Is.EqualTo(true));
+            Assert.That(await reader.IsDBNullAsync(0), Is.EqualTo(true));
 
             Assert.That(reader.Read(), Is.EqualTo(false));
         }
@@ -447,7 +447,7 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase(null)]
         [TestCase("my_table")]
-        public void GetSchemaTable(string? tableName)
+        public async Task GetSchemaTable(string? tableName)
         {
             QueryResult result = new QueryResult
             {
@@ -461,7 +461,7 @@ namespace FireboltDotNetSdk.Tests
             DataTable? dataTable = reader.GetSchemaTable();
             Assert.That(dataTable?.TableName, Is.EqualTo(tableName));
 
-            DataTable? dataTableAsync = reader.GetSchemaTableAsync().Result;
+            DataTable? dataTableAsync = await reader.GetSchemaTableAsync();
             Assert.That(dataTableAsync?.TableName, Is.EqualTo(tableName));
         }
 

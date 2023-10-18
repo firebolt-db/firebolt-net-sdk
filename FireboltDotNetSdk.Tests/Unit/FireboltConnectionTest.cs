@@ -289,7 +289,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void SetSameDatabaseAsync()
+        public async Task SetSameDatabaseAsync()
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;database=db";
             var cs = new MockFireboltConnection(connectionString);
@@ -300,7 +300,7 @@ namespace FireboltDotNetSdk.Tests
 
             cs.Reset();
 
-            cs.ChangeDatabaseAsync("db").GetAwaiter().GetResult();
+            await cs.ChangeDatabaseAsync("db");
             That(cs.ClosedWithConnectionString, Is.EqualTo(null));
             That(cs.OpenedWithConnectionString, Is.EqualTo(null));
 
