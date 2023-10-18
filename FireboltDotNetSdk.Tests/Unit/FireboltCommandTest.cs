@@ -46,7 +46,18 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
             Assert.IsEmpty(cs.SetParamList);
             cs.ExecuteNonQuery();
-            Assert.IsNotEmpty(cs.SetParamList);
+            Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string>(new string[] { commandText.Replace("SET ", "") })));
+        }
+
+        [TestCase("SET param=1")]
+        [TestCase("SET param=1,param=2")]
+        public async Task SetTestAsync(string commandText)
+        {
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(""), EngineUrl = "engine" };
+            var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
+            Assert.IsEmpty(cs.SetParamList);
+            await cs.ExecuteNonQueryAsync();
+            Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string>(new string[] { commandText.Replace("SET ", "") })));
         }
 
         [TestCase("Select 1")]
