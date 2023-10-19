@@ -344,9 +344,19 @@ namespace FireboltDotNetSdk.Tests
                 Rows = 1,
                 Meta = new List<Meta>()
                 {
-                    new Meta() { Name = "guid", Type = "text" },
-                    new Meta() { Name = "text", Type = "text" },
-                    new Meta() { Name = "i", Type = "int" },
+                    new Meta() { Name = "guid", Type = "text" },            // 0
+                    new Meta() { Name = "text", Type = "text" },            // 1
+                    new Meta() { Name = "i", Type = "int" },                // 2
+                    new Meta() { Name = "n", Type = "numeric" },            // 3
+                    new Meta() { Name = "n52", Type = "numeric(5,2)" },     // 4
+                    new Meta() { Name = "dec", Type = "decimal(5,2)" },     // 5
+                    new Meta() { Name = "bi", Type = "bigint" },            // 6
+                    new Meta() { Name = "r", Type = "real" },               // 7
+                    new Meta() { Name = "dp", Type = "DOUBLE PRECISION" },  // 8
+                    new Meta() { Name = "d", Type = "DATE" },               // 9
+                    new Meta() { Name = "ts", Type = "TIMESTAMP" },         //10
+                    new Meta() { Name = "tstz", Type = "TIMESTAMPTZ" },     //11
+                    new Meta() { Name = "b", Type = "boolean" },            //12
                 },
                 Data = new List<List<object?>>()
             };
@@ -359,6 +369,23 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetOrdinal("guid"), Is.EqualTo(0));
             Assert.That(reader.GetOrdinal("text"), Is.EqualTo(1));
             Assert.That(reader.GetOrdinal("i"), Is.EqualTo(2));
+
+            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(string)));
+            Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(string)));
+            Assert.That(reader.GetFieldType(2), Is.EqualTo(typeof(int)));
+
+            Assert.That(reader.GetFieldType(3), Is.EqualTo(typeof(decimal)));
+            Assert.That(reader.GetFieldType(4), Is.EqualTo(typeof(decimal)));
+            Assert.That(reader.GetFieldType(5), Is.EqualTo(typeof(decimal)));
+            Assert.That(reader.GetFieldType(6), Is.EqualTo(typeof(long)));
+            Assert.That(reader.GetFieldType(7), Is.EqualTo(typeof(float)));
+            Assert.That(reader.GetFieldType(8), Is.EqualTo(typeof(double)));
+
+            Assert.That(reader.GetFieldType(9), Is.EqualTo(typeof(DateTime)));
+            Assert.That(reader.GetFieldType(10), Is.EqualTo(typeof(DateTime)));
+            Assert.That(reader.GetFieldType(11), Is.EqualTo(typeof(DateTime)));
+
+            Assert.That(reader.GetFieldType(12), Is.EqualTo(typeof(bool)));
         }
 
         [Test]

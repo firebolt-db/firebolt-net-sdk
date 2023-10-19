@@ -64,9 +64,8 @@ namespace FireboltDoNetSdk.Utils
                 case FireboltDataType.DateTime:
                 case FireboltDataType.TimestampTz:
                 case FireboltDataType.TimestampNtz:
-                    return ParseDateTime(str);
                 case FireboltDataType.Date:
-                    return DateOnly.FromDateTime(ParseDateTime(str));
+                    return ParseDateTime(str);
                 case FireboltDataType.Short:
                     return Convert.ToInt16(str);
                 case FireboltDataType.Double:

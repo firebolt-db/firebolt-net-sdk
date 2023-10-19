@@ -51,9 +51,11 @@ namespace FireboltDotNetSdk.Client
             { "int64", typeof(long) },
 
             { "float", typeof(float) },
+            { "real", typeof(float) },
             { "double", typeof(double) },
             { "double precision", typeof(double) },
             { "decimal", typeof(decimal) },
+            { "numeric", typeof(decimal) },
 
             { "string", typeof(string) },
             { "text", typeof(string) },
@@ -237,6 +239,7 @@ namespace FireboltDotNetSdk.Client
         private Type? GetTypeByName(string typeName)
         {
             typeName = Regex.Replace(typeName, @"\s+null", "", RegexOptions.IgnoreCase);
+            typeName = Regex.Replace(typeName, @"\(.*", "", RegexOptions.IgnoreCase);
             return typesMap[typeName] ?? typeof(object);
         }
 
@@ -376,7 +379,7 @@ namespace FireboltDotNetSdk.Client
             int n = Math.Min(row.Count, values.Length);
             for (int i = 0; i < n; i++)
             {
-                values[i] = row[i] ?? throw new InvalidOperationException($"Column ${i} is null");
+                values[i] = GetValue(i);
             }
             return n;
         }
