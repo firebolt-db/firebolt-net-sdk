@@ -309,9 +309,20 @@ namespace FireboltDotNetSdk.Client
             return ExecuteNonQueryAsync().GetAwaiter().GetResult();
         }
 
-        public override object ExecuteScalar()
+        public override object? ExecuteScalar()
         {
-            throw new NotImplementedException();
+            using (DbDataReader reader = ExecuteReader())
+            {
+                if (reader.Read() && reader.FieldCount > 0)
+                {
+                    object result = reader.GetValue(0);
+                    if (DBNull.Value != result)
+                    {
+                        return result;
+                    }
+                }
+                return null;
+            }
         }
 
         public override void Prepare()

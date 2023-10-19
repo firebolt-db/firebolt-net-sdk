@@ -24,12 +24,12 @@ namespace FireboltDotNetSdk.Tests
         override public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
         {
             Query = query;
-            return Task.FromResult<string?>(_response);
+            return Task.FromResult(_response);
         }
 
         override public Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
         {
-            return Task.FromResult<GetAccountIdByNameResponse>(new GetAccountIdByNameResponse());
+            return Task.FromResult(new GetAccountIdByNameResponse());
         }
     }
 
@@ -415,11 +415,16 @@ namespace FireboltDotNetSdk.Tests
             Assert.Throws<NotImplementedException>(() => command.Cancel());
         }
 
-        [Test]
-        public void ExecuteScalar()
+        [TestCase("select 1", "int", "[[1]]", 1, 1)]
+        [TestCase("select 'hello'", "text", "[[\"hello\"]]", 1, "hello")]
+        [TestCase("select 1", "text", "[[null]]", 1, null)]
+        [TestCase("select 1", "text", "[]", 0, null)]
+        public void ExecuteScalar(string query, string type, string data, int rows, object expectedValue)
         {
-            DbCommand command = new FireboltCommand();
-            Assert.Throws<NotImplementedException>(() => command.ExecuteScalar());
+            string response =
+            "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"name\": \"x\",\"type\": \"" + type + "\"}], \"data\":" + data + ",\"rows\": " + rows + "}";
+            var cs = createCommand(query, response);
+            Assert.That(cs.ExecuteScalar(), Is.EqualTo(expectedValue));
         }
 
         [Test]
