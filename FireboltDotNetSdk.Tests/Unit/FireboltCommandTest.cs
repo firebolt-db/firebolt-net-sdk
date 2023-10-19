@@ -70,20 +70,21 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void GetOriginalJsonDataExceptionTest()
+        public void ExecuteReaderNullResponseTest()
         {
             var cs = createCommand("select 1", null);
             DbDataReader reader = cs.ExecuteReader();
             Assert.False(reader.Read());
         }
 
-        [Test]
-        public void ExecuteRederNoQuery()
+        [TestCase(null, null, "Command is undefined")]
+        [TestCase(null, "{}", "Command is undefined")]
+        [TestCase("select 1", "null", "No result produced")] // produces null QueryResult
+        public void ExecuteRederInvalidQuery(string? query, string? response, string expectedErrorMessage)
         {
-            var cs = createCommand(null, null);
-            Assert.That(Assert.Throws<InvalidOperationException>(() => cs.ExecuteReader()).Message, Is.EqualTo("Command is undefined"));
+            var cs = createCommand(query, response);
+            Assert.That(Assert.Throws<InvalidOperationException>(() => cs.ExecuteReader()).Message, Is.EqualTo(expectedErrorMessage));
         }
-
 
         [Test]
         public void GetOriginalJsonDataTest()
@@ -150,49 +151,10 @@ namespace FireboltDotNetSdk.Tests
             Assert.Throws<KeyNotFoundException>(() => CreateParameterTest(new List())); // List parameter is not supported
         }
 
-        [TestCase("abcd", "'abcd'")]
-        [TestCase("test' OR '1' == '1", "'test\\' OR \\'1\\' == \\'1'")]
-        [TestCase("test\\", "'test\\\\'")]
-        [TestCase("some\0value", "'some\\\\0value'")]
-        public void SetParamListStrTest(string commandText, string expect)
-        {
-            SetParamTest(commandText, expect);
-        }
-
-        [TestCase(1, "1")]
-        public void SetParamListIntTest(int commandText, string expect)
-        {
-            SetParamTest(commandText, expect);
-        }
-
-        [TestCase(15000000000L, "15000000000")]
-        public void SetParamListLongTest(long commandText, string expect)
-        {
-            SetParamTest(commandText, expect);
-        }
-
         [TestCase(1.123, "1.123")]
-        public void SetParamListDoubleTest(double commandText, string expect)
+        public void SetParamListDecimalTest(decimal value, string expect)
         {
-            SetParamTest(commandText, expect);
-        }
-
-        [TestCase(1.123, "1.123")]
-        public void SetParamListDecimalTest(decimal commandText, string expect)
-        {
-            SetParamTest(commandText, expect);
-        }
-
-        [TestCase(5.75F, "5.75")]
-        public void SetParamListFloatTest(float commandText, string expect)
-        {
-            SetParamTest(commandText, expect);
-        }
-
-        [TestCase(null, "NULL")]
-        public void SetParamListNullTest(string commandText, string expect)
-        {
-            SetParamTest(commandText, expect);
+            SetParamTest(value, expect);
         }
 
         [Test]
@@ -201,11 +163,23 @@ namespace FireboltDotNetSdk.Tests
             SetParamTest(DateTime.Now, "'" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "'");
         }
 
-        private void SetParamTest(object commandText, object expect)
+        [TestCase("abcd", "'abcd'")]
+        [TestCase("test' OR '1' == '1", "'test\\' OR \\'1\\' == \\'1'")]
+        [TestCase("test\\", "'test\\\\'")]
+        [TestCase("some\0value", "'some\\\\0value'")]
+        [TestCase(1, "1")]
+        [TestCase(15000000000L, "15000000000")]
+        [TestCase(1.123, "1.123")]
+        [TestCase(1.123, "1.123")]
+        [TestCase(5.75F, "5.75")]
+        [TestCase(null, "NULL")]
+        [TestCase(true, "1")]
+        [TestCase(false, "0")]
+        public void SetParamTest(object paramValue, object expect)
         {
             MockClient client = new MockClient("");
             var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine" }, "@param", new FireboltParameterCollection());
-            cs.Parameters.Add(new FireboltParameter("@param", commandText));
+            cs.Parameters.Add(new FireboltParameter("@param", paramValue));
             cs.ExecuteNonQuery();
             Assert.That(client.Query, Is.EqualTo(expect));
         }
