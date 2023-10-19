@@ -175,11 +175,11 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(null, "NULL")]
         [TestCase(true, "1")]
         [TestCase(false, "0")]
-        public void SetParamTest(object commandValue, object expect)
+        public void SetParamTest(object paramValue, object expect)
         {
             MockClient client = new MockClient("");
             var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine" }, "@param", new FireboltParameterCollection());
-            cs.Parameters.Add(new FireboltParameter("@param", commandValue));
+            cs.Parameters.Add(new FireboltParameter("@param", paramValue));
             cs.ExecuteNonQuery();
             Assert.That(client.Query, Is.EqualTo(expect));
         }
