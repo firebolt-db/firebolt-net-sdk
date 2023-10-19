@@ -87,6 +87,9 @@ public class TypesConverterTest
     [TestCase("timestamp")]
     [TestCase("timestamp_ext")]
     [TestCase("datetime")]
+    [TestCase("date")]
+    [TestCase("date_ext")]
+    [TestCase("pgDate")]
     public void ConvertTimestamp(string type)
     {
         ColumnType columnType = ColumnType.Of(type);
@@ -94,18 +97,6 @@ public class TypesConverterTest
         DateTime expectedValue = new DateTime(2022, 5, 10, 23, 1, 2, 0);
         object? result = TypesConverter.ConvertToCSharpVal(value, columnType);
         Assert.That(result, Is.EqualTo(expectedValue));
-    }
-
-    [TestCase("date")]
-    [TestCase("date_ext")]
-    [TestCase("pgDate")]
-    public void ConvertPgDate(string type)
-    {
-        ColumnType columnType = ColumnType.Of(type);
-        var value = "2022-05-10";
-        object? result = TypesConverter.ConvertToCSharpVal(value, columnType);
-        DateOnly expectedDate = DateOnly.FromDateTime(new DateTime(2022, 5, 10, 23, 1, 2, 0));
-        Assert.That(result, Is.EqualTo(expectedDate));
     }
 
     [TestCase("date")]
@@ -150,7 +141,7 @@ public class TypesConverterTest
         object?[] expected =
         {
             1, -1, 257, -257, 80000, -80000, 30000000000, -30000000000, 1.23f, 1.23456789012, "text",
-            DateOnly.Parse("2021-03-28"), new [] { 1, 2, 3, 4 }, 1231232.123459999990457054844258706536, null
+            DateTime.Parse("2021-03-28"), new [] { 1, 2, 3, 4 }, 1231232.123459999990457054844258706536, null
         };
 
         for (int i = 0; i < expected.Length; i++)

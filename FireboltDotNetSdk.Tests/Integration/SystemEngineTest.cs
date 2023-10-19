@@ -129,15 +129,27 @@ namespace FireboltDotNetSdk.Tests
             );
         }
 
-        private void ConnectAndRunQuery()
+        private IList<object[]> ConnectAndRunQuery(string query = "SELECT 1")
         {
             var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env};engine={newEngineName};database={newDatabaseName}";
             using (var userConnection = new FireboltConnection(connString))
             {
                 userConnection.Open();
                 DbCommand command = userConnection.CreateCommand();
-                command.CommandText = "SELECT 1";
-                command.ExecuteReader();
+                command.CommandText = query;
+                DbDataReader reader = command.ExecuteReader();
+                IList<object[]> result = new List<object[]>();
+                int n = reader.FieldCount;
+                while (reader.Read())
+                {
+                    object[] row = new object[n];
+                    result.Add(row);
+                    for (int i = 0; i < n; i++)
+                    {
+                        row[i] = reader.GetValue(i);
+                    }
+                }
+                return result;
             }
         }
 
@@ -180,12 +192,17 @@ namespace FireboltDotNetSdk.Tests
             CreateCommand($"START ENGINE {newEngineName}").ExecuteNonQuery();
             VerifyEngineStatus(command, newEngineName, "Running");
             ConnectAndRunQuery();
+            IList<object[]> databases = ConnectAndRunQuery("SELECT database_name FROM information_schema.databases");
 
             CreateCommand($"STOP ENGINE {newEngineName}").ExecuteNonQuery();
             VerifyEngineStatus(command, newEngineName, "Stopped");
             Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
 
             CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
+
+            // Validate this here, after the test scenario is done. 
+            // Otherwise if this check is right after extracting databases list and fails it will prevent database to be dropped. 
+            Assert.True(databases.Select(l => l[0]).Contains(Database));
         }
 
         private DbCommand CreateCommand(string sql)

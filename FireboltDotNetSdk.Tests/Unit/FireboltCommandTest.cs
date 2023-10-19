@@ -262,7 +262,7 @@ namespace FireboltDotNetSdk.Tests
             var responseWithPgDate =
                 "{\"query\":{\"query_id\": \"1739956EA85D7647\"},\"meta\":[{\"name\": \"CAST('2022-05-10' AS pgdate)\",\"type\": \"PGDate\"}],\"data\":[[\"2022-05-10\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001887076,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000528582,\"time_to_execute\": 0.000203717,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
             NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
-            DateOnly expectedDate = DateOnly.FromDateTime(new DateTime(2022, 5, 10, 23, 1, 2, 0));
+            DateTime expectedDate = new DateTime(2022, 5, 10, 0, 0, 0, 0);
             Assert.That(newMeta.Data[0], Is.EqualTo(expectedDate));
             Assert.That(newMeta.Meta, Is.EqualTo("Date"));
         }
@@ -431,7 +431,7 @@ namespace FireboltDotNetSdk.Tests
         public void Prepare()
         {
             DbCommand command = new FireboltCommand();
-            Assert.Throws<NotImplementedException>(() => command.Prepare());
+            Assert.DoesNotThrow(() => command.Prepare()); // just should pass
         }
 
         private DbCommand createCommand(string? query, string? response)

@@ -1,7 +1,9 @@
 using System.Text;
 using System.Data.Common;
+using System.Collections;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
+using FireboltDoNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -12,6 +14,26 @@ namespace FireboltDotNetSdk.Tests
         private static string SYSTEM_CONNECTION_STRING = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
         private static string USER_CONNECTION_STRING = $"{SYSTEM_CONNECTION_STRING};engine={EngineName}";
         private static string SYSTEM_WRONG_CREDENTIALS = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account};env={Env}";
+        private static string CREATE_TABLE = @"
+            CREATE FACT TABLE IF NOT EXISTS ALL_TYPES
+            (
+                i INTEGER  NULL,
+                n NUMERIC NULL,
+                bi BIGINT NULL,
+                r REAL NULL,
+                dec DECIMAL(8, 3) NULL,
+                dp DOUBLE PRECISION NULL,
+                t TEXT NULL,
+                d DATE NULL,
+                ts TIMESTAMP NULL,
+                tstz TIMESTAMPTZ NULL,
+                b BOOLEAN NULL
+            )";
+
+        private static string DROP_TABLE = "DROP TABLE ALL_TYPES";
+        private static string INSERT = "INSERT INTO ALL_TYPES (i, n, bi, r, dec, dp, t, d, ts, tstz, b) VALUES (@i, @n, @bi, @r, @dec, @dp, @t, @d, @ts, @tstz, @b)";
+        private static string SELECT_ALL = "SELECT * FROM ALL_TYPES";
+        private static string SELECT_WHERE = "SELECT * FROM ALL_TYPES WHERE i = @i";
 
         [TestCase("SELECT 1")]
         [TestCase("SELECT 1, 'a'")]
@@ -46,9 +68,7 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             if (additionalCommandText != null)
             {
-                DbCommand addCommand = conn.CreateCommand();
-                addCommand.CommandText = additionalCommandText;
-                addCommand.ExecuteNonQuery();
+                CreateCommand(conn, additionalCommandText).ExecuteNonQuery();
             }
             DbCommand command = conn.CreateCommand();
             command.CommandText = commandText;
@@ -104,7 +124,7 @@ namespace FireboltDotNetSdk.Tests
                 "SELECT '2022-05-10'::pgdate",
                 new string[0],
                 new DateTime(2022, 5, 10, 0, 0, 0),
-                new DateOnly(2022, 5, 10));
+                new DateTime(2022, 5, 10, 0, 0, 0));
         }
 
         [Test]
@@ -160,9 +180,7 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             foreach (string cmd in additionalCommands)
             {
-                DbCommand addCommand = conn.CreateCommand();
-                addCommand.CommandText = cmd;
-                addCommand.ExecuteNonQuery();
+                CreateCommand(conn, cmd).ExecuteNonQuery();
             }
             DbCommand command = conn.CreateCommand();
             command.CommandText = commandText;
@@ -346,6 +364,132 @@ namespace FireboltDotNetSdk.Tests
             Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
+        }
+
+        [Test]
+        public void CreateDropFillTable()
+        {
+            using (var conn = new FireboltConnection(USER_CONNECTION_STRING))
+            {
+                conn.Open();
+                CreateCommand(conn, CREATE_TABLE).ExecuteNonQuery();
+                DbCommand insert = CreateCommand(conn, INSERT);
+                insert.Prepare();
+                insert.Parameters.Add(CreateParameter(insert, "@i", 1));
+                insert.Parameters.Add(CreateParameter(insert, "@n", 2));
+                insert.Parameters.Add(CreateParameter(insert, "@bi", 1234567890L));
+                insert.Parameters.Add(CreateParameter(insert, "@r", 3.14));
+                insert.Parameters.Add(CreateParameter(insert, "@dec", 6.02));
+                insert.Parameters.Add(CreateParameter(insert, "@dp", 2.718281828));
+                insert.Parameters.Add(CreateParameter(insert, "@t", "hello"));
+                insert.Parameters.Add(CreateParameter(insert, "@d", "2023-10-18"));
+                insert.Parameters.Add(CreateParameter(insert, "@ts", "2023-10-18 17:30:20.123456"));
+                insert.Parameters.Add(CreateParameter(insert, "@tstz", "2023-10-18 17:30:20.123456+02"));
+                insert.Parameters.Add(CreateParameter(insert, "@b", true));
+                insert.ExecuteNonQuery();
+
+                DbCommand selectAll = CreateCommand(conn, SELECT_ALL);
+                Type[] expectedTypes = new Type[]
+                {
+                    typeof(int), typeof(decimal), typeof(long), typeof(float), typeof(decimal), typeof(double),
+                    typeof(string), typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(bool)
+                };
+
+                using (DbDataReader reader = selectAll.ExecuteReader())
+                {
+                    int n = reader.FieldCount;
+                    for (int i = 0; i < n; i++)
+                    {
+                        Assert.That(
+                            reader.GetFieldType(i),
+                            Is.EqualTo(expectedTypes[i]),
+                            $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {reader.GetFieldType(i)}");
+                    }
+
+                    while (reader.Read())
+                    {
+                        Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                        Assert.That(reader.GetDecimal(1), Is.EqualTo(2));
+                        Assert.That(reader.GetInt64(2), Is.EqualTo(1234567890L));
+                        Assert.True(Math.Abs(reader.GetFloat(3) - 3.14) <= 0.001);
+                        Assert.True(Math.Abs(reader.GetDecimal(4) - 6.02M) <= 0.001M);
+                        Assert.True(Math.Abs(reader.GetDouble(5) - 2.718281828) <= 0.001);
+                        Assert.That(reader.GetString(6), Is.EqualTo("hello"));
+                        Assert.That(reader.GetDateTime(7), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18")));
+                        Assert.That(reader.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
+                        Assert.That(reader.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
+                        Assert.That(reader.GetBoolean(10), Is.EqualTo(true));
+                    }
+                }
+
+                using (DbDataReader reader = selectAll.ExecuteReader())
+                {
+                    IEnumerator e = reader.GetEnumerator();
+                    while (e.MoveNext())
+                    {
+                        DbDataRecord record = (DbDataRecord)e.Current;
+
+                        int n = record.FieldCount;
+                        for (int i = 0; i < n; i++)
+                        {
+                            Assert.That(
+                                record.GetFieldType(i),
+                                Is.EqualTo(expectedTypes[i]),
+                                $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {record.GetFieldType(i)}");
+                        }
+
+                        Assert.That(record.GetInt32(0), Is.EqualTo(1));
+                        Assert.That(record.GetDecimal(1), Is.EqualTo(2));
+                        Assert.That(record.GetInt64(2), Is.EqualTo(1234567890L));
+                        Assert.True(Math.Abs(record.GetFloat(3) - 3.14) <= 0.001);
+                        Assert.True(Math.Abs(record.GetDecimal(4) - 6.02M) <= 0.001M);
+                        Assert.True(Math.Abs(record.GetDouble(5) - 2.718281828) <= 0.001);
+                        Assert.That(record.GetString(6), Is.EqualTo("hello"));
+                        Assert.That(record.GetDateTime(7), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18")));
+                        Assert.That(record.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
+                        Assert.That(record.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
+                        Assert.That(record.GetBoolean(10), Is.EqualTo(true));
+                    }
+                }
+
+                Assert.True(selectOneRow(conn, 1));
+                Assert.False(selectOneRow(conn, 0));
+
+                CreateCommand(conn, DROP_TABLE).ExecuteNonQuery();
+            }
+        }
+
+        // Executes select ... where i = ? and returns true if at least one record is found and false otherwise. 
+        private bool selectOneRow(DbConnection conn, int id)
+        {
+            DbCommand selectWhere1 = CreateCommand(conn, SELECT_WHERE);
+            selectWhere1.Prepare();
+            selectWhere1.Parameters.Add(CreateParameter(selectWhere1, "@i", id));
+            using (DbDataReader reader = selectWhere1.ExecuteReader())
+            {
+                bool found = false;
+                while (reader.Read())
+                {
+                    Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                    found = true;
+                }
+                return found;
+            }
+        }
+
+        private DbCommand CreateCommand(DbConnection conn, string query)
+        {
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = query;
+            return command;
+        }
+
+        private DbParameter CreateParameter(DbCommand command, string name, object? value)
+        {
+            DbParameter parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value;
+            return parameter;
         }
     }
 }

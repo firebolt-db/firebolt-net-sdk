@@ -327,7 +327,7 @@ namespace FireboltDotNetSdk.Client
 
         public override void Prepare()
         {
-            throw new NotImplementedException();
+            // Empty implementation. Nothing to do here so far.
         }
 
         public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
