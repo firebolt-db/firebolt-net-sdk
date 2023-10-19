@@ -62,6 +62,20 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
+        [TestCase("select 1", 1)]
+        [TestCase("select 'hello'", "hello")]
+        [TestCase("select 2, 'two'", 2)]
+        [TestCase("select 'three', 3", "three")]
+        [TestCase("SELECT 'one', 1 UNION ALL SELECT 'two', 2", "one")]
+        public void ExecuteScalar(string query, object expectedValue)
+        {
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = query;
+            Assert.That(command.ExecuteScalar(), Is.EqualTo(expectedValue));
+        }
+
         [Test]
         public void ExecuteTestInvalidCredentials()
         {

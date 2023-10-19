@@ -447,11 +447,6 @@ namespace FireboltDotNetSdk.Client
             return ReadAsync();
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            Dispose();
-        }
-
         protected override DbDataReader GetDbDataReader(int ordinal)
         {
             QueryResult queryResult = new QueryResult
