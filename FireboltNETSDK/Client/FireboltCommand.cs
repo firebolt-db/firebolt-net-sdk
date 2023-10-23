@@ -26,6 +26,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using System.Text;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -176,60 +177,13 @@ namespace FireboltDotNetSdk.Client
         /// <returns><b>null</b></returns>
         private string GetParamQuery(string commandText)
         {
-            var escape_chars = new Dictionary<string, string>
-            {
-                { "\0", "\\0" },
-                { "\\", "\\\\" },
-                { "'", "\\'" }
-            };
             try
             {
-                foreach (var item in Parameters.ToList())
+                foreach (var parameter in Parameters.ToList())
                 {
-                    string pattern = string.Format(@"\{0}\b", item.ParameterName);
-                    RegexOptions regexOptions = RegexOptions.IgnoreCase;
-                    var verifyParameters = item.Value?.ToString() ?? "";
-                    if (item.Value is string && item.Value != null)
-                    {
-                        string? sourceText = item.Value.ToString();
-                        if (sourceText == null)
-                            throw new FireboltException("Unexpected error: Unable to cast string value to string.");
-                        foreach (var item1 in escape_chars)
-                        {
-                            sourceText = sourceText.Replace(item1.Key, item1.Value);
-                        }
-
-                        verifyParameters = "'" + sourceText + "'";
-                    }
-                    else if (item.Value is DateTime)
-                    {
-                        DateTime dt = (DateTime)item.Value;
-                        string date_str = dt.ToString("yyyy-MM-dd HH:mm:ss");
-                        date_str = dt.Hour == 0 && dt.Minute == 0 && dt.Second == 0 ? date_str.Split(' ')[0] : date_str;
-                        verifyParameters = new string("'" + date_str + "'");
-                    }
-                    else if (item.Value is null || item.Value.ToString() == string.Empty)
-                    {
-                        verifyParameters = "NULL";
-                    }
-                    else if (item.Value is bool)
-                    {
-                        verifyParameters = (bool)item.Value ? "1" : "0";
-                    }
-                    else if (item.Value is IList && item.Value.GetType().IsGenericType)
-                    {
-                        throw new FireboltException("Array query parameters are not supported yet.");
-                    }
-                    else if (item.Value is IConvertible)
-                    {
-                        // IConvertable is s a common interface for many numeric types.
-                        // String representation of numbers (result of ToString()) depends on the current locale. 
-                        // Some locales use comma instead or period to separate integer from the fractional part of number, 
-                        // so making this representation portable requires replacing comma by dot in string. 
-                        // The easier solution is to specify "standard" locale e.g. en_US.
-                        verifyParameters = ((IConvertible)item.Value).ToString(new CultureInfo("en-US", false));
-                    }
-                    commandText = Regex.Replace(commandText, pattern, verifyParameters, regexOptions);
+                    string pattern = string.Format(@"\{0}\b", parameter.ParameterName);
+                    string verifyParameters = GetParamValue(parameter.Value);
+                    commandText = Regex.Replace(commandText, pattern, verifyParameters, RegexOptions.IgnoreCase);
                 }
                 return commandText;
             }
@@ -237,6 +191,76 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Error while verifying parameters for query", ex);
             }
+        }
+
+        private string GetParamValue(object? value)
+        {
+            var escape_chars = new Dictionary<string, string>
+            {
+                { "\0", "\\0" },
+                { "\\", "\\\\" },
+                { "'", "\\'" }
+            };
+            var verifyParameters = value?.ToString() ?? "";
+            if (value is string && value != null)
+            {
+                string? sourceText = value.ToString();
+                if (sourceText == null)
+                    throw new FireboltException("Unexpected error: Unable to cast string value to string.");
+                foreach (var item1 in escape_chars)
+                {
+                    sourceText = sourceText.Replace(item1.Key, item1.Value);
+                }
+
+                verifyParameters = "'" + sourceText + "'";
+            }
+            else if (value is DateTime)
+            {
+                DateTime dt = (DateTime)value;
+                string format = dt.Hour == 0 && dt.Minute == 0 && dt.Second == 0 ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm:ss";
+                verifyParameters = "'" + dt.ToString(format) + "'";
+            }
+            else if (value is DateTimeOffset)
+            {
+                verifyParameters = "'" + ((DateTimeOffset)value).ToString("yyyy-MM-dd HH:mm:ss.FFFFFFz") + "'";
+            }
+            else if (value is DateOnly)
+            {
+                verifyParameters = "'" + ((DateOnly)value).ToString("yyyy-MM-dd") + "'";
+            }
+            else if (value is null || value.ToString() == string.Empty)
+            {
+                verifyParameters = "NULL";
+            }
+            else if (value is byte[])
+            {
+                verifyParameters = "'\\x" + BitConverter.ToString((byte[])value).Replace("-", "\\x") + "'::BYTEA";
+            }
+            else if (typeof(IList).IsAssignableFrom(value.GetType())) // works for lists and arrays
+            {
+                IList list = (IList)value;
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < list.Count; i++)
+                {
+                    sb.Append(GetParamValue(list[i]));
+                    if (i < list.Count - 1)
+                    {
+                        sb.Append(",");
+                    }
+                }
+                sb.Append("]");
+                verifyParameters = sb.ToString();
+            }
+            else if (value is IConvertible)
+            {
+                // IConvertable is s a common interface for many numeric types, boolean and others.
+                // String representation of numbers (result of ToString()) depends on the current locale. 
+                // Some locales use comma instead or period to separate integer from the fractional part of number, 
+                // so making this representation portable requires replacing comma by dot in string. 
+                // The easier solution is to specify "standard" locale e.g. en_US.
+                verifyParameters = ((IConvertible)value).ToString(new CultureInfo("en-US", false));
+            }
+            return verifyParameters;
         }
 
         /// <summary>

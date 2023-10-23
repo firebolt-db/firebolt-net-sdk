@@ -129,6 +129,7 @@ namespace FireboltDoNetSdk.Utils
                 "nothing" => FireboltDataType.Null,
                 "nullable" => FireboltDataType.Null,
                 "decimal" => FireboltDataType.Decimal,
+                "numeric" => FireboltDataType.Decimal,
                 "boolean" => FireboltDataType.Boolean,
                 "array" => FireboltDataType.Array,
                 "bytea" => FireboltDataType.ByteA,

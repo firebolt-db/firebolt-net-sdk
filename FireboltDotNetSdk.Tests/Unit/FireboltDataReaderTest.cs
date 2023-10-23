@@ -123,10 +123,10 @@ namespace FireboltDotNetSdk.Tests
         {
             DbDataReader reader = new FireboltDataReader(null, new QueryResult());
             Assert.Throws<FireboltException>(() => reader.NextResult());
-            Assert.Throws<FireboltException>(() => reader.NextResultAsync());
-            Assert.Throws<FireboltException>(() => reader.NextResultAsync(CancellationToken.None));
-            Assert.Throws<FireboltException>(() => reader.NextResultAsync(new CancellationToken(true)));
-            Assert.Throws<FireboltException>(() => reader.NextResultAsync(new CancellationToken(false)));
+            Assert.ThrowsAsync<FireboltException>(() => reader.NextResultAsync());
+            Assert.ThrowsAsync<FireboltException>(() => reader.NextResultAsync(CancellationToken.None));
+            Assert.NotNull(reader.NextResultAsync(new CancellationToken(true)));
+            Assert.ThrowsAsync<FireboltException>(() => reader.NextResultAsync(new CancellationToken(false)));
         }
 
         [Test]
@@ -335,9 +335,34 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.Read(), Is.EqualTo(false));
         }
 
+        [Test]
+        public void GetBytes()
+        {
+            string str = "hello";
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>()
+                {
+                    new Meta() { Name = "b", Type = "bytea" },
+                },
+                Data = new List<List<object?>>()
+                {
+                    new List<object?>() { "\\x" + BitConverter.ToString(Encoding.UTF8.GetBytes(str)).Replace("-", "") }
+                }
+            };
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.That(reader.Read(), Is.EqualTo(true));
+
+            byte[] allBytes = new byte[str.Length];
+            Assert.That(reader.GetBytes(0, 0, allBytes, 0, allBytes.Length), Is.EqualTo(allBytes.Length));
+            Assert.That(allBytes, Is.EqualTo(Encoding.UTF8.GetBytes(str)));
+            Assert.That(reader.Read(), Is.EqualTo(false));
+        }
+
 
         [Test]
-        public void GetMetadata()
+        public void GetScalarMetadata()
         {
             QueryResult result = new QueryResult
             {
@@ -357,6 +382,7 @@ namespace FireboltDotNetSdk.Tests
                     new Meta() { Name = "ts", Type = "TIMESTAMP" },         //10
                     new Meta() { Name = "tstz", Type = "TIMESTAMPTZ" },     //11
                     new Meta() { Name = "b", Type = "boolean" },            //12
+                    new Meta() { Name = "ba", Type = "bytea" },             //13
                 },
                 Data = new List<List<object?>>()
             };
@@ -386,6 +412,45 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.GetFieldType(11), Is.EqualTo(typeof(DateTime)));
 
             Assert.That(reader.GetFieldType(12), Is.EqualTo(typeof(bool)));
+            Assert.That(reader.GetFieldType(13), Is.EqualTo(typeof(byte[])));
+        }
+
+        [TestCase("array(int)", typeof(int[]))]
+        [TestCase("array(int null)", typeof(int[]))]
+        [TestCase("array(int null) null", typeof(int[]))]
+        [TestCase("array(int) null", typeof(int[]))]
+        [TestCase("array(array(long null) null) null", typeof(long[][]))]
+        public void GetArrayMetadata(string typeDefinition, Type expectedType)
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>()
+                {
+                    new Meta() { Name = "column", Type = typeDefinition },
+                },
+                Data = new List<List<object?>>()
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.That(reader.GetFieldType(0), Is.EqualTo(expectedType));
+        }
+
+        [TestCase("array(int")] // right parenthese is missing
+        public void GetIncorrectArrayType(string typeDefinition)
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>()
+                {
+                    new Meta() { Name = "column", Type = typeDefinition },
+                },
+                Data = new List<List<object?>>()
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.Throws<InvalidCastException>(() => reader.GetFieldType(0));
         }
 
         [Test]
@@ -411,6 +476,33 @@ namespace FireboltDotNetSdk.Tests
             object[] values = new object[3];
             Assert.That(reader.GetValues(values), Is.EqualTo(3));
             Assert.That(values, Is.EqualTo(new object[] { "6B29FC40-CA47-1067-B31D-00DD010662DA", "not guid", 123 }));
+            Assert.That(reader.Read(), Is.EqualTo(false));
+        }
+
+        [TestCase("int", 123)]
+        [TestCase("long", 123456789)]
+        [TestCase("float", 3.14)]
+        [TestCase("double", 3.1415926)]
+        [TestCase("numeric", 2.7)]
+        [TestCase("decimal", 2.71828)]
+        public void GetBytesUnsupportedType(string type, object value)
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>()
+                {
+                    new Meta() { Name = "x", Type = type },
+                },
+                Data = new List<List<object?>>()
+                {
+                    new List<object?>() { value }
+                }
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.Throws<InvalidCastException>(() => reader.GetBytes(0, 0, new byte[0], 0, 0));
             Assert.That(reader.Read(), Is.EqualTo(false));
         }
 
