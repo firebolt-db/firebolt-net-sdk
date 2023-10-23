@@ -129,6 +129,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(123)]
         [TestCase(true)]
         [TestCase(false)]
+        [TestCase(new byte[0])]
         public void CreateParameterTest(object value)
         {
             var cs = new FireboltCommand();
@@ -146,21 +147,50 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void ListParameterTest()
+        public void DateOnlyParameterTest()
         {
-            Assert.Throws<KeyNotFoundException>(() => CreateParameterTest(new List())); // List parameter is not supported
-        }
-
-        [TestCase(1.123, "1.123")]
-        public void SetParamListDecimalTest(decimal value, string expect)
-        {
-            SetParamTest(value, expect);
+            CreateParameterTest(DateOnly.Parse("2023-10-24"));
         }
 
         [Test]
-        public void SetParamListDatesTest()
+        public void ListParameterTest()
         {
-            SetParamTest(DateTime.Now, "'" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "'");
+            CreateParameterTest(new List<string>());
+        }
+
+        [Test]
+        public void SetParamListTest()
+        {
+            SetParamTest(new List<string>(), "[]");
+            SetParamTest(new List<object?>(), "[]");
+            SetParamTest(new List<object?>() { "a", 1, null }, "['a',1,NULL]");
+            SetParamTest(new int[0], "[]");
+            SetParamTest(new long[] { 1, 2, 3 }, "[1,2,3]");
+            SetParamTest(new double[][] { new double[] { 2.718282, 3.1415926 }, new double[] { 6.022, 1.6 } }, "[[2.718282,3.1415926],[6.022,1.6]]");
+        }
+
+        [TestCase("2023-10-24 16:21:42", "yyyy-MM-dd HH:mm:ss")]
+        [TestCase("2023-10-24 16:21:42.00", "yyyy-MM-dd HH:mm:ss")]
+        [TestCase("2023-10-24 00:00:00.00", "yyyy-MM-dd")]
+        [TestCase("2023-10-24", "yyyy-MM-dd")]
+        public void SetParamDateTimeTest(string date, string format)
+        {
+            DateTime dateTime = DateTime.Parse(date);
+            SetParamTest(dateTime, "'" + dateTime.ToString(format) + "'");
+        }
+
+        [TestCase("2023-10-24 16:21:42+02")]
+        public void SetParamDateTimeOffsetTest(string date)
+        {
+            DateTimeOffset dateTime = DateTimeOffset.Parse(date);
+            SetParamTest(dateTime, "'" + dateTime.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFz") + "'");
+        }
+
+        [TestCase("2023-10-24")]
+        public void SetParamDateOnlyTest(string date)
+        {
+            DateOnly dateTime = DateOnly.Parse(date);
+            SetParamTest(dateTime, "'" + dateTime.ToString("yyyy-MM-dd") + "'");
         }
 
         [TestCase("abcd", "'abcd'")]
@@ -173,8 +203,10 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(1.123, "1.123")]
         [TestCase(5.75F, "5.75")]
         [TestCase(null, "NULL")]
-        [TestCase(true, "1")]
-        [TestCase(false, "0")]
+        [TestCase(true, "True")]
+        [TestCase(false, "False")]
+        [TestCase(new byte[0], "'\\x'::BYTEA")]
+        [TestCase(new byte[] { 1, 2, 3 }, "'\\x01\\x02\\x03'::BYTEA")]
         public void SetParamTest(object paramValue, object expect)
         {
             MockClient client = new MockClient("");

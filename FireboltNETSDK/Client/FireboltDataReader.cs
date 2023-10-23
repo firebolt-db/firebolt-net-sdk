@@ -65,6 +65,9 @@ namespace FireboltDotNetSdk.Client
             { "timestamp", typeof(DateTime) },
             { "timestamptz", typeof(DateTime) },
             { "DateTime64", typeof(DateTime) },
+
+            { "bytea", typeof(byte[]) },
+            { "array", typeof(Array) },
         };
 
         public FireboltDataReader(string? fullTableName, QueryResult queryResult, int depth = 0)
@@ -138,7 +141,15 @@ namespace FireboltDotNetSdk.Client
 
         public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
         {
-            return GetBuffer(Encoding.UTF8.GetBytes(GetString(ordinal)), dataOffset, buffer, bufferOffset, length);
+            object value = GetValue(ordinal);
+            byte[]? bytes;
+            switch (value)
+            {
+                case string s: bytes = Encoding.UTF8.GetBytes(s); break;
+                case byte[] b: bytes = b; break;
+                default: throw new InvalidCastException($"Cannot retrive byte array from ({value.GetType()}){value}");
+            }
+            return GetBuffer(bytes, dataOffset, buffer, bufferOffset, length);
         }
 
         public override char GetChar(int ordinal)
@@ -169,7 +180,7 @@ namespace FireboltDotNetSdk.Client
             {
                 return 0;
             }
-            int limit = Math.Min(length - (int)dataOffset + 1, buffer.Length);
+            int limit = Math.Min(source.Length - (int)dataOffset, buffer.Length);
             Array.Copy(source, dataOffset, buffer, bufferOffset, limit);
             return limit;
         }
@@ -236,11 +247,54 @@ namespace FireboltDotNetSdk.Client
             return GetTypeByName(GetDataTypeName(ordinal)) ?? throw new ArgumentNullException($"Cannot get type of column #{ordinal}");
         }
 
-        private Type? GetTypeByName(string typeName)
+        private Type GetTypeByName(string typeName)
         {
-            typeName = Regex.Replace(typeName, @"\s+null", "", RegexOptions.IgnoreCase);
-            typeName = Regex.Replace(typeName, @"\(.*", "", RegexOptions.IgnoreCase);
+            typeName = Remove(typeName, @"\s+(?:not\s+)?null");
+            if (IsArrayType(typeName))
+            {
+                return GetArrayTypeByName(typeName, 0);
+            }
+            typeName = Remove(typeName, @"\(.*");
             return typesMap[typeName] ?? typeof(object);
+        }
+
+        private string Remove(string str, string regex)
+        {
+            return Regex.Replace(str, regex, "", RegexOptions.IgnoreCase);
+        }
+
+        private bool IsArrayType(string typeName)
+        {
+            return typeName.ToLower().StartsWith("array");
+        }
+
+        private Type GetArrayTypeByName(string typeName, int dim)
+        {
+            if (!IsArrayType(typeName))
+            {
+                return CreateArrayType(typeName, dim);
+            }
+            int left = typeName.IndexOf("(");
+            int right = typeName.LastIndexOf(")");
+            if (Math.Sign(left) != Math.Sign(right))
+            {
+                throw new InvalidCastException($"Cannot cast {typeName} to array");
+            }
+            if (left < 0 && right < 0)
+            {
+                return CreateArrayType(typeName, dim);
+            }
+            return GetArrayTypeByName(typeName.Substring(left + 1, right - left - 1), dim + 1);
+        }
+
+        private Type CreateArrayType(string elementTypeName, int dim)
+        {
+            Type type = GetTypeByName(elementTypeName);
+            for (int i = 0; i < dim; i++)
+            {
+                type = type.MakeArrayType();
+            }
+            return type;
         }
 
         public override float GetFloat(int ordinal)
@@ -349,19 +403,9 @@ namespace FireboltDotNetSdk.Client
             return Task.FromResult(GetSchemaTable());
         }
 
-        public override Stream GetStream(int ordinal)
-        {
-            return new MemoryStream(System.Text.Encoding.UTF8.GetBytes(GetString(ordinal)));
-        }
-
         public override string GetString(int ordinal)
         {
             return GetValue(ordinal).ToString() ?? throw new InvalidOperationException($"String representation of column ${ordinal} is null");
-        }
-
-        public override TextReader GetTextReader(int ordinal)
-        {
-            return new StringReader(GetString(ordinal));
         }
 
         public override object GetValue(int ordinal)
@@ -409,29 +453,9 @@ namespace FireboltDotNetSdk.Client
             return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
         }
 
-        new public Task<bool> IsDBNullAsync(int ordinal)
-        {
-            return Task.FromResult(IsDBNull(ordinal));
-        }
-
-        public override Task<bool> IsDBNullAsync(int ordinal, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(IsDBNull(ordinal));
-        }
-
         public override bool NextResult()
         {
             throw new FireboltException("Batch operations are not supported");
-        }
-
-        public override Task<bool> NextResultAsync(CancellationToken cancellationToken)
-        {
-            return Task.FromResult(NextResult());
-        }
-
-        new public Task<bool> NextResultAsync()
-        {
-            return NextResultAsync(CancellationToken.None);
         }
 
         public override bool Read()
@@ -443,11 +467,6 @@ namespace FireboltDotNetSdk.Client
                 return true;
             }
             return false;
-        }
-
-        public override Task<bool> ReadAsync(CancellationToken cancellationToken)
-        {
-            return ReadAsync();
         }
 
         protected override DbDataReader GetDbDataReader(int ordinal)

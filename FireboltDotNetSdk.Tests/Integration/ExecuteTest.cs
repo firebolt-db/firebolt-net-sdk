@@ -4,6 +4,7 @@ using System.Collections;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDoNetSdk.Utils;
+using System.Data;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -14,7 +15,7 @@ namespace FireboltDotNetSdk.Tests
         private static string SYSTEM_CONNECTION_STRING = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
         private static string USER_CONNECTION_STRING = $"{SYSTEM_CONNECTION_STRING};engine={EngineName}";
         private static string SYSTEM_WRONG_CREDENTIALS = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account};env={Env}";
-        private static string CREATE_TABLE = @"
+        private static string CREATE_SIMPLE_TABLE = @"
             CREATE FACT TABLE IF NOT EXISTS ALL_TYPES
             (
                 i INTEGER  NULL,
@@ -27,13 +28,14 @@ namespace FireboltDotNetSdk.Tests
                 d DATE NULL,
                 ts TIMESTAMP NULL,
                 tstz TIMESTAMPTZ NULL,
-                b BOOLEAN NULL
+                b BOOLEAN NULL, 
+                ba BYTEA NULL
             )";
 
-        private static string DROP_TABLE = "DROP TABLE ALL_TYPES";
-        private static string INSERT = "INSERT INTO ALL_TYPES (i, n, bi, r, dec, dp, t, d, ts, tstz, b) VALUES (@i, @n, @bi, @r, @dec, @dp, @t, @d, @ts, @tstz, @b)";
-        private static string SELECT_ALL = "SELECT * FROM ALL_TYPES";
-        private static string SELECT_WHERE = "SELECT * FROM ALL_TYPES WHERE i = @i";
+        private static string DROP_SIMPLE_TABLE = "DROP TABLE ALL_TYPES";
+        private static string INSERT = "INSERT INTO ALL_TYPES (i, n, bi, r, dec, dp, t, d, ts, tstz, b, ba) VALUES (@i, @n, @bi, @r, @dec, @dp, @t, @d, @ts, @tstz, @b, @ba)";
+        private static string SELECT_ALL_SIMPLE = "SELECT * FROM ALL_TYPES";
+        private static string SELECT_WHERE_SIMPLE = "SELECT * FROM ALL_TYPES WHERE i = @i";
 
         [TestCase("SELECT 1")]
         [TestCase("SELECT 1, 'a'")]
@@ -367,12 +369,13 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void CreateDropFillTable()
+        public void CreateDropFillTableWithPrimitives()
         {
+            byte[] bytes = Encoding.UTF8.GetBytes("hello.привет.שלום");
             using (var conn = new FireboltConnection(USER_CONNECTION_STRING))
             {
                 conn.Open();
-                CreateCommand(conn, CREATE_TABLE).ExecuteNonQuery();
+                CreateCommand(conn, CREATE_SIMPLE_TABLE).ExecuteNonQuery();
                 DbCommand insert = CreateCommand(conn, INSERT);
                 insert.Prepare();
                 insert.Parameters.Add(CreateParameter(insert, "@i", 1));
@@ -386,13 +389,15 @@ namespace FireboltDotNetSdk.Tests
                 insert.Parameters.Add(CreateParameter(insert, "@ts", "2023-10-18 17:30:20.123456"));
                 insert.Parameters.Add(CreateParameter(insert, "@tstz", "2023-10-18 17:30:20.123456+02"));
                 insert.Parameters.Add(CreateParameter(insert, "@b", true));
+                insert.Parameters.Add(CreateParameter(insert, "@ba", bytes));
                 insert.ExecuteNonQuery();
 
-                DbCommand selectAll = CreateCommand(conn, SELECT_ALL);
+                DbCommand selectAll = CreateCommand(conn, SELECT_ALL_SIMPLE);
                 Type[] expectedTypes = new Type[]
                 {
                     typeof(int), typeof(decimal), typeof(long), typeof(float), typeof(decimal), typeof(double),
-                    typeof(string), typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(bool)
+                    typeof(string), typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(bool),
+                    typeof(byte[])
                 };
 
                 using (DbDataReader reader = selectAll.ExecuteReader())
@@ -419,6 +424,12 @@ namespace FireboltDotNetSdk.Tests
                         Assert.That(reader.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
                         Assert.That(reader.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
                         Assert.That(reader.GetBoolean(10), Is.EqualTo(true));
+                        // byte array
+                        Assert.That(reader.GetValue(11), Is.EqualTo(bytes));
+                        byte[] buffer = new byte[bytes.Length];
+                        long length = reader.GetBytes(11, 0, buffer, 0, buffer.Length);
+                        Assert.That(length, Is.EqualTo(buffer.Length));
+                        Assert.That(buffer, Is.EqualTo(bytes));
                     }
                 }
 
@@ -449,20 +460,149 @@ namespace FireboltDotNetSdk.Tests
                         Assert.That(record.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
                         Assert.That(record.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
                         Assert.That(record.GetBoolean(10), Is.EqualTo(true));
+                        // byte array
+                        Assert.That(record.GetValue(11), Is.EqualTo(bytes));
+                        byte[] buffer = new byte[bytes.Length];
+                        long length = record.GetBytes(11, 0, buffer, 0, buffer.Length);
+                        Assert.That(length, Is.EqualTo(buffer.Length));
+                        Assert.That(buffer, Is.EqualTo(bytes));
                     }
                 }
 
                 Assert.True(selectOneRow(conn, 1));
                 Assert.False(selectOneRow(conn, 0));
 
-                CreateCommand(conn, DROP_TABLE).ExecuteNonQuery();
+                CreateCommand(conn, DROP_SIMPLE_TABLE).ExecuteNonQuery();
+            }
+        }
+
+        [Test]
+        public void CreateDropFillTableWithEmptyArrays()
+        {
+            CreateDropFillTableWithArrays("int", new int[0], typeof(int[]), "int", new int[0][], typeof(int[][]), "int", new int[0][][], typeof(int[][][]));
+        }
+
+        [Test]
+        public void CreateDropFillTableWithNullArrays()
+        {
+            CreateDropFillTableWithArrays("int", null, typeof(int[]), "int", null, typeof(int[][]), "int", null, typeof(int[][][]));
+        }
+
+        [Test]
+        public void CreateDropFillTableWithSingetonArrays()
+        {
+            CreateDropFillTableWithArrays(
+                "int", new int[] { 1 }, typeof(int[]),
+                "int", new int[][] { new int[] { 22 } }, typeof(int[][]),
+                "int", new int[][][] { new int[][] { new int[] { 333 } } }, typeof(int[][][]));
+        }
+
+        [Test]
+        public void CreateDropFillTableWithArraysWithFullArrays()
+        {
+            CreateDropFillTableWithArrays(
+                "int", new int[] { 1, 2, 3 }, typeof(int[]),
+                "int", new int[][] { new int[] { 21, 22, 23 }, new int[] { 31, 32, 33 } }, typeof(int[][]),
+                "int", new int[][][] { new int[][] { new int[] { 333, 334, 335, 336 }, new int[] { 1, 2 } } }, typeof(int[][][])
+            );
+        }
+
+        [Test]
+        public void CreateDropFillTableWithArraysOfDifferentTypes()
+        {
+            CreateDropFillTableWithArrays(
+                "long", new long[] { 1, 2 }, typeof(long[]),
+                "float", new float[][] { new float[] { 2.7F, 3.14F } }, typeof(float[][]),
+                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
+        }
+
+        private void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)
+        {
+            using (var conn = new FireboltConnection(USER_CONNECTION_STRING))
+            {
+                conn.Open();
+                string CREATE_ARRAYS_TABLE = @$"
+                    CREATE FACT TABLE ALL_ARRAYS
+                    (
+                        i INTEGER  NULL,
+                        inta1 {type1}[] NULL,
+                        inta2 {type2}[][] NULL,
+                        inta3 {type3}[][][] NULL
+                    )
+                ";
+                CreateCommand(conn, CREATE_ARRAYS_TABLE).ExecuteNonQuery();
+                string INSERT_ARRAYS = "INSERT INTO ALL_ARRAYS (i, inta1, inta2, inta3) VALUES (@i, @inta1, @inta2, @inta3)";
+                int id = 1;
+                DbCommand insert = CreateCommand(conn, INSERT_ARRAYS);
+                insert.Prepare();
+                insert.Parameters.Add(CreateParameter(insert, "@i", id));
+                insert.Parameters.Add(CreateParameter(insert, "@inta1", inta1));
+                insert.Parameters.Add(CreateParameter(insert, "@inta2", inta2));
+                insert.Parameters.Add(CreateParameter(insert, "@inta3", inta3));
+                insert.ExecuteNonQuery();
+
+                string SELECT_ARRAYS_WHERE = "SELECT i, inta1, inta2, inta3 FROM ALL_ARRAYS WHERE i = @i";
+                DbCommand select = CreateCommand(conn, SELECT_ARRAYS_WHERE);
+                select.Parameters.Add(CreateParameter(select, "@i", id));
+                Type[] expectedTypes = new Type[] { typeof(int), expType1, expType2, expType3 };
+
+                using (DbDataReader reader = select.ExecuteReader())
+                {
+                    int n = reader.FieldCount;
+                    for (int i = 0; i < n; i++)
+                    {
+                        Assert.That(
+                            reader.GetFieldType(i),
+                            Is.EqualTo(expectedTypes[i]),
+                            $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {reader.GetFieldType(i)}");
+                    }
+                    int rowsCount = 0;
+                    while (reader.Read())
+                    {
+                        Assert.That(reader.GetInt32(0), Is.EqualTo(id));
+                        Assert.That(reader.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
+                        Assert.That(reader.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
+                        Assert.That(reader.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                        rowsCount++;
+                    }
+                    Assert.That(rowsCount, Is.EqualTo(1));
+                }
+
+                using (DbDataReader reader = select.ExecuteReader())
+                {
+                    int rowsCount = 0;
+                    IEnumerator e = reader.GetEnumerator();
+                    while (e.MoveNext())
+                    {
+                        DbDataRecord record = (DbDataRecord)e.Current;
+
+                        int n = record.FieldCount;
+                        for (int i = 0; i < n; i++)
+                        {
+                            Assert.That(
+                                record.GetFieldType(i),
+                                Is.EqualTo(expectedTypes[i]),
+                                $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {record.GetFieldType(i)}");
+                        }
+
+                        Assert.That(record.GetInt32(0), Is.EqualTo(id));
+                        Assert.That(record.GetInt32(0), Is.EqualTo(1));
+                        Assert.That(record.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
+                        Assert.That(record.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
+                        Assert.That(record.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                        rowsCount++;
+                    }
+                    Assert.That(rowsCount, Is.EqualTo(1));
+                }
+
+                CreateCommand(conn, "DROP TABLE ALL_ARRAYS").ExecuteNonQuery();
             }
         }
 
         // Executes select ... where i = ? and returns true if at least one record is found and false otherwise. 
         private bool selectOneRow(DbConnection conn, int id)
         {
-            DbCommand selectWhere1 = CreateCommand(conn, SELECT_WHERE);
+            DbCommand selectWhere1 = CreateCommand(conn, SELECT_WHERE_SIMPLE);
             selectWhere1.Prepare();
             selectWhere1.Parameters.Add(CreateParameter(selectWhere1, "@i", id));
             using (DbDataReader reader = selectWhere1.ExecuteReader())

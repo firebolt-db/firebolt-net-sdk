@@ -1,9 +1,9 @@
 ﻿using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Collections;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -19,7 +19,7 @@ namespace FireboltDotNetSdk.Client
             DbType.Currency, DbType.VarNumeric, DbType.AnsiStringFixedLength, DbType.StringFixedLength, DbType.Xml, DbType.DateTime2, DbType.Single
         };
 
-        private static IDictionary<Type, DbType> dbTypes = new Dictionary<Type, DbType>
+        private static IDictionary<Type, DbType?> dbTypes = new Dictionary<Type, DbType?>
         {
             { typeof(byte), DbType.Byte },
             { typeof(bool), DbType.Boolean },
@@ -203,7 +203,7 @@ namespace FireboltDotNetSdk.Client
             }
             else if (value != null)
             {
-                DbType = dbTypes[value.GetType()];
+                DbType = GetType(value) ?? throw new InvalidOperationException();
                 _initialDbType = DbType;
             }
             _value = value;
@@ -252,13 +252,27 @@ namespace FireboltDotNetSdk.Client
 
         private static int GetSize(object? value)
         {
-            //TODO: improve this: sime types (e.g. string, decimal) can be limite on table level
-            return value == null ? 0 : dbTypeSizes[value.GetType()];
+            //TODO: improve this: some types (e.g. string, decimal) can be limite on table level
+            return GetData(dbTypeSizes, value, 0, int.MaxValue);
         }
 
         private static DbType? GetType(object? value)
         {
-            return value == null ? null : dbTypes[value.GetType()];
+            return GetData(dbTypes, value, null, DbType.Object);
+        }
+
+        private static T? GetData<T>(IDictionary<Type, T> data, object? value, T? nullValueData, T collectionData)
+        {
+            if (value == null)
+            {
+                return nullValueData;
+            }
+            Type type = value.GetType();
+            if (typeof(IList).IsAssignableFrom(type)) // works for lists and arrays
+            {
+                return collectionData;
+            }
+            return data[type];
         }
     }
 }
