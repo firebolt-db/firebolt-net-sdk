@@ -121,8 +121,7 @@ public class TypesConverterTest
         Assert.That(exception!.Message, Is.EqualTo("Input string was not in a correct format."));
     }
 
-    [TestCase(null, "JSON data is missing", "JSON data is missing")]
-    [TestCase("null", "Error while parsing response", "Unable to parse data to JSON")]
+    [TestCase(null, "Response is empty", "Response is empty")]
     [TestCase("invalid response", "Error while parsing response", "Unexpected character encountered while parsing value: i. Path '', line 0, position 0.")]
     public void ParseWrongJsonResponse(string? json, string? expectedMessage, string? expectedBaseMessage)
     {
@@ -132,12 +131,18 @@ public class TypesConverterTest
     }
 
     [Test]
+    public void ParseNullJsonResponse()
+    {
+        Assert.Null(TypesConverter.ParseJsonResponse("null"));
+    }
+
+    [Test]
     public void ParseJsonResponseWithNewTypes()
     {
         var responseWithNewTypes =
                 "{\"query\":{\"query_id\": \"174005F13D908A5D\"},\"meta\":[{\"name\": \"uint8\",\"type\": \"int\"},{\"name\": \"int_8\",\"type\": \"int\"},{\"name\": \"uint16\",\"type\": \"int\"},{\"name\": \"int16\",\"type\": \"int\"},{\"name\": \"uint32\",\"type\": \"int\"},{\"name\": \"int32\",\"type\": \"int\"},{\"name\": \"uint64\",\"type\": \"long\"},{\"name\": \"int64\",\"type\": \"long\"},{\"name\": \"float32\",\"type\": \"float\"},{\"name\": \"float64\",\"type\": \"double\"},{\"name\": \"string\",\"type\": \"text\"},{\"name\": \"date\",\"type\": \"date\"},{\"name\": \"array\",\"type\": \"array(int)\"},{\"name\": \"decimal\",\"type\": \"Decimal(38, 30)\"},{\"name\": \"nullable\",\"type\": \"int null\"}],\"data\":[[1, -1, 257, -257, 80000, -80000, 30000000000, -30000000000, 1.23, 1.23456789012, \"text\", \"2021-03-28\", [1,2,3,4], 1231232.123459999990457054844258706536, null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001662899,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001246457,\"time_to_execute\": 0.000166576,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}"
             ;
-        var res = TypesConverter.ParseJsonResponse(responseWithNewTypes).GetEnumerator();
+        QueryResult res = TypesConverter.ParseJsonResponse(responseWithNewTypes)!;
         object?[] expected =
         {
             1, -1, 257, -257, 80000, -80000, 30000000000, -30000000000, 1.23f, 1.23456789012, "text",
@@ -146,11 +151,17 @@ public class TypesConverterTest
 
         for (int i = 0; i < expected.Length; i++)
         {
-            res.MoveNext();
-            Assert.That(res.Current.Data[0], Is.EqualTo(expected[i]));
+            AssertQueryResult(res, expected[i], 0, i);
         }
 
         Assert.NotNull(res);
+    }
+
+    private void AssertQueryResult(QueryResult result, object? expectedValue, int line = 0, int column = 0)
+    {
+        var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
+        var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
+        Assert.That(convertedValue, Is.EqualTo(expectedValue));
     }
 
     [Test]
