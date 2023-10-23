@@ -226,7 +226,7 @@ namespace FireboltDotNetSdk.Client
             }
             else if (value is DateOnly)
             {
-                verifyParameters = "'" + ((DateOnly)value).ToString("yyyy-MM-dd") + "'";
+                verifyParameters = new string("'" + ((DateOnly)value).ToString("yyyy-MM-dd") + "'");
             }
             else if (value is null || value.ToString() == string.Empty)
             {

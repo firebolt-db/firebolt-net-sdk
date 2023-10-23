@@ -498,7 +498,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void CreateDropFillTableWithArraysWithFullArrays()
+        public void CreateDropFillTableWithFullArrays()
         {
             CreateDropFillTableWithArrays(
                 "int", new int[] { 1, 2, 3 }, typeof(int[]),

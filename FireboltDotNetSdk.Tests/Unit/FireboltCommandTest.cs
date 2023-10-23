@@ -5,6 +5,7 @@ using FireboltDotNetSdk.Utils;
 using System.Data.Common;
 using System.Data;
 using Moq;
+using FireboltDoNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -193,6 +194,13 @@ namespace FireboltDotNetSdk.Tests
             SetParamTest(dateTime, "'" + dateTime.ToString("yyyy-MM-dd") + "'");
         }
 
+        [Test]
+        public void SetParamDateTest()
+        {
+            DateTime dateTime = DateTime.Now;
+            SetParamTest(dateTime, "'" + dateTime.ToString("yyyy-MM-dd HH:mm:ss") + "'");
+        }
+
         [TestCase("abcd", "'abcd'")]
         [TestCase("test' OR '1' == '1", "'test\\' OR \\'1\\' == \\'1'")]
         [TestCase("test\\", "'test\\\\'")]
@@ -216,139 +224,39 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(client.Query, Is.EqualTo(expect));
         }
 
-        [Test]
-        public void TimestampTzTest()
+        [TestCase("TimestampTz", "2022-05-10 21:01:02.12345+00", "TimestampTz", "2022-05-10 21:01:02Z", 1234500, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]
+        [TestCase("TimestampTz", "2022-05-10 21:01:02.0+00", "TimestampTz", "2022-05-10 21:01:02Z", 0, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]
+        [TestCase("TimestampTz", "1111-01-05 17:04:42+05:53:28", "TimestampTz", "1111-01-05 11:11:14Z", 0, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]
+        [TestCase("TimestampTz", "1111-01-05 17:04:42.123+05:53:28", "TimestampTz", "1111-01-05 11:11:14.123Z", 0, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]
+        [TestCase("TimestampTz", "1111-01-05 17:04:42.123456+05:53:28", "TimestampTz", "1111-01-05 11:11:14.123456Z", 0, TestName = "TimestampTzWithNonUnixTimestamp")]
+        public void TimestampTest(string type, string timestamp, string expType, string expectedTimestamp, int expTicks)
         {
-            var responseWithTimestampTz =
-                "{\"query\":{\"query_id\": \"1739956EA85D7645\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.12345 Europe\\/Berlin' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"2022-05-10 21:01:02.12345+00\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001312549,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000553908,\"time_to_execute\": 0.000173431,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
-            DateTime expectedTimestampTz = DateTime.Parse("2022-05-10 21:01:02Z");
-            expectedTimestampTz = expectedTimestampTz.AddTicks(1234500);
-
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+            TimestampTest(type, timestamp, expType, DateTime.Parse(expectedTimestamp).AddTicks(expTicks));
         }
 
-        [Test]
-        public void TimestampTzWithoutMicrosecondsTest()
+        [TestCase("TimestampNtz", "2022-05-10 23:01:02.123456", "TimestampNtz", 2022, 5, 10, 23, 1, 2, 0, 1234560)]
+        [TestCase("PGDate", "2022-05-10", "Date", 2022, 5, 10, 0, 0, 0, 0, 0)]
+        [TestCase("TimestampNtz", "0001-05-10 23:01:02.123", "TimestampNtz", 1, 5, 10, 23, 1, 2, 123, 0, TestName = "TimestampNtzWithNonUnixTimestamp")]
+        public void TimestampTest(string type, string timestamp, string expType, int year, int month, int day, int hour, int minute, int second, int millisecond, int ticks)
         {
-            var responseWithTimestampTz =
-                "{\"query\":{\"query_id\": \"1739956EA85D7645\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.0 Europe\\/Berlin' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"2022-05-10 21:01:02.0+00\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001312549,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000553908,\"time_to_execute\": 0.000173431,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
-            DateTime expectedTimestampTz = DateTime.Parse("2022-05-10 21:01:02Z");
-
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+            TimestampTest(type, timestamp, expType, new DateTime(year, month, day, hour, minute, second, millisecond).AddTicks(ticks));
         }
 
-        [Test]
-        public void TimestampTzWithoutMicrosecondsWithSecondsInTzTest()
+        private void TimestampTest(string type, string timestamp, string expType, DateTime expectedTimestamp)
         {
-            var responseWithTimestampTz =
-                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DDD\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001197308,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000535819,\"time_to_execute\": 0.000163099,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
-            DateTime expectedTimestampTz = DateTime.Parse("1111-01-05 11:11:14Z");
-
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
+            var json = "{\"query\":{\"query_id\": \"173B1C44D6EB9C33\"},\"meta\":[{\"name\": \"test\",\"type\": \"" + type + "\"}],\"data\":[[\"" + timestamp + "\"]],\"rows\": 1}";
+            QueryResult res = TypesConverter.ParseJsonResponse(json)!;
+            AssertQueryResult(res, expectedTimestamp, expType);
         }
 
-        [Test]
-        public void TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest()
+        [TestCase("Nullable(Nothing)", "Null")]
+        [TestCase("Nullable(TimestampTz)", "TimestampTz")]
+        [TestCase("int null", "Int")]
+        [TestCase("string null", "String")]
+        public void NullTest(string type, string expectedType)
         {
-            var responseWithTimestampTz =
-                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DDD\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42.123+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001197308,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000535819,\"time_to_execute\": 0.000163099,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
-            DateTime expectedTimestampTz = DateTime.Parse("1111-01-05 11:11:14.123Z");
-
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampTz));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
-        }
-
-        [Test]
-        public void TimestampTzWithNonUnixTimestamp()
-        {
-            var responseWithTimestampTz =
-                "{\"query\":{\"query_id\": \"173ACEC4A4AD8DA0\"},\"meta\":[{\"name\": \"CAST('1111-01-05 17:04:42.123456' AS timestamptz)\",\"type\": \"TimestampTz\"}],\"data\":[[\"1111-01-05 17:04:42.123456+05:53:28\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001270414,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000541517,\"time_to_execute\": 0.000200035,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampTz);
-            DateTime expectedDateTime = DateTime.Parse("1111-01-05 11:11:14.123456Z");
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedDateTime));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
-        }
-
-        [Test]
-        public void TimestampNtzTest()
-        {
-            var responseWithTimestampNtz =
-                "{\"query\":{\"query_id\": \"1739956EA85D7646\"},\"meta\":[{\"name\": \"CAST('2022-05-10 23:01:02.123456' AS timestampntz)\",\"type\": \"TimestampNtz\"}],\"data\":[[\"2022-05-10 23:01:02.123456\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001318462,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000547007,\"time_to_execute\": 0.000249659,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
-            DateTime expectedTimestampNtz = new DateTime(2022, 5, 10, 23, 1, 2, 0);
-            expectedTimestampNtz = expectedTimestampNtz.AddTicks(1234560);
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
-        }
-
-        [Test]
-        public void PgDateTest()
-        {
-            var responseWithPgDate =
-                "{\"query\":{\"query_id\": \"1739956EA85D7647\"},\"meta\":[{\"name\": \"CAST('2022-05-10' AS pgdate)\",\"type\": \"PGDate\"}],\"data\":[[\"2022-05-10\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001887076,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000528582,\"time_to_execute\": 0.000203717,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
-            DateTime expectedDate = new DateTime(2022, 5, 10, 0, 0, 0, 0);
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedDate));
-            Assert.That(newMeta.Meta, Is.EqualTo("Date"));
-        }
-
-        [Test]
-        public void TimestampNtzWithNonUnixTimestamp()
-        {
-            var responseWithTimestampNtz =
-                "{\"query\":{\"query_id\": \"1739956EA85D7646\"},\"meta\":[{\"name\": \"CAST('0001-05-10 23:01:02.123' AS timestampntz)\",\"type\": \"TimestampNtz\"}],\"data\":[[\"0001-05-10 23:01:02.123\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001318462,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000547007,\"time_to_execute\": 0.000249659,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
-            DateTime expectedTimestampNtz = new DateTime(1, 5, 10, 23, 1, 2, 123);
-            Assert.That(newMeta.Data[0], Is.EqualTo(expectedTimestampNtz));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampNtz"));
-        }
-        [Test]
-        public void NullNothingTest()
-        {
-            var responseWithTimestampNtz =
-                "{\"query\":{\"query_id\": \"173B162657CAA798\"},\"meta\":[{\"name\": \"NULL\",\"type\": \"Nullable(Nothing)\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001364262,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001206089,\"time_to_execute\": 0.000155675,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
-            Assert.That(newMeta.Data[0], Is.EqualTo(null));
-            Assert.That(newMeta.Meta, Is.EqualTo("Null"));
-        }
-
-        [Test]
-        public void NullTimestampTzTest()
-        {
-            var responseWithTimestampNtz =
-                "{\"query\":{\"query_id\": \"173B1C44D6EB9C1F\"},\"meta\":[{\"name\": \"CAST(NULL AS timestamptz)\",\"type\": \"Nullable(TimestampTz)\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001241091,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000519624,\"time_to_execute\": 0.000231926,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
-            Assert.That(newMeta.Data[0], Is.EqualTo(null));
-            Assert.That(newMeta.Meta, Is.EqualTo("TimestampTz"));
-        }
-
-        [Test]
-        public void NullIntTest()
-        {
-            var responseWithTimestampNtz =
-                "{\"query\":{\"query_id\": \"173B1C44D6EB9C32\"},\"meta\":[{\"name\": \"CAST(NULL AS int)\",\"type\": \"int null\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001383618,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001199649,\"time_to_execute\": 0.000181567,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
-            Assert.That(newMeta.Data[0], Is.EqualTo(null));
-            Assert.That(newMeta.Meta, Is.EqualTo("Int"));
-        }
-
-        [Test]
-        public void NullStringTest()
-        {
-            var responseWithTimestampNtz =
-                "{\"query\":{\"query_id\": \"173B1C44D6EB9C33\"},\"meta\":[{\"name\": \"CAST(NULL AS text)\",\"type\": \"string null\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001355843,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.001176689,\"time_to_execute\": 0.000176776,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithTimestampNtz);
-            Assert.That(newMeta.Data[0], Is.EqualTo(null));
-            Assert.That(newMeta.Meta, Is.EqualTo("String"));
+            var json = "{\"query\":{\"query_id\": \"173B1C44D6EB9C33\"},\"meta\":[{\"name\": \"test\",\"type\": \"" + type + "\"}],\"data\":[[null]],\"rows\": 1}";
+            AssertQueryResult(TypesConverter.ParseJsonResponse(json)!, null, expectedType);
         }
 
         [TestCase("true", true)]
@@ -359,9 +267,8 @@ namespace FireboltDotNetSdk.Tests
                 "{\"query\":{\"query_id\": \"1739956EA85D7647\"},\"meta\":[{\"name\": \"CAST(1 AS boolean)\",\"type\": \"boolean\"}],\"data\":[[\"" +
                 data +
                 "\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001887076,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000528582,\"time_to_execute\": 0.000203717,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
-            Assert.That(newMeta.Data[0], Is.EqualTo(expect));
-            Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
+            QueryResult res = TypesConverter.ParseJsonResponse(responseWithPgDate)!;
+            AssertQueryResult(res, expect, "Boolean");
         }
 
         [Test]
@@ -369,9 +276,8 @@ namespace FireboltDotNetSdk.Tests
         {
             var responseWithPgDate =
                 "{\"query\":{\"query_id\": \"1739956EA85D7647\"},\"meta\":[{\"name\": \"CAST(1 AS boolean)\",\"type\": \"boolean null\"}],\"data\":[[null]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.001887076,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000528582,\"time_to_execute\": 0.000203717,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
-            NewMeta newMeta = ResponseUtilities.getFirstRow(responseWithPgDate);
-            Assert.That(newMeta.Data[0], Is.EqualTo(null));
-            Assert.That(newMeta.Meta, Is.EqualTo("Boolean"));
+            QueryResult res = TypesConverter.ParseJsonResponse(responseWithPgDate)!;
+            AssertQueryResult(res, null, "Boolean");
         }
 
         [TestCase(CommandType.StoredProcedure)]
@@ -469,6 +375,14 @@ namespace FireboltDotNetSdk.Tests
         private DbCommand createCommand(string? query, string? response)
         {
             return new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" }, query, new FireboltParameterCollection());
+        }
+
+        private void AssertQueryResult(QueryResult result, object? expectedValue, string expectedType, int line = 0, int column = 0)
+        {
+            var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
+            var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
+            Assert.That(convertedValue, Is.EqualTo(expectedValue));
+            Assert.That(columnType.Type.ToString, Is.EqualTo(expectedType));
         }
     }
 }

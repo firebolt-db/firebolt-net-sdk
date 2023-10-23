@@ -21,12 +21,12 @@ public class ColumnType
         Nullable = nullable;
     }
 
-    public static ColumnType Of(String fullColumnType)
+    public static ColumnType Of(string fullColumnType)
     {
         ColumnType? innerDataType = null;
         Tuple<int?, int?>? scaleAndPrecisionPair = null;
         ColumnTypeWrapper columnTypeWrapper = ColumnTypeWrapper.Of(fullColumnType);
-        String typeWithoutNullKeyword = columnTypeWrapper.TypeWithoutNullKeyword;
+        string typeWithoutNullKeyword = columnTypeWrapper.TypeWithoutNullKeyword;
         int typeEndIndex = GetTypeEndPosition(typeWithoutNullKeyword);
         FireboltDataType dataType = GetFireboltDataTypeFromColumnType(typeWithoutNullKeyword, typeEndIndex);
         if (dataType.Equals(FireboltDataType.Array))
@@ -56,6 +56,10 @@ public class ColumnType
         {
             columnType = "decimal";
         }
+        else if (typeWithoutNullKeyword.StartsWith("numeric"))
+        {
+            columnType = "numeric";
+        }
         else
         {
             columnType = typeWithoutNullKeyword.Substring(0, typeEndIndex);
@@ -63,45 +67,45 @@ public class ColumnType
         return TypesConverter.MapColumnTypeToFireboltDataType(columnType);
     }
 
-    private static Tuple<int?, int?> GetScaleAndPrecision(String[] arguments)
+    private static Tuple<int?, int?> GetScaleAndPrecision(string[] arguments)
     {
         int? scale = null;
         int? precision = null;
         if (arguments.Length == 2)
         {
-            precision = Int32.Parse(arguments[0]);
-            scale = Int32.Parse(arguments[1]);
+            precision = int.Parse(arguments[0]);
+            scale = int.Parse(arguments[1]);
         }
 
         return new Tuple<int?, int?>(precision, scale);
     }
 
-    private static ColumnType GetInnerTypes(String columnType)
+    private static ColumnType GetInnerTypes(string columnType)
     {
         return Of(GetArrayType(columnType).Trim());
     }
 
-    private static String GetArrayType(String columnType)
+    private static string GetArrayType(string columnType)
     {
         Regex rgx = new Regex("(?i)ARRAY\\((?-i)");
         String types = rgx.Replace(columnType, "", 1); //Remove first ARRAY(
         return types.Remove(types.Length - 1, 1); // remove last )
     }
 
-    private static int GetTypeEndPosition(String type)
+    private static int GetTypeEndPosition(string type)
     {
         int typeNameEndIndex = !type.Contains("(") ? type.IndexOf(")") : type.IndexOf("(");
         return typeNameEndIndex < 0 ? type.Length : typeNameEndIndex;
     }
 
-    private static String[] SplitArguments(String args, int index)
+    private static String[] SplitArguments(string args, int index)
     {
         int startIndex = args.IndexOf("(", index) + 1;
         int endIndex = args.IndexOf(")", index);
         return args.Substring(startIndex, endIndex - startIndex).Split(",");
     }
 
-    private static bool ReachedEndOfTypeName(int typeNameEndIndex, String type)
+    private static bool ReachedEndOfTypeName(int typeNameEndIndex, string type)
     {
         return typeNameEndIndex == type.Length || type.IndexOf("(", typeNameEndIndex) < 0
                                                || type.IndexOf(")", typeNameEndIndex) < 0;
@@ -122,20 +126,20 @@ public class ColumnType
         return currentInnerType;
     }
 
-    public class ColumnTypeWrapper
+    private class ColumnTypeWrapper
     {
-        public string Type { get; }
-        public string TypeWithoutNullKeyword { get; }
-        public bool HasNullableKeyword { get; }
+        internal string Type { get; }
+        internal string TypeWithoutNullKeyword { get; }
+        internal bool HasNullableKeyword { get; }
 
-        public ColumnTypeWrapper(string type, string typeWithoutNullKeyword, bool hasNullableKeyword)
+        private ColumnTypeWrapper(string type, string typeWithoutNullKeyword, bool hasNullableKeyword)
         {
             Type = type;
             TypeWithoutNullKeyword = typeWithoutNullKeyword;
             HasNullableKeyword = hasNullableKeyword;
         }
 
-        public static ColumnTypeWrapper Of(String type)
+        internal static ColumnTypeWrapper Of(string type)
         {
             bool containsNullableKeyword = false;
             string typeInUpperCase = type.ToUpper();

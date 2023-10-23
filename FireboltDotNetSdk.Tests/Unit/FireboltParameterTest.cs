@@ -1,10 +1,6 @@
 using FireboltDotNetSdk.Client;
-using FireboltDotNetSdk.Exception;
-using static FireboltDotNetSdk.Client.FireResponse;
-using FireboltDotNetSdk.Utils;
 using System.Data.Common;
 using System.Data;
-using Moq;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -17,6 +13,7 @@ namespace FireboltDotNetSdk.Tests
             DbParameter parameter = new FireboltParameter();
             Assert.That(parameter.ParameterName, Is.EqualTo("parameter"));
             Assert.That(parameter.Value, Is.EqualTo(null));
+            Assert.True(parameter.SourceColumnNullMapping);
         }
 
         [Test]
@@ -25,6 +22,7 @@ namespace FireboltDotNetSdk.Tests
             DbParameter parameter = new FireboltParameter("one", 1);
             Assert.That(parameter.ParameterName, Is.EqualTo("one"));
             Assert.That(parameter.Value, Is.EqualTo(1));
+            Assert.True(parameter.SourceColumnNullMapping);
         }
 
         [Test]
@@ -34,6 +32,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(parameter.ParameterName, Is.EqualTo("number"));
             Assert.That(parameter.Value, Is.EqualTo(123));
             Assert.That(parameter.DbType, Is.EqualTo(DbType.Int16));
+            Assert.True(parameter.SourceColumnNullMapping);
         }
 
         [Test]
@@ -43,6 +42,16 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(parameter.ParameterName, Is.EqualTo("number"));
             Assert.That(parameter.Value, Is.EqualTo(123));
             Assert.That(parameter.DbType, Is.EqualTo(DbType.Int32));
+            Assert.True(parameter.SourceColumnNullMapping);
+        }
+
+        [Test]
+        public void CreateNotNullableParameter()
+        {
+            DbParameter parameter = new FireboltParameter() { SourceColumnNullMapping = false };
+            Assert.That(parameter.ParameterName, Is.EqualTo("parameter"));
+            Assert.That(parameter.Value, Is.EqualTo(null));
+            Assert.False(parameter.SourceColumnNullMapping);
         }
 
         [TestCase(DbType.Currency)]

@@ -67,6 +67,7 @@ namespace FireboltDotNetSdk.Client
 
         // This constant is copied from Microsoft's System.Data.SqlTypes.SQLDecimal, but its value is changed from 17 to 15 according to the Firebolt standard
         private const uint DBL_DIG = 15; // Max decimal digits of double
+        private const int MAX_COLUMN_SIZE = 100 * 1024 * 1024; //  100 MB
 
         private string _parameterName;
         private object? _value;
@@ -252,8 +253,8 @@ namespace FireboltDotNetSdk.Client
 
         private static int GetSize(object? value)
         {
-            //TODO: improve this: some types (e.g. string, decimal) can be limite on table level
-            return GetData(dbTypeSizes, value, 0, int.MaxValue);
+            //TODO: improve this: some types (e.g. string, decimal) can be limited on table level
+            return GetData(dbTypeSizes, value, MAX_COLUMN_SIZE, MAX_COLUMN_SIZE);
         }
 
         private static DbType? GetType(object? value)
