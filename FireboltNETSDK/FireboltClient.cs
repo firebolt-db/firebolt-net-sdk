@@ -95,7 +95,7 @@ public abstract class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
+    public virtual async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
                          string query, HashSet<string> setParamList, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(query))

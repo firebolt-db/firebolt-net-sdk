@@ -6,6 +6,7 @@ using System.Data.Common;
 using System.Data;
 using Moq;
 using FireboltDoNetSdk.Utils;
+using System.Runtime.CompilerServices;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -26,6 +27,13 @@ namespace FireboltDotNetSdk.Tests
         {
             Query = query;
             return Task.FromResult(_response);
+        }
+
+        public override async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
+                         string query, HashSet<string> setParamList, CancellationToken cancellationToken)
+        {
+            Query = query;
+            return await Task.FromResult(_response);
         }
 
         override public Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
@@ -88,8 +96,8 @@ namespace FireboltDotNetSdk.Tests
             Assert.False(reader.Read());
         }
 
-        [TestCase(null, null, "Command is undefined")]
-        [TestCase(null, "{}", "Command is undefined")]
+        [TestCase(null, null, "SQL command is null")]
+        [TestCase(null, "{}", "SQL command is null")]
         [TestCase("select 1", "null", "No result produced")] // produces null QueryResult
         public void ExecuteRederInvalidQuery(string? query, string? response, string expectedErrorMessage)
         {
@@ -333,8 +341,9 @@ namespace FireboltDotNetSdk.Tests
         public void CommandTimeout()
         {
             DbCommand command = new FireboltCommand();
-            Assert.Throws<NotImplementedException>(() => { int x = command.CommandTimeout; });
-            Assert.Throws<NotImplementedException>(() => command.CommandTimeout = 123);
+            Assert.That(command.CommandTimeout, Is.EqualTo(30));
+            command.CommandTimeout = 12345;
+            Assert.That(command.CommandTimeout, Is.EqualTo(12345));
         }
 
         [TestCase(UpdateRowSource.None)]
@@ -348,20 +357,24 @@ namespace FireboltDotNetSdk.Tests
             Assert.Throws<NotImplementedException>(() => command.UpdatedRowSource = updateRowSource);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void SetDesignTimeVisible(bool visible)
+        [Test]
+        public void SetDesignTimeVisible()
         {
             DbCommand command = new FireboltCommand();
-            Assert.Throws<NotImplementedException>(() => { var x = command.DesignTimeVisible; });
-            Assert.Throws<NotImplementedException>(() => command.DesignTimeVisible = visible);
+            Assert.True(command.DesignTimeVisible); // the default
+            // change the value and validate it
+            command.DesignTimeVisible = false;
+            Assert.False(command.DesignTimeVisible);
+            // restore the value and validate again
+            command.DesignTimeVisible = true;
+            Assert.True(command.DesignTimeVisible);
         }
 
         [Test]
         public void Cancel()
         {
             DbCommand command = new FireboltCommand();
-            Assert.Throws<NotImplementedException>(() => command.Cancel());
+            Assert.DoesNotThrow(() => command.Cancel()); // just should pass
         }
 
         [TestCase("select 1", "int", "[[1]]", 1, 1)]

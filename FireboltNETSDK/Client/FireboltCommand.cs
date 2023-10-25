@@ -22,12 +22,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Mime;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using System.Text;
 
+[assembly: InternalsVisibleTo("FireboltDotNetSdk.Tests")]
 namespace FireboltDotNetSdk.Client
 {
     /// <summary>
@@ -37,6 +39,7 @@ namespace FireboltDotNetSdk.Client
     {
         private FireboltConnection? _connection;
         private string? _commandText;
+        private bool _designTimeVisible = true;
         private DbParameterCollection _parameters;
 
         public readonly HashSet<string> SetParamList;
@@ -55,6 +58,8 @@ namespace FireboltDotNetSdk.Client
             _commandText = commandText;
             _parameters = parameters;
             SetParamList = _connection?.SetParamList ?? new();
+            // as it is defined for MS SQL server https://learn.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlcommand.commandtimeout?view=dotnet-plat-ext-7.0#remarks
+            CommandTimeoutMillis = 30000;
         }
 
         /// <summary>
@@ -67,6 +72,10 @@ namespace FireboltDotNetSdk.Client
             set => _commandText = value;
         }
 
+        private string StrictCommandText
+        {
+            get => _commandText ?? throw new InvalidOperationException("SQL command is null");
+        }
         /// <summary>
         /// Gets the sets type of the command. The only supported type is <see cref="MediaTypeNames.Text"/>.
         /// </summary>
@@ -120,17 +129,31 @@ namespace FireboltDotNetSdk.Client
 
         public override int CommandTimeout
         {
-            get => throw new NotImplementedException();
-            set => throw new NotImplementedException();
+            get => CommandTimeoutMillis / 1000;
+            set => CommandTimeoutMillis = value * 1000;
         }
+
+        // We store timeout in milliseconds and expose this property for tests. 
+        // Otherwise it is impossible (or very difficult) to implement test that simulates query that runs longer than timeout. 
+        internal int CommandTimeoutMillis { get; set; }
 
         internal QueryResult? Execute(string commandText)
         {
-            string? response = ExecuteCommandAsync(commandText).GetAwaiter().GetResult();
+            CancellationTokenSource cancellationTokenSource = CommandTimeoutMillis == 0 ? new CancellationTokenSource() : new CancellationTokenSource(CommandTimeoutMillis);
+            return CreateQueryResult(ExecuteCommandAsync(commandText, cancellationTokenSource.Token).GetAwaiter().GetResult());
+        }
+
+        private QueryResult? CreateQueryResult(string? response)
+        {
             return response == null ? new QueryResult() : GetOriginalJsonData(response);
         }
 
-        private async Task<string?> ExecuteCommandAsync(string commandText)
+        private DbDataReader CreateDbDataReader(QueryResult? queryResult)
+        {
+            return queryResult != null ? new FireboltDataReader(null, queryResult, 0) : throw new InvalidOperationException("No result produced");
+        }
+
+        private async Task<string?> ExecuteCommandAsync(string commandText, CancellationToken cancellationToken)
         {
             if (Connection == null)
             {
@@ -154,10 +177,29 @@ namespace FireboltDotNetSdk.Client
             }
 
             var database = Connection?.Database != string.Empty ? Connection?.Database : null;
-            Task<string?> t = Connection!.Client.ExecuteQuery(engineUrl, database, Connection?.AccountId, SetParamList, newCommandText);
+
+            Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection?.AccountId, newCommandText, SetParamList, cancellationToken);
             return await t;
         }
 
+        protected override Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new TaskCanceledException();
+            }
+            CancellationTokenRegistration registration = new CancellationTokenRegistration();
+            if (cancellationToken.CanBeCanceled)
+            {
+                registration = cancellationToken.Register(Cancel);
+            }
+            return ExecuteCommandAsync(StrictCommandText, cancellationToken).ContinueWith(result => CreateDbDataReader(CreateQueryResult(result.Result)));
+        }
+
+        public override Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken)
+        {
+            return ExecuteDbDataReaderAsync(CommandBehavior.Default, cancellationToken).ContinueWith(r => CreateScalar(r.Result));
+        }
 
         /// <summary>
         /// Get query with ready parse parameters<b>null</b>.
@@ -267,13 +309,11 @@ namespace FireboltDotNetSdk.Client
             _connection?.SetParamList.Clear();
         }
 
-        /// <summary>
-        /// Not supported. To cancel a command execute it asynchronously with an appropriate cancellation token.
-        /// </summary>
-        /// <exception cref="NotImplementedException">Always throws <see cref="NotImplementedException"/>.</exception>
         public override void Cancel()
         {
-            throw new NotImplementedException();
+            // This is a call back method that is called when command is cancelled using CancellationTokenSource.Cancel()
+            // when timeout is expired. Use this callback if any other closing operations are needed to completely cancel the running command.
+            // Right now this implementation is empty.
         }
 
         public override UpdateRowSource UpdatedRowSource
@@ -284,31 +324,13 @@ namespace FireboltDotNetSdk.Client
 
         public override bool DesignTimeVisible
         {
-            get => throw new NotImplementedException();
-            set => throw new NotImplementedException();
-        }
-
-        new public DbDataReader ExecuteReader()
-        {
-            return ExecuteReader(CommandBehavior.Default);
-        }
-        new public DbDataReader ExecuteReader(CommandBehavior behavior)
-        {
-            return ExecuteDbDataReader(behavior);
+            get => _designTimeVisible;
+            set => _designTimeVisible = value;
         }
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
-            if (_commandText == null)
-            {
-                throw new InvalidOperationException("Command is undefined");
-            }
-            QueryResult? result = Execute(_commandText);
-            if (result == null)
-            {
-                throw new InvalidOperationException("No result produced");
-            }
-            return new FireboltDataReader(null, result, 0);
+            return CreateDbDataReader(Execute(StrictCommandText));
         }
 
         protected override DbParameter CreateDbParameter()
@@ -325,16 +347,21 @@ namespace FireboltDotNetSdk.Client
         {
             using (DbDataReader reader = ExecuteReader())
             {
-                if (reader.Read() && reader.FieldCount > 0)
-                {
-                    object result = reader.GetValue(0);
-                    if (DBNull.Value != result)
-                    {
-                        return result;
-                    }
-                }
-                return null;
+                return CreateScalar(reader);
             }
+        }
+
+        private object? CreateScalar(DbDataReader reader)
+        {
+            if (reader.Read() && reader.FieldCount > 0)
+            {
+                object result = reader.GetValue(0);
+                if (DBNull.Value != result)
+                {
+                    return result;
+                }
+            }
+            return null;
         }
 
         public override void Prepare()
@@ -344,12 +371,8 @@ namespace FireboltDotNetSdk.Client
 
         public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
-            if (_commandText == null)
-            {
-                throw new InvalidOperationException("SQL command is null");
-            }
-            await ExecuteCommandAsync(_commandText);
-            return await Task.FromResult<int>(0);
+            await ExecuteCommandAsync(StrictCommandText, cancellationToken);
+            return await Task.FromResult(0);
         }
     }
 }
