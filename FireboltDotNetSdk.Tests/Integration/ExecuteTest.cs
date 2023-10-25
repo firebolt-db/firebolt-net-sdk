@@ -36,6 +36,7 @@ namespace FireboltDotNetSdk.Tests
         private static string INSERT = "INSERT INTO ALL_TYPES (i, n, bi, r, dec, dp, t, d, ts, tstz, b, ba) VALUES (@i, @n, @bi, @r, @dec, @dp, @t, @d, @ts, @tstz, @b, @ba)";
         private static string SELECT_ALL_SIMPLE = "SELECT * FROM ALL_TYPES";
         private static string SELECT_WHERE_SIMPLE = "SELECT * FROM ALL_TYPES WHERE i = @i";
+        private static string LONG_QUERY = "SELECT checksum(*) FROM GENERATE_SERIES(1, 3000000000)";
 
         [TestCase("SELECT 1")]
         [TestCase("SELECT 1, 'a'")]
@@ -82,6 +83,48 @@ namespace FireboltDotNetSdk.Tests
             {
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
+        }
+
+        [TestCase(0)] // 0 means infinite
+        [TestCase(10)]
+        [TestCase(null)] // timeout is not set, i.e. default = 30 sec is used
+        public void WithTimeout(int? timeout)
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = LONG_QUERY;
+            if (timeout != null)
+            {
+                command.CommandTimeout = (int)timeout;
+            }
+            Assert.NotNull(command.ExecuteReader()); // works
+        }
+
+        [Test]
+        public void ShortTimeout()
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            FireboltCommand command = new FireboltCommand(conn, LONG_QUERY) { CommandTimeoutMillis = 1 };
+            Assert.Throws<TaskCanceledException>(() => command.ExecuteReader());
+        }
+
+        [TestCase(0)] // 0 means infinite
+        [TestCase(1)] // too short
+        [TestCase(10)]
+        [TestCase(10000)] // very long
+        public void CancelCommand(int timeout)
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            FireboltCancelTestCommand command = new FireboltCancelTestCommand(conn, LONG_QUERY) { CommandTimeoutMillis = timeout };
+            CancellationTokenSource source = new CancellationTokenSource();
+            CancellationToken cancellationToken = source.Token;
+            Task<DbDataReader> task = command.ExecuteReaderAsync(cancellationToken);
+            source.Cancel();
+            Assert.True(cancellationToken.IsCancellationRequested);
+            Assert.True(command.IsCancelCalled);
         }
 
         [TestCase("select 1", 1)]
@@ -283,7 +326,7 @@ namespace FireboltDotNetSdk.Tests
             using var conn = new FireboltConnection(connectionString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
-            Assert.IsTrue(exception!.Message.Contains("401"));
+            Assert.IsTrue(exception!.Message.Contains("401"), $"Expected Unauthorized (401) error message but was {exception!.Message}");
         }
 
         [TestCase(nameof(Password), Category = "v1")]
@@ -661,6 +704,20 @@ namespace FireboltDotNetSdk.Tests
             parameter.ParameterName = name;
             parameter.Value = value;
             return parameter;
+        }
+
+        class FireboltCancelTestCommand : FireboltCommand
+        {
+            internal bool IsCancelCalled { get; private set; }
+            public FireboltCancelTestCommand(FireboltConnection? connection, string? commandText, params DbParameter[] parameters) : base(connection, commandText, parameters)
+            {
+                IsCancelCalled = false;
+            }
+
+            public override void Cancel()
+            {
+                IsCancelCalled = true;
+            }
         }
     }
 }
