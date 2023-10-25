@@ -103,23 +103,11 @@ namespace FireboltDotNetSdk.Client
             set => _connection = value == null ? null : (FireboltConnection)value;
         }
 
-
         /// <summary>
-        /// Gets or sets the transaction within which the command executes. Always returns <b>null</b>.
+        /// Gets or sets the transaction within which the command executes. The transation is ignored.
         /// </summary>
-        /// <returns><b>null</b></returns>
         /// <exception cref="NotSupportedException">The value set is not <b>null</b>.</exception>
-        protected override DbTransaction? DbTransaction
-        {
-            get => null;
-            set
-            {
-                if (value != null)
-                {
-                    throw new NotSupportedException($"{nameof(DbTransaction)} is read only.'");
-                }
-            }
-        }
+        protected override DbTransaction? DbTransaction { get; set; }
 
         /// <summary>
         /// Gets the <see cref="FireboltParameterCollection"/>.

@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Data.Common;
 using System.Net;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
@@ -330,12 +331,26 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void FakeTransaction()
+        {
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
+            var cs = new FireboltConnection(connectionString);
+            DbTransaction transaction = cs.BeginTransaction();
+            NotNull(transaction);
+            False(transaction.SupportsSavepoints);
+            That(transaction.Connection, Is.SameAs(cs));
+            That(transaction.IsolationLevel, Is.EqualTo(IsolationLevel.Unspecified));
+            transaction.Commit();
+            Throws<NotImplementedException>(() => transaction.Rollback());
+        }
+
+        [Test]
         public void NotImplementedMethods()
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
             var cs = new FireboltConnection(connectionString);
-            Throws<NotImplementedException>(() => cs.BeginTransaction());
             Throws<NotSupportedException>(() => cs.EnlistTransaction(null));
+            Throws<NotSupportedException>(() => cs.EnlistTransaction(new Mock<System.Transactions.Transaction>().Object));
             Throws<NotImplementedException>(() => cs.GetSchema());
             Throws<NotImplementedException>(() => cs.GetSchema("collection"));
             Throws<NotImplementedException>(() => cs.GetSchema("collection", new string[0]));

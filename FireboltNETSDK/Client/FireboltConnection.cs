@@ -213,7 +213,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Not supported. Transactions are not supported by the Firebolt server.
+        /// Not supported. Transactions are not supported by the Firebolt server but we ignore attempts to use them.
         /// </summary>
         /// <exception cref="NotSupportedException">Always throws <see cref="NotSupportedException"/>.</exception>
         public override void EnlistTransaction(Transaction? transaction)
@@ -392,7 +392,7 @@ namespace FireboltDotNetSdk.Client
 
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
-            throw new NotImplementedException();
+            return new FireboltTransaction(this);
         }
 
         private string EditConnectionString(string orig, string name, string value)

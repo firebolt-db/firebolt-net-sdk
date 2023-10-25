@@ -315,7 +315,8 @@ namespace FireboltDotNetSdk.Tests
             command.Transaction = null;
             Assert.That(command.Transaction, Is.EqualTo(null));
             Mock<DbTransaction> transaction = new();
-            Assert.Throws<NotSupportedException>(() => command.Transaction = transaction.Object);
+            command.Transaction = transaction.Object;
+            Assert.That(command.Transaction, Is.SameAs(transaction.Object));
         }
 
         [Test]
