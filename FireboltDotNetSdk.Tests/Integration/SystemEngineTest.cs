@@ -17,8 +17,9 @@ namespace FireboltDotNetSdk.Tests
         [OneTimeSetUp]
         public void Init()
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-            Connection = new FireboltConnection(connString);
+            string? systemEngineName = Endpoint == null ? null : "system";
+            string connectionString = ConnectionString(new Tuple<string, string?>[] { Tuple.Create<string, string?>(nameof(Engine), systemEngineName) });
+            Connection = new FireboltConnection(connectionString);
             Connection.Open();
             CreateEngine(newEngineName, "SPEC = 'B1'");
             CreateDatabase(newDatabaseName, newEngineName);
@@ -63,11 +64,19 @@ namespace FireboltDotNetSdk.Tests
             CreateCommand(create_engine_sql).ExecuteNonQuery();
         }
 
-        [TestCase("CREATE DIMENSION TABLE dummy(id INT)")]
+        [TestCase("select 1")]
+        [TestCase("select count(*) from information_schema.tables where table_name = 'tables'")]
+        public void SuccessfulQueryTest(string query)
+        {
+            Assert.That(CreateCommand(query).ExecuteScalar(), Is.EqualTo(1));
+        }
+
+        [TestCase("CREATE DIMENSION TABLE dummy(id INT)", Description = "It is forbidden to create table using system engine", Category = "v2")]
         public void ErrorsTest(string query)
         {
             var command = CreateCommand(query);
-            Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); });
+            string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); }).Message;
+            Assert.True(errorMessage.Contains("Cannot execute a DDL query on the system engine."));
         }
 
         [Test]
@@ -96,6 +105,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("v2")]
         public void AttachDetachEngineTest()
         {
             var command = Connection.CreateCommand();
@@ -131,7 +141,7 @@ namespace FireboltDotNetSdk.Tests
 
         private IList<object[]> ConnectAndRunQuery(string query = "SELECT 1")
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env};engine={newEngineName};database={newDatabaseName}";
+            var connString = ConnectionString(new Tuple<string, string?>(nameof(Engine), newEngineName), new Tuple<string, string?>(nameof(Database), newDatabaseName));
             using (var userConnection = new FireboltConnection(connString))
             {
                 userConnection.Open();
@@ -181,13 +191,27 @@ namespace FireboltDotNetSdk.Tests
             );
         }
 
+
         [Test]
-        public void StartStopEngineAndDropDbTest()
+        [Category("v1")]
+        public void StartStopEngineAndDropDbTestV1()
+        {
+            AssertStartStopEngineAndDropDbTest(e => e.Response, "Engine not found");
+        }
+
+        [Test]
+        [Category("v2")]
+        public void StartStopEngineAndDropDbTestV2()
+        {
+            AssertStartStopEngineAndDropDbTest(e => e.Message, $"Engine {newEngineName} is not running");
+        }
+
+        private void AssertStartStopEngineAndDropDbTest(Func<FireboltException, string?> messageGetter, string errorMessage)
         {
             DbCommand command = Connection.CreateCommand();
 
             VerifyEngineStatus(command, newEngineName, "Stopped");
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(messageGetter.Invoke(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())), Is.EqualTo(errorMessage));
 
             CreateCommand($"START ENGINE {newEngineName}").ExecuteNonQuery();
             VerifyEngineStatus(command, newEngineName, "Running");
@@ -196,7 +220,7 @@ namespace FireboltDotNetSdk.Tests
 
             CreateCommand($"STOP ENGINE {newEngineName}").ExecuteNonQuery();
             VerifyEngineStatus(command, newEngineName, "Stopped");
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(messageGetter.Invoke(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())), Is.EqualTo(errorMessage));
 
             CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
 

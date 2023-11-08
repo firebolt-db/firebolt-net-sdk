@@ -23,17 +23,11 @@ namespace FireboltDotNetSdk.Client
     {
         public ConnectionState State { get; set; }
 
-        public FireboltConnectionSettings? Settings { get; set; }
+        public FireboltConnectionSettings Settings { get; set; }
 
         private int Counter { get; }
 
-
-        public FireboltConnectionState()
-            : this(ConnectionState.Closed, null, 0)
-        {
-        }
-
-        public FireboltConnectionState(ConnectionState state, FireboltConnectionSettings? settings, int counter)
+        public FireboltConnectionState(ConnectionState state, FireboltConnectionSettings settings, int counter)
         {
             State = state;
             Settings = settings;

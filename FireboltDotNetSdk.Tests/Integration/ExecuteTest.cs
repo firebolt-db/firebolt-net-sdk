@@ -4,7 +4,6 @@ using System.Collections;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDoNetSdk.Utils;
-using System.Data;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -12,9 +11,10 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class ExecutionTest : IntegrationTest
     {
-        private static string SYSTEM_CONNECTION_STRING = $"database={Database};clientid={ClientId};clientsecret={ClientSecret};endpoint={Endpoint};account={Account};env={Env}";
-        private static string USER_CONNECTION_STRING = $"{SYSTEM_CONNECTION_STRING};engine={EngineName}";
-        private static string SYSTEM_WRONG_CREDENTIALS = $"database={Database};clientid={ClientId};clientsecret=wrongClientSecret;endpoint={Endpoint};account={Account};env={Env}";
+        private static string SYSTEM_CONNECTION_STRING = ConnectionStringWithout(nameof(Engine));
+        private static string USER_CONNECTION_STRING = ConnectionString();
+        private static string SYSTEM_WRONG_CREDENTIALS1 = ConnectionString(new Tuple<string, string?>(nameof(Engine), null), new Tuple<string, string?>(nameof(Password), "wrongPassword"));
+        private static string SYSTEM_WRONG_CREDENTIALS2 = ConnectionString(new Tuple<string, string?>(nameof(Engine), null), new Tuple<string, string?>(nameof(ClientSecret), "wrongClientSecret"));
         private static string CREATE_SIMPLE_TABLE = @"
             CREATE FACT TABLE IF NOT EXISTS ALL_TYPES
             (
@@ -99,9 +99,22 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void ExecuteTestInvalidCredentials()
+        [Category("v1")]
+        public void ExecuteTestInvalidCredentialsV1()
         {
-            using var conn = new FireboltConnection(SYSTEM_WRONG_CREDENTIALS);
+            ExecuteTestInvalidCredentials(SYSTEM_WRONG_CREDENTIALS1);
+        }
+
+        [Test]
+        [Category("v2")]
+        public void ExecuteTestInvalidCredentialsV2()
+        {
+            ExecuteTestInvalidCredentials(SYSTEM_WRONG_CREDENTIALS2);
+        }
+
+        private void ExecuteTestInvalidCredentials(string connectionString)
+        {
+            using var conn = new FireboltConnection(connectionString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
@@ -251,23 +264,36 @@ namespace FireboltDotNetSdk.Tests
             expectedTables.ForEach(table => Assert.That(tableNames.Contains(table), Is.EqualTo(true)));
         }
 
+        [Test]
+        [Category("v1")]
+        public void ExecuteServiceAccountLoginWithInvalidCredentialsV1()
+        {
+            ExecuteServiceAccountLoginWithInvalidCredentials(SYSTEM_WRONG_CREDENTIALS1);
+        }
 
         [Test]
-        public void ExecuteServiceAccountLoginWithInvalidCredentials()
+        [Category("v2")]
+        public void ExecuteServiceAccountLoginWithInvalidCredentialsV2()
         {
-            using var conn = new FireboltConnection(SYSTEM_WRONG_CREDENTIALS);
+            ExecuteServiceAccountLoginWithInvalidCredentials(SYSTEM_WRONG_CREDENTIALS2);
+        }
+
+        private void ExecuteServiceAccountLoginWithInvalidCredentials(string connectionString)
+        {
+            using var conn = new FireboltConnection(connectionString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
             Assert.NotNull(exception);
             Assert.IsTrue(exception!.Message.Contains("401"));
         }
 
-        [Test]
-        public void ExecuteServiceAccountLoginWithMissingSecret()
+        [TestCase(nameof(Password), Category = "v1")]
+        [TestCase(nameof(ClientSecret), Category = "v2")]
+        public void ExecuteServiceAccountLoginWithMissingSecret(string secretField)
         {
-            var connString = $"database={Database};clientid={ClientId};clientsecret=;endpoint={Endpoint};account={Account};env={Env}";
+            var connString = ConnectionString(new Tuple<string, string?>(nameof(Engine), null), new Tuple<string, string?>(secretField, ""));
             FireboltException? exception = Assert.Throws<FireboltException>(() => new FireboltConnection(connString));
             Assert.NotNull(exception);
-            Assert.IsTrue(exception!.Message.Contains("ClientSecret parameter is missing in the connection string"));
+            Assert.That(exception!.Message, Is.EqualTo("Configuration error: either Password or ClientSecret must be provided but not both"));
         }
 
         [Test]
@@ -530,72 +556,77 @@ namespace FireboltDotNetSdk.Tests
                         inta3 {type3}[][][] NULL
                     )
                 ";
-                CreateCommand(conn, CREATE_ARRAYS_TABLE).ExecuteNonQuery();
-                string INSERT_ARRAYS = "INSERT INTO ALL_ARRAYS (i, inta1, inta2, inta3) VALUES (@i, @inta1, @inta2, @inta3)";
-                int id = 1;
-                DbCommand insert = CreateCommand(conn, INSERT_ARRAYS);
-                insert.Prepare();
-                insert.Parameters.Add(CreateParameter(insert, "@i", id));
-                insert.Parameters.Add(CreateParameter(insert, "@inta1", inta1));
-                insert.Parameters.Add(CreateParameter(insert, "@inta2", inta2));
-                insert.Parameters.Add(CreateParameter(insert, "@inta3", inta3));
-                insert.ExecuteNonQuery();
-
-                string SELECT_ARRAYS_WHERE = "SELECT i, inta1, inta2, inta3 FROM ALL_ARRAYS WHERE i = @i";
-                DbCommand select = CreateCommand(conn, SELECT_ARRAYS_WHERE);
-                select.Parameters.Add(CreateParameter(select, "@i", id));
-                Type[] expectedTypes = new Type[] { typeof(int), expType1, expType2, expType3 };
-
-                using (DbDataReader reader = select.ExecuteReader())
+                try
                 {
-                    int n = reader.FieldCount;
-                    for (int i = 0; i < n; i++)
-                    {
-                        Assert.That(
-                            reader.GetFieldType(i),
-                            Is.EqualTo(expectedTypes[i]),
-                            $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {reader.GetFieldType(i)}");
-                    }
-                    int rowsCount = 0;
-                    while (reader.Read())
-                    {
-                        Assert.That(reader.GetInt32(0), Is.EqualTo(id));
-                        Assert.That(reader.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
-                        Assert.That(reader.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
-                        Assert.That(reader.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
-                        rowsCount++;
-                    }
-                    Assert.That(rowsCount, Is.EqualTo(1));
-                }
+                    CreateCommand(conn, CREATE_ARRAYS_TABLE).ExecuteNonQuery();
+                    string INSERT_ARRAYS = "INSERT INTO ALL_ARRAYS (i, inta1, inta2, inta3) VALUES (@i, @inta1, @inta2, @inta3)";
+                    int id = 1;
+                    DbCommand insert = CreateCommand(conn, INSERT_ARRAYS);
+                    insert.Prepare();
+                    insert.Parameters.Add(CreateParameter(insert, "@i", id));
+                    insert.Parameters.Add(CreateParameter(insert, "@inta1", inta1));
+                    insert.Parameters.Add(CreateParameter(insert, "@inta2", inta2));
+                    insert.Parameters.Add(CreateParameter(insert, "@inta3", inta3));
+                    insert.ExecuteNonQuery();
 
-                using (DbDataReader reader = select.ExecuteReader())
-                {
-                    int rowsCount = 0;
-                    IEnumerator e = reader.GetEnumerator();
-                    while (e.MoveNext())
-                    {
-                        DbDataRecord record = (DbDataRecord)e.Current;
+                    string SELECT_ARRAYS_WHERE = "SELECT i, inta1, inta2, inta3 FROM ALL_ARRAYS WHERE i = @i";
+                    DbCommand select = CreateCommand(conn, SELECT_ARRAYS_WHERE);
+                    select.Parameters.Add(CreateParameter(select, "@i", id));
+                    Type[] expectedTypes = new Type[] { typeof(int), expType1, expType2, expType3 };
 
-                        int n = record.FieldCount;
+                    using (DbDataReader reader = select.ExecuteReader())
+                    {
+                        int n = reader.FieldCount;
                         for (int i = 0; i < n; i++)
                         {
                             Assert.That(
-                                record.GetFieldType(i),
+                                reader.GetFieldType(i),
                                 Is.EqualTo(expectedTypes[i]),
-                                $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {record.GetFieldType(i)}");
+                                $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {reader.GetFieldType(i)}");
                         }
-
-                        Assert.That(record.GetInt32(0), Is.EqualTo(id));
-                        Assert.That(record.GetInt32(0), Is.EqualTo(1));
-                        Assert.That(record.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
-                        Assert.That(record.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
-                        Assert.That(record.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
-                        rowsCount++;
+                        int rowsCount = 0;
+                        while (reader.Read())
+                        {
+                            Assert.That(reader.GetInt32(0), Is.EqualTo(id));
+                            Assert.That(reader.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
+                            Assert.That(reader.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
+                            Assert.That(reader.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                            rowsCount++;
+                        }
+                        Assert.That(rowsCount, Is.EqualTo(1));
                     }
-                    Assert.That(rowsCount, Is.EqualTo(1));
-                }
 
-                CreateCommand(conn, "DROP TABLE ALL_ARRAYS").ExecuteNonQuery();
+                    using (DbDataReader reader = select.ExecuteReader())
+                    {
+                        int rowsCount = 0;
+                        IEnumerator e = reader.GetEnumerator();
+                        while (e.MoveNext())
+                        {
+                            DbDataRecord record = (DbDataRecord)e.Current;
+
+                            int n = record.FieldCount;
+                            for (int i = 0; i < n; i++)
+                            {
+                                Assert.That(
+                                    record.GetFieldType(i),
+                                    Is.EqualTo(expectedTypes[i]),
+                                    $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {record.GetFieldType(i)}");
+                            }
+
+                            Assert.That(record.GetInt32(0), Is.EqualTo(id));
+                            Assert.That(record.GetInt32(0), Is.EqualTo(1));
+                            Assert.That(record.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
+                            Assert.That(record.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
+                            Assert.That(record.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                            rowsCount++;
+                        }
+                        Assert.That(rowsCount, Is.EqualTo(1));
+                    }
+                }
+                finally
+                {
+                    CreateCommand(conn, "DROP TABLE ALL_ARRAYS").ExecuteNonQuery();
+                }
             }
         }
 

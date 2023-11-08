@@ -68,6 +68,7 @@ namespace FireboltDotNetSdk.Client
             /// Retrieved record.
             /// </summary>
             public string? endpoint { get; set; }
+            public string? current_status { get; set; }
         }
 
         public class GetEngineIdByEngineNameResponse
@@ -113,5 +114,19 @@ namespace FireboltDotNetSdk.Client
             public string? engineUrl { get; init; }
 
         }
+
+        public class ConnectionResponse
+        {
+            public ConnectionResponse(string? engineUrl, string database, bool isSystem)
+            {
+                EngineUrl = engineUrl;
+                Database = database;
+                IsSystem = isSystem;
+            }
+            public string? EngineUrl { get; }
+            public string Database { get; }
+            public bool IsSystem { get; }
+        }
+
     }
 }

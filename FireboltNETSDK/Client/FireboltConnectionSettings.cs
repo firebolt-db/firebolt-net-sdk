@@ -28,12 +28,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets the name of the user.
         /// </summary>
-        public string ClientId { get; }
+        public string Principal { get; }
 
         /// <summary>
         /// Gets the password.
         /// </summary>
-        public string ClientSecret { get; }
+        public string Secret { get; }
 
         /// <summary>
         /// Get the name of the default database.
@@ -43,12 +43,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Get the name of the default Endpoint.
         /// </summary>
-        public string Endpoint { get; }
+        public string? Endpoint { get; }
 
         /// <summary>
         /// Get the name of the default Account.
         /// </summary>
-        public string Account { get; }
+        public string? Account { get; }
 
         /// <summary>
         /// Get the name of the engine
@@ -63,12 +63,13 @@ namespace FireboltDotNetSdk.Client
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
             ConnectionString = builder.ConnectionString;
-            ClientId = builder.ClientId;
-            ClientSecret = builder.ClientSecret;
+            ValidateValues(builder);
+            Principal = GetNotNullValue(builder.UserName, builder.ClientId);
+            Secret = GetNotNullValue(builder.Password, builder.ClientSecret);
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
-            (Endpoint, Env) = this.ResolveEndpointAndEnv(builder);
+            (Endpoint, Env) = ResolveEndpointAndEnv(builder);
         }
 
         static string? ExtractEndpointEnv(string endpoint)
@@ -86,16 +87,49 @@ namespace FireboltDotNetSdk.Client
 
             if (env != null && endpoint_env != null && env != endpoint_env)
             {
-                throw new FireboltException(
-            "Configuration error: environment " +
-            $"{env} and endpoint {endpoint} are incompatible"
-        );
+                throw new FireboltException($"Configuration error: environment {env} and endpoint {endpoint} are incompatible");
             }
             if (env == null && endpoint_env != null)
             {
                 env = endpoint_env;
             }
             return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
+        }
+
+        private string GetNotNullValue(string? firstValue, string? secondValue)
+        {
+            return GetNotNullValues(firstValue, secondValue)[0];
+        }
+
+        private string[] GetNotNullValues(string? firstValue, string? secondValue)
+        {
+            return new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray();
+        }
+
+        private void ValidateValues(FireboltConnectionStringBuilder builder)
+        {
+            if (AreBothProvided(builder.UserName, builder.ClientId) || AreBothMissing(builder.UserName, builder.ClientId))
+            {
+                throw new FireboltException("Configuration error: either UserName or ClientId must be provided but not both");
+            }
+            if (AreBothProvided(builder.Password, builder.ClientSecret) || AreBothMissing(builder.Password, builder.ClientSecret))
+            {
+                throw new FireboltException("Configuration error: either Password or ClientSecret must be provided but not both");
+            }
+            if (builder.Version == 2 && builder.Account == null)
+            {
+                throw new FireboltException("Account parameter is missing in the connection string");
+            }
+        }
+
+        private bool AreBothMissing(string? firstValue, string? secondValue)
+        {
+            return string.IsNullOrEmpty(firstValue) && string.IsNullOrEmpty(secondValue);
+        }
+
+        private bool AreBothProvided(string? firstValue, string? secondValue)
+        {
+            return !string.IsNullOrEmpty(firstValue) && !string.IsNullOrEmpty(secondValue);
         }
     }
 }
