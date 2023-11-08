@@ -32,6 +32,16 @@ namespace FireboltDotNetSdk.Tests
         {
             return Task.FromResult(new GetAccountIdByNameResponse());
         }
+
+        override public Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task<LoginResponse> Login(string id, string secret, string env)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     [TestFixture]

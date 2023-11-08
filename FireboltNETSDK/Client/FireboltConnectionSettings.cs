@@ -28,12 +28,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets the name of the user.
         /// </summary>
-        public string ClientId { get; }
+        public string Principal { get; }
 
         /// <summary>
         /// Gets the password.
         /// </summary>
-        public string ClientSecret { get; }
+        public string Secret { get; }
 
         /// <summary>
         /// Get the name of the default database.
@@ -43,12 +43,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Get the name of the default Endpoint.
         /// </summary>
-        public string Endpoint { get; }
+        public string? Endpoint { get; }
 
         /// <summary>
         /// Get the name of the default Account.
         /// </summary>
-        public string Account { get; }
+        public string? Account { get; }
 
         /// <summary>
         /// Get the name of the engine
@@ -63,12 +63,12 @@ namespace FireboltDotNetSdk.Client
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
             ConnectionString = builder.ConnectionString;
-            ClientId = builder.ClientId;
-            ClientSecret = builder.ClientSecret;
+            Principal = GetOneValue(nameof(builder.UserName), nameof(builder.ClientId), builder.UserName, builder.ClientId);
+            Secret = GetOneValue(nameof(builder.Password), nameof(builder.ClientSecret), builder.Password, builder.ClientSecret);
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
-            (Endpoint, Env) = this.ResolveEndpointAndEnv(builder);
+            (Endpoint, Env) = ResolveEndpointAndEnv(builder);
         }
 
         static string? ExtractEndpointEnv(string endpoint)
@@ -96,6 +96,20 @@ namespace FireboltDotNetSdk.Client
                 env = endpoint_env;
             }
             return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
+        }
+
+        private string GetOneValue(string firstName, string secondName, string? firstValue, string? secondValue)
+        {
+            string[] notNullValues = new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray();
+            int notNullCount = notNullValues.Count();
+            switch (notNullCount)
+            {
+                case 0: throw new FireboltException($"Either {firstName} or {secondName} parameter is missing in the connection string");
+                case 1: return notNullValues[0];
+                case 2: throw new FireboltException($"Ambiguous values of {firstName} and {secondName}. Use only one of them");
+                // this cannot happen. Added to satisfy compiler and to prevent future bugs.
+                default: throw new InvalidOperationException($"{notNullCount} values for {firstName} or {secondName}. Only one value is legal");
+            }
         }
     }
 }
