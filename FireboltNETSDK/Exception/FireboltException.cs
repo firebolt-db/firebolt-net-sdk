@@ -23,7 +23,7 @@ namespace FireboltDotNetSdk.Exception
     {
 
         private const int MaxDisplayableServerErrorLength = 512;
-        internal Nullable<HttpStatusCode> StatusCode { get; }
+        internal Nullable<HttpStatusCode> StatusCode { get; set; }
 
         internal string? Response { get; }
 

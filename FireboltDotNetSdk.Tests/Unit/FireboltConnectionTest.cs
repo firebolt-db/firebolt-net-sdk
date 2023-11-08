@@ -49,8 +49,8 @@ namespace FireboltDotNetSdk.Tests
                 That(cs.Database, Is.EqualTo("testdb.ib"));
                 That(cs.DataSource, Is.EqualTo("testdb.ib"));
                 That(cs.Account, Is.EqualTo("accountname"));
-                That(cs.ClientSecret, Is.EqualTo("testpwd"));
-                That(cs.ClientId, Is.EqualTo("testuser"));
+                That(cs.Secret, Is.EqualTo("testpwd"));
+                That(cs.Principal, Is.EqualTo("testuser"));
             });
         }
 
@@ -65,8 +65,8 @@ namespace FireboltDotNetSdk.Tests
                 That(cs.Env, Is.EqualTo("mock"));
                 That(cs.Database, Is.EqualTo("testdb.ib"));
                 That(cs.Account, Is.EqualTo("accountname"));
-                That(cs.ClientSecret, Is.EqualTo("testpwd"));
-                That(cs.ClientId, Is.EqualTo("testuser"));
+                That(cs.Secret, Is.EqualTo("testpwd"));
+                That(cs.Principal, Is.EqualTo("testuser"));
             });
         }
 
@@ -80,36 +80,47 @@ namespace FireboltDotNetSdk.Tests
                 That(cs.Endpoint, Is.EqualTo(Constant.DEFAULT_ENDPOINT));
                 That(cs.Env, Is.EqualTo(Constant.DEFAULT_ENV));
                 That(cs.Account, Is.EqualTo("accountname"));
-                That(cs.ClientSecret, Is.EqualTo("testpwd"));
-                That(cs.ClientId, Is.EqualTo("testuser"));
+                That(cs.Secret, Is.EqualTo("testpwd"));
+                That(cs.Principal, Is.EqualTo("testuser"));
             });
         }
 
         [TestCase("database=testdb.ib;clientid=testuser;clientsecret=;account=accountname;endpoint=api.mock.firebolt.io")]
         [TestCase("database=testdb.ib;clientid=testuser;account=accountname;endpoint=api.mock.firebolt.io")]
-        public void ParsingMissClientSecretConnectionStringTest(string connectionString)
+        [TestCase("database=testdb.ib;clientid=client;password=testpwd;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
+        [TestCase("database=testdb.ib;username=client;password=testpwd;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
+        public void ParsingWrongPasswordAndClientSecretConnectionStringTest(string connectionString)
         {
-            var ex = Throws<FireboltException>(
-                delegate { new FireboltConnection(connectionString); });
-            That(ex?.Message, Is.EqualTo("ClientSecret parameter is missing in the connection string"));
+            ParsingWrongConnectionStringTestV2(connectionString, "Configuration error: either Password or ClientSecret must be provided but not both");
         }
 
         [TestCase("database=testdb.ib;clientid=;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
         [TestCase("database=testdb.ib;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
-        public void ParsingMissClientIdConnectionStringTest(string connectionString)
+        [TestCase("database=testdb.ib;clientid=client;username=user;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
+        public void ParsingWrongUserNameAndClientIdConnectionStringTest(string connectionString)
         {
-            var ex = Throws<FireboltException>(
-                delegate { new FireboltConnection(connectionString); });
-            That(ex?.Message, Is.EqualTo("ClientId parameter is missing in the connection string"));
+            ParsingWrongConnectionStringTestV2(connectionString, "Configuration error: either UserName or ClientId must be provided but not both");
         }
 
-        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=;endpoint=api.mock.firebolt.io")]
-        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd;endpoint=api.mock.firebolt.io")]
-        public void ParsingMissAccountConnectionStringTest(string connectionString)
+        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=")]
+        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd")]
+        public void ParsingMissAccountConnectionStringTestV2(string connectionString)
         {
-            var ex = Throws<FireboltException>(
-                delegate { new FireboltConnection(connectionString); });
-            That(ex?.Message, Is.EqualTo("Account parameter is missing in the connection string"));
+            ParsingWrongConnectionStringTestV2(connectionString, "Account parameter is missing in the connection string");
+        }
+
+        public void ParsingWrongConnectionStringTestV2(string connectionString, string expectedErrorMessage)
+        {
+            var ex = Throws<FireboltException>(delegate { new FireboltConnection(connectionString); });
+            That(ex?.Message, Is.EqualTo(expectedErrorMessage));
+        }
+
+        [TestCase("database=testdb.ib;username=testuser@domain.com;password=testpwd;account=;endpoint=api.mock.firebolt.io")]
+        [TestCase("database=testdb.ib;username=testuser@domain.com;password=testpwd;endpoint=api.mock.firebolt.io")]
+        public void ParsingMissAccountConnectionStringTestV1(string connectionString)
+        {
+            IsNotNull(new FireboltConnection(connectionString)); // V1 does not require account and should succeed
+            // IsNotNull is always true here and needed just to satisfy Sonar.
         }
 
         [Test]
@@ -122,8 +133,8 @@ namespace FireboltDotNetSdk.Tests
                 That(cs.Endpoint, Is.EqualTo("api.mock.firebolt.io"));
                 That(cs.Database, Is.EqualTo("testdb.ib"));
                 That(cs.Account, Is.EqualTo("account_name"));
-                That(cs.ClientSecret, Is.EqualTo("test_pwd"));
-                That(cs.ClientId, Is.EqualTo("test_user"));
+                That(cs.Secret, Is.EqualTo("test_pwd"));
+                That(cs.Principal, Is.EqualTo("test_user"));
             });
         }
 
@@ -150,12 +161,12 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=test_pwd;account=accountname;endpoint=api.mock.firebolt.io";
             Mock<HttpClient> httpClientMock = new();
-            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "any", "test.api.firebolt.io", null, httpClientMock.Object);
-            var cs = new FireboltConnection(connectionString) { Client = client };
-            var conState = new FireboltConnectionState();
+            var cs = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
+            cs.Client = client;
             That(client, Is.SameAs(cs.Client));
             cs.Close();
-            That(conState.State, Is.EqualTo(ConnectionState.Closed));
+            That(cs.State, Is.EqualTo(ConnectionState.Closed));
             That(cs.Client, Is.EqualTo(null));
         }
 
@@ -361,9 +372,10 @@ namespace FireboltDotNetSdk.Tests
         {
             Mock<HttpClient> httpClientMock = new();
             httpClientMock.Setup(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).Throws<HttpRequestException>();
-            var client = new FireboltClient("wrong", "wrong", "", "test", httpClientMock.Object);
             const string connectionString = "clientid=wrong;clientsecret=wrong;account=accountname;engine=diesel";
-            var cs = new FireboltConnection(connectionString) { Client = client };
+            var cs = new FireboltConnection(connectionString);
+            var client = new FireboltClient2(cs, "wrong", "wrong", "", "test", "account", httpClientMock.Object);
+            cs.Client = client;
             Throws<HttpRequestException>(() => cs.Open());
             ThrowsAsync<HttpRequestException>(async () => await cs.OpenAsync());
         }
@@ -372,15 +384,16 @@ namespace FireboltDotNetSdk.Tests
         public void SuccessfulLogin()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "", "test", httpClientMock.Object);
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
+            var cs = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
+            cs.Client = client;
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
             FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             ;
-            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
-            var cs = new FireboltConnection(connectionString) { Client = client };
             cs.Open(); // should succeed
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
             // 1. to retrive token
@@ -392,7 +405,9 @@ namespace FireboltDotNetSdk.Tests
         public void SuccessfulLoginWithEngineName()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "", "test", httpClientMock.Object);
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
+            var cs = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
             FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
             FireResponse.GetAccountIdByNameResponse accountIdResponse = new FireResponse.GetAccountIdByNameResponse() { id = "account_id" };
@@ -402,13 +417,12 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"name\": \"uint8\"}, {\"name\": \"attached_to\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // get Engine DB
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"name\": \"uint8\"}, {\"name\": \"database_name\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // check whether the DB is accessible
+            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"text\", \"name\": \"attached_to\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // get Engine DB
+            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"t\", \"name\": \"database_name\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // check whether the DB is accessible
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"3\"}," + engineUrlMeta + ", " + engineUrlData + "}", HttpStatusCode.OK)) // get engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"string\"}, {\"name\": \"version()\"}],\"data\":[[\"1.2.3\"]]}", HttpStatusCode.OK)) // get version
             ;
-            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
-            var cs = new FireboltConnection(connectionString) { Client = client };
+            cs.Client = client;
             cs.Open(); // should succeed
             That(cs.ServerVersion, Is.EqualTo("1.2.3"));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(7));
@@ -418,7 +432,9 @@ namespace FireboltDotNetSdk.Tests
         public void SuccessfulLoginWithEngineNameDbNotAccessible()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "", "test", httpClientMock.Object);
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel;database=db";
+            var cs = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
             FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
             FireResponse.GetAccountIdByNameResponse accountIdResponse = new FireResponse.GetAccountIdByNameResponse() { id = "account_id" };
@@ -428,8 +444,7 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"name\": \"uint8\"}, {\"name\": \"database_name\"}],\"data\":[]}", HttpStatusCode.OK)) // check whether the DB is accessible - no
             ;
-            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel;database=db";
-            var cs = new FireboltConnection(connectionString) { Client = client };
+            cs.Client = client;
             That(Throws<FireboltException>(() => cs.Open())?.Message, Is.EqualTo("Database db does not exist or current user does not have access to it!"));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
         }
@@ -442,7 +457,10 @@ namespace FireboltDotNetSdk.Tests
         public void LoginFailedOnEngineUrl(string engineUrlData, string expectedErrorMessage)
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient(Guid.NewGuid().ToString(), "password", "", "test", httpClientMock.Object);
+            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
+            var cs = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
+            cs.Client = client;
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
             FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
             FireResponse.GetAccountIdByNameResponse accountIdResponse = new FireResponse.GetAccountIdByNameResponse() { id = "account_id" };
@@ -451,12 +469,10 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"name\": \"uint8\"}, {\"name\": \"attached_to\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // get Engine DB
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"name\": \"uint8\"}, {\"name\": \"database_name\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // check whether the DB is accessible
+            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"text\", \"name\": \"attached_to\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // get Engine DB
+            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"text\", \"name\": \"database_name\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // check whether the DB is accessible
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"3\"}," + engineUrlMeta + ", " + engineUrlData + "}", HttpStatusCode.OK)) // get engine URL
             ;
-            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
-            var cs = new FireboltConnection(connectionString) { Client = client };
             That(Throws<FireboltException>(() => cs.Open())?.Message, Is.EqualTo(expectedErrorMessage));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(6));
         }

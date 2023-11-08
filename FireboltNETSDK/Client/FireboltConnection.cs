@@ -19,12 +19,12 @@ using System.Data;
 using System.Data.Common;
 using System.Transactions;
 using System.Runtime.CompilerServices;
-using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using IsolationLevel = System.Data.IsolationLevel;
-
+using static FireboltDotNetSdk.Client.FireResponse;
 
 [assembly: InternalsVisibleTo("FireboltDotNetSdk.Tests")]
+[assembly: InternalsVisibleTo("FireboltDotNetSdk")]
 namespace FireboltDotNetSdk.Client
 {
     /// <summary>
@@ -33,8 +33,6 @@ namespace FireboltDotNetSdk.Client
     public class FireboltConnection : DbConnection
     {
         private FireboltConnectionState _connectionState;
-
-        private const string engineStatusRunning = "Running";
 
         public FireboltClient Client
         {
@@ -59,29 +57,37 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The name of the database specified in the connection settings. The default value is an empty string.</returns>
         public override string Database => _database;
 
-        public string ClientSecret
+        /// <summary>
+        /// Either user name or client ID (or any other identifier of person/software that connects to Firebolt)
+        /// </summary>
+        /// <returns>The principal (user name, client ID etc)</returns>
+        public string Principal
         {
-            get => _connectionState.Settings?.ClientSecret ?? throw new FireboltException("ClientSecret parameter is missing in the connection string");
+            get => _connectionState.Settings.Principal;
+        }
+
+        /// <summary>
+        /// Either password or client secret (or any other secret sequence that ensures security)
+        /// </summary>
+        /// <returns>The secret (password, client secret etc)</returns>
+        public string Secret
+        {
+            get => _connectionState.Settings.Secret;
         }
 
         public string Endpoint
         {
-            get => _connectionState.Settings?.Endpoint ?? Constant.DEFAULT_ENDPOINT;
+            get => _connectionState.Settings.Endpoint ?? Constant.DEFAULT_ENDPOINT;
         }
 
-        public string? Env
+        public string Env
         {
-            get => _connectionState.Settings?.Env ?? Constant.DEFAULT_ENV;
+            get => _connectionState.Settings.Env ?? Constant.DEFAULT_ENV;
         }
 
         public string Account
         {
             get => _connectionState.Settings?.Account ?? string.Empty;
-        }
-
-        public string ClientId
-        {
-            get => _connectionState.Settings?.ClientId ?? throw new FireboltException("ClientId is missing");
         }
 
         private string? EngineName
@@ -140,7 +146,8 @@ namespace FireboltDotNetSdk.Client
                 if (connectionSettings.Database == Database
                     && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
                     && connectionSettings.Account == Account
-                    && connectionSettings.ClientId == ClientId && connectionSettings.ClientSecret == ClientSecret)
+                    && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
+                    )
                 {
                     _connectionString = value;
                     return;
@@ -183,7 +190,7 @@ namespace FireboltDotNetSdk.Client
             if (stringBuilder == null)
                 throw new ArgumentNullException(nameof(stringBuilder));
 
-            var connectionSettings = stringBuilder.BuildSettings();
+            FireboltConnectionSettings connectionSettings = stringBuilder.BuildSettings();
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
             _database = _connectionState.Settings?.Database ?? string.Empty;
@@ -249,45 +256,35 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
         public override async Task<bool> OpenAsync(CancellationToken cancellationToken)
         {
-            if (_fireboltClient == null)
+            try
             {
-                _fireboltClient = new FireboltClient(ClientId, ClientSecret, Endpoint, Env, HttpClientSingleton.GetInstance());
-            }
-            await Client.EstablishConnection();
-            // Connecting to system engine by default
-            var result = await Client.GetSystemEngineUrl(Account);
-            EngineUrl = result.engineUrl;
-            // Specific engine and database specified
-            if (EngineName != null && Database != string.Empty)
-            {
-                EngineUrl = GetEngineUrlByEngineNameAndDb(EngineName, Database);
-                _isSystem = false;
-            }
-            else if (EngineName != null)
-            {
-                // If no db provided - try to fetch it
-                var database = GetEngineDatabase(EngineName);
-                if (database == null)
+                if (_fireboltClient == null)
                 {
-                    throw new FireboltException($"Engine {EngineName} is attached to a database current user can not access");
+                    _fireboltClient = CreateClient();
                 }
-                EngineUrl = GetEngineUrlByEngineNameAndDb(EngineName, database);
-                _database = database;
-                _isSystem = false;
+                ConnectionResponse response = await _fireboltClient.ConnectAsync(EngineName!, Database, cancellationToken);
+                EngineUrl = response.EngineUrl;
+                _isSystem = response.IsSystem;
+                _database = response.Database;
+                OnSessionEstablished();
+                return EngineUrl != null;
             }
-            OnSessionEstablished();
-            return EngineUrl != null;
+            catch (System.Exception)
+            {
+                Close();
+                throw;
+            }
         }
 
-        private string? GetEngineDatabase(string engineName)
+        private FireboltClient CreateClient()
         {
-            return (string?)GetEngineData(engineName, "attached_to")?[0];
-        }
-        private List<object?>? GetEngineData(string engineName, params string[] fields)
-        {
-            var query = $"SELECT {String.Join(",", fields)} FROM information_schema.engines WHERE engine_name=@EngineName";
-            IDictionary<string, object?> parameters = new Dictionary<string, object?> { { "@EngineName", engineName } };
-            return getOneLine(query, parameters);
+            var builder = new FireboltConnectionStringBuilder(_connectionString);
+            switch (builder.Version)
+            {
+                case 1: return new FireboltClient1(Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
+                case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
+                default: throw new NotSupportedException("Unsupported DB version");
+            }
         }
 
         private List<object?>? getOneLine(string query, IDictionary<string, object?>? parameters = null)
@@ -306,59 +303,6 @@ namespace FireboltDotNetSdk.Client
                 }
             }
             return ((FireboltCommand)command).Execute(query)?.Data;
-        }
-
-        private bool IsDatabaseAccessible(string database)
-        {
-            var query = "SELECT database_name FROM information_schema.databases WHERE database_name=@DatabaseName";
-            IDictionary<string, object?> parameters = new Dictionary<string, object?> { { "@DatabaseName", database } };
-            return getLines(query, parameters)?.Count == 1;
-        }
-
-        private string? GetEngineUrlByEngineNameAndDb(string engineName, string database)
-        {
-            var haveAccess = IsDatabaseAccessible(database);
-            if (!haveAccess)
-            {
-                Close();
-                throw new FireboltException($"Database {database} does not exist or current user does not have access to it!");
-            }
-            return GetEngineUrl(engineName, database);
-        }
-
-        private string? GetEngineUrl(string engineName, string? database)
-        {
-            var query = @$"SELECT engs.url, engs.attached_to, dbs.database_name, status 
-                        FROM information_schema.engines as engs 
-                        LEFT JOIN information_schema.databases as dbs
-                        ON engs.attached_to = dbs.database_name 
-                        WHERE engs.engine_name = @EngineName";
-            var command = CreateCommand();
-            command.CommandText = query;
-            command.Parameters.Add(new FireboltParameter("@EngineName", engineName));
-
-            DbDataReader reader = command.ExecuteReader();
-            if (!reader.Read())
-            {
-                throw new FireboltException($"Engine {engineName} not found.");
-            }
-            if (reader.IsDBNull(1))
-            {
-                throw new FireboltException($"Engine {engineName} is not attached to any database");
-            }
-            if (database != null && reader.GetString(1) != database)
-            {
-                throw new FireboltException($"Engine {engineName} is not attached to {database}");
-            }
-            if (!engineStatusRunning.Equals(reader.GetString(3), StringComparison.OrdinalIgnoreCase))
-            {
-                throw new FireboltException($"Engine {engineName} is not running");
-            }
-            if (reader.Read())
-            {
-                throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database {database}");
-            }
-            return reader.GetString(0);
         }
 
         /// <inheritdoc cref="CreateDbCommand()"/>

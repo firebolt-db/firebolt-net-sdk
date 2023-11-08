@@ -23,9 +23,7 @@ namespace FireboltDotNetSdk.Utils
         public static string DEFAULT_ENV = "api";
         public static string DEFAULT_ENDPOINT = "https://api.app.firebolt.io";
 
+        public static string AUTH_USERNAME_PASSWORD_URL = "/auth/v1/login";
         public static string AUTH_SERVICE_ACCOUNT_URL = "/oauth/token";
-
-        public static string ACCOUNT_BY_NAME_URL = "/web/v3/account/{0}/resolve";
-        public static string ACCOUNT_SYSTEM_ENGINE_URL = "/web/v3/account/{0}/engineUrl";
     }
 }

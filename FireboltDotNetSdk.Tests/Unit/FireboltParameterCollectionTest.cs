@@ -1,10 +1,5 @@
 using FireboltDotNetSdk.Client;
-using FireboltDotNetSdk.Exception;
-using static FireboltDotNetSdk.Client.FireResponse;
-using FireboltDotNetSdk.Utils;
 using System.Data.Common;
-using System.Data;
-using Moq;
 
 namespace FireboltDotNetSdk.Tests
 {

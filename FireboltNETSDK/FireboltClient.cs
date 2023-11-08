@@ -23,27 +23,26 @@ using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
-using static FireboltDotNetSdk.Client.FireRequest;
 using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk;
 
-public class FireboltClient
+public abstract class FireboltClient
 {
 
     private readonly Lazy<JsonSerializerSettings> _settings;
     private readonly HttpMessageInvoker _httpClient;
 
     private string? _token;
-    private readonly string _endpoint;
-    private readonly string _id;
-    private readonly string _secret;
-    private readonly string _env;
+    protected readonly string _endpoint;
+    protected readonly string _id;
+    protected readonly string _secret;
+    protected readonly string _env;
 
-    private readonly string _jsonContentType = "application/json";
+    protected readonly string _jsonContentType = "application/json";
     private readonly string _textContentType = "text/plain";
 
-    public FireboltClient(String id, String secret, String endpoint, String? env, HttpMessageInvoker httpClient)
+    public FireboltClient(string id, string secret, string endpoint, string? env, HttpMessageInvoker httpClient)
     {
         _httpClient = httpClient;
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
@@ -55,49 +54,7 @@ public class FireboltClient
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
 
-    /// <summary>
-    ///     Authenticates the user with Firebolt.
-    /// </summary>
-    /// <param name="id"></param>
-    /// <param name="sectet"></param>
-    /// <returns></returns>
-    private Task<LoginResponse> Login(string id, string secret, string env)
-    {
-        var credentials = new ServiceAccountLoginRequest(id, secret);
-        var url = new UriBuilder()
-        {
-            Scheme = "https",
-            Host = $"id.{env}.firebolt.io",
-            Path = Constant.AUTH_SERVICE_ACCOUNT_URL
-        }.Uri.ToString();
-
-
-        return SendAsync<LoginResponse>(HttpMethod.Post, url, credentials.GetFormUrlEncodedContent(), needsAccessToken: false, CancellationToken.None, retryUnauthorized: true);
-    }
-
-    /// <summary>
-    ///     Fetches system engine URL.
-    /// </summary>
-    /// <param name="accountName">Name of the account</param>
-    /// <returns>Engine URL response</returns>
-    public async Task<GetSystemEngineUrlResponse> GetSystemEngineUrl(string accountName)
-    {
-        var url = new UriBuilder()
-        {
-            Scheme = "https",
-            Host = _endpoint,
-            Path = string.Format(Constant.ACCOUNT_SYSTEM_ENGINE_URL, accountName)
-        }.Uri.ToString();
-
-        try
-        {
-            return await GetJsonResponseAsync<GetSystemEngineUrlResponse>(HttpMethod.Get, url, body: null, requiresAuth: true, CancellationToken.None);
-        }
-        catch (FireboltException e) when (e.StatusCode == HttpStatusCode.NotFound)
-        {
-            throw new FireboltException(HttpStatusCode.NotFound, $"Account with name {accountName} was not found");
-        }
-    }
+    protected abstract Task<LoginResponse> Login(string id, string secret, string env);
 
     /// <summary>
     ///     Executes a SQL query
@@ -229,25 +186,15 @@ public class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public virtual async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
-    {
-        var url = new UriBuilder()
-        {
-            Scheme = "https",
-            Host = _endpoint,
-            Path = string.Format(Constant.ACCOUNT_BY_NAME_URL, account)
-        }.Uri.ToString();
+    public abstract Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken);
 
-        return await GetJsonResponseAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, null, requiresAuth: true, cancellationToken);
-    }
-
-    private async Task<T> GetJsonResponseAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
+    protected async Task<T> GetJsonResponseAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
         CancellationToken cancellationToken)
     {
         return await SendAsync<T>(method, uri, body, _jsonContentType, requiresAuth, cancellationToken, retryUnauthorized: true);
     }
 
-    private async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, string bodyType,
+    protected async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, string bodyType,
         bool needsAccessToken, CancellationToken cancellationToken, bool retryUnauthorized)
     {
         if (body != null)
@@ -259,7 +206,7 @@ public class FireboltClient
         return await SendAsync<T>(method, uri, content: null, needsAccessToken, cancellationToken, retryUnauthorized);
     }
 
-    private async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, CancellationToken cancellationToken, bool retryUnauthorized)
+    protected async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, CancellationToken cancellationToken, bool retryUnauthorized)
     {
         using var request = new HttpRequestMessage();
         request.Method = method;
@@ -365,4 +312,6 @@ public class FireboltClient
         _token = loginResponse.Access_token;
         return _token;
     }
+
+    public abstract Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken);
 }

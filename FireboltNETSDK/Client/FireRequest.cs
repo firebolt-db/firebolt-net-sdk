@@ -21,6 +21,28 @@ namespace FireboltDotNetSdk.Client
 {
     public class FireRequest
     {
+        public class UsernamePasswordLoginRequest
+        {
+            public UsernamePasswordLoginRequest(string username, string password)
+            {
+                Password = password;
+                Username = username;
+            }
+
+            /// <summary>
+            /// Password.
+            /// </summary>
+            [JsonProperty]
+            private string Password { get; }
+
+            /// <summary>
+            /// Username.
+            /// </summary>
+            [JsonProperty]
+            private string Username { get; }
+
+        }
+
         public class ServiceAccountLoginRequest
         {
             private const string Audience = "https://api.firebolt.io";

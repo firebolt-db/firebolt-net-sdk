@@ -18,7 +18,6 @@
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
-using FireboltDotNetSdk.Exception;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -33,9 +32,31 @@ namespace FireboltDotNetSdk.Client
         /// Gets or sets the name of the user.
         /// </summary>
         /// <returns>The name of the user.</returns>
-        public string ClientId
+        public string? UserName
         {
-            get => GetString(nameof(ClientId)) ?? throw new FireboltException("ClientId parameter is missing in the connection string");
+            get => GetString(nameof(UserName));
+            init => this[nameof(UserName)] = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the password.
+        /// </summary>
+        /// <returns>The password.</returns>
+        [DisallowNull]
+        public string? Password
+        {
+            // get => GetString(nameof(Password));
+            get => GetString(nameof(Password));
+            init => this[nameof(Password)] = value != null ? Regex.Escape(value) : value;
+        }
+
+        /// <summary>
+        /// Gets or sets the name of the user.
+        /// </summary>
+        /// <returns>The name of the user.</returns>
+        public string? ClientId
+        {
+            get => GetString(nameof(ClientId));
             init => this[nameof(ClientId)] = value;
         }
 
@@ -43,10 +64,10 @@ namespace FireboltDotNetSdk.Client
         /// Gets or sets the password.
         /// </summary>
         /// <returns>The password.</returns>
-        public string ClientSecret
+        public string? ClientSecret
         {
-            get => GetString(nameof(ClientSecret)) ?? throw new FireboltException("ClientSecret parameter is missing in the connection string");
-            init => this[nameof(ClientSecret)] = Regex.Escape(value);
+            get => GetString(nameof(ClientSecret));
+            init => this[nameof(ClientSecret)] = value != null ? Regex.Escape(value) : value;
         }
 
         /// <summary>
@@ -80,9 +101,9 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Get the name of the default Account.
         /// </summary>
-        public string Account
+        public string? Account
         {
-            get => GetString(nameof(Account)) ?? throw new FireboltException("Account parameter is missing in the connection string");
+            get => GetString(nameof(Account));
             init => this[nameof(Account)] = value;
         }
 
@@ -95,11 +116,19 @@ namespace FireboltDotNetSdk.Client
             init => this[nameof(Engine)] = value;
         }
 
+        public int Version
+        {
+            get;
+            private set;
+        }
+
         static FireboltConnectionStringBuilder()
         {
             AllProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 nameof(Database),
+                nameof(UserName),
+                nameof(Password),
                 nameof(ClientId),
                 nameof(ClientSecret),
                 nameof(Endpoint),
@@ -116,6 +145,7 @@ namespace FireboltDotNetSdk.Client
         public FireboltConnectionStringBuilder(string connectionString)
         {
             ConnectionString = connectionString;
+            InitVersion();
         }
 
         /// <inheritdoc/>
@@ -144,6 +174,16 @@ namespace FireboltDotNetSdk.Client
         private string? GetString(string key)
         {
             return TryGetValue(key, out var value) ? (string)value : null;
+        }
+
+        private void InitVersion()
+        {
+            if (ClientId != null && ClientSecret != null && UserName == null && Password == null)
+            {
+                Version = 2;
+                return;
+            }
+            Version = BuildSettings().Principal.Contains("@") ? 1 : 2;
         }
     }
 }
