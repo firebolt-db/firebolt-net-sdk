@@ -52,7 +52,10 @@
     <PackageReference Include="System.Data.Common" Version="4.3.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
     <PackageReference Include="Uno.UI" Version="4.5.14" />
-    <PackageReference Include="DependencyPropertyGenerator" Version="0.15.1"/>
+    <PackageReference Include="DependencyPropertyGenerator" Version="0.15.1">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
