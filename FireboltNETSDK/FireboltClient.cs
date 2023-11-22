@@ -30,7 +30,7 @@ namespace FireboltDotNetSdk;
 
 public class FireboltClient
 {
-
+    // comment - just to make any change
     private readonly Lazy<JsonSerializerSettings> _settings;
     private readonly HttpMessageInvoker _httpClient;
 
