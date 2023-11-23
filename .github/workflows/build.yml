@@ -18,9 +18,14 @@ jobs:
       uses: actions/checkout@v2
     
     - name: Set up .NET 6.0
+      id: dotnet-setup
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 6.0
+
+    - name: use .NET 6.0
+      run: |
+        dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
 
     - name: Install dependencies
       run: |
