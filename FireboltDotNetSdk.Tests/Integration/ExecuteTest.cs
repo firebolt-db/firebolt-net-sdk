@@ -294,7 +294,7 @@ namespace FireboltDotNetSdk.Tests
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Engine), null), new Tuple<string, string?>(secretField, ""));
             FireboltException? exception = Assert.Throws<FireboltException>(() => new FireboltConnection(connString));
             Assert.NotNull(exception);
-            Assert.IsTrue(exception!.Message.Contains("ClientSecret parameter is missing in the connection string"));
+            Assert.IsTrue(exception!.Message.Contains("Either ClientSecret or Password must be provided"));
         }
 
         [Test]

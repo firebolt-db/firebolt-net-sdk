@@ -35,7 +35,6 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The name of the user.</returns>
         public string? UserName
         {
-            // get => GetString(nameof(UserName));
             get => GetString(nameof(UserName)) ?? (GetString(nameof(ClientId)) == null ? throw new FireboltException("Either ClientId or UserName must be provided") : null);
             init => this[nameof(UserName)] = value;
         }
@@ -58,7 +57,6 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The name of the user.</returns>
         public string? ClientId
         {
-            // get => GetString(nameof(ClientId));
             get => GetString(nameof(ClientId)) ?? (GetString(nameof(UserName)) == null ? throw new FireboltException("Either ClientId or UserName must be provided") : null);
             init => this[nameof(ClientId)] = value;
         }
@@ -69,7 +67,6 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The password.</returns>
         public string? ClientSecret
         {
-            // get => GetString(nameof(ClientSecret));
             get => GetString(nameof(ClientSecret)) ?? (GetString(nameof(Password)) == null ? throw new FireboltException("Either ClientSecret or Password must be provided") : null);
             init => this[nameof(ClientSecret)] = value != null ? Regex.Escape(value) : value;
         }
@@ -107,7 +104,6 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public string? Account
         {
-            // get => GetString(nameof(Account));
             get => GetString(nameof(Account)) ?? (Version == 2 ? throw new FireboltException("Account parameter is missing in the connection string") : null);
             init => this[nameof(Account)] = value;
         }
