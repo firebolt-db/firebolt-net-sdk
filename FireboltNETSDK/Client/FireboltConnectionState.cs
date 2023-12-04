@@ -27,12 +27,6 @@ namespace FireboltDotNetSdk.Client
 
         private int Counter { get; }
 
-
-        // public FireboltConnectionState()
-        //     : this(ConnectionState.Closed, null, 0)
-        // {
-        // }
-
         public FireboltConnectionState(ConnectionState state, FireboltConnectionSettings settings, int counter)
         {
             State = state;

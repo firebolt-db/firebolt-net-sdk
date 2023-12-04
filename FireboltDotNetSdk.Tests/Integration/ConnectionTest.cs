@@ -8,65 +8,73 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class ConnectionTest : IntegrationTest
     {
-        [TestCase(false, false, Description = "Connect without database and engine")]
         [TestCase(true, false, Description = "Connect without engine but with database")]
-        [TestCase(false, true, Description = "Connect with engine but without database")]
+        [TestCase(false, true, Description = "Connect with engine but without database", Category = "v2")]
         [TestCase(true, true, Description = "Connect with both engine and database")]
-        public void ConnectTest(bool useDatabase, bool useEngine)
+        public void SuccessfulConnectTest(bool useDatabase, bool useEngine)
         {
-            IList<string> withoutParams = new List<string>();
-            if (!useDatabase)
-            {
-                withoutParams.Add(nameof(Database));
-            }
-            if (!useEngine)
-            {
-                withoutParams.Add(nameof(Engine));
-            }
-            var connString = ConnectionStringWithout(withoutParams.ToArray());
-            bool expectedSuccess = Endpoint == null ? useDatabase || useEngine : useDatabase;
-
+            var connString = GetConnectionString(useDatabase, useEngine);
             // if engine is specified we use default database
             string expectedDatabase = useDatabase || useEngine ? Database : string.Empty;
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
 
-            if (expectedSuccess)
+            connection.Open();
+
+            string version = connection.ServerVersion;
+            Assert.NotNull(version);
+            Assert.IsNotEmpty(version);
+
+            Assert.That(connection.DataSource ?? string.Empty, Is.EqualTo(expectedDatabase));
+            DbCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT TOP 1 * FROM information_schema.tables";
+            // Test case for use engine
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
+            Assert.True(reader.Read());
+            int n = reader.FieldCount;
+            for (int i = 0; i < n; i++)
+            {
+                if (!reader.IsDBNull(i))
+                {
+                    Assert.NotNull(reader.GetValue(i));
+                }
+            }
+            Assert.False(reader.Read());
+            connection.Close();
+        }
+
+        [TestCase(false, false, Description = "Connect without database and engine")]
+        [TestCase(false, true, Description = "Connect with engine but without database", Category = "v1")]
+        public void FailedConnectTest(bool useDatabase, bool useEngine)
+        {
+            var connString = GetConnectionString(useDatabase, useEngine);
+            // if engine is specified we use default database
+            string expectedDatabase = useDatabase || useEngine ? Database : string.Empty;
+            DbConnection connection = new FireboltConnection(connString);
+            Assert.That(connection.ConnectionString, Is.EqualTo(connString));
+
+            FireboltException? exception = Assert.Throws<FireboltException>(() =>
             {
                 connection.Open();
-
-                string version = connection.ServerVersion;
-                Assert.NotNull(version);
-                Assert.IsNotEmpty(version);
-
-                Assert.That(connection.DataSource ?? string.Empty, Is.EqualTo(expectedDatabase));
                 DbCommand command = connection.CreateCommand();
                 command.CommandText = "SELECT TOP 1 * FROM information_schema.tables";
-                // Test case for use engine
-                DbDataReader reader = command.ExecuteReader();
-                Assert.NotNull(reader);
-                Assert.True(reader.Read());
-                int n = reader.FieldCount;
-                for (int i = 0; i < n; i++)
-                {
-                    if (!reader.IsDBNull(i))
-                    {
-                        Assert.NotNull(reader.GetValue(i));
-                    }
-                }
-                Assert.False(reader.Read());
-                connection.Close();
-            }
-            else
+                command.ExecuteReader();
+            });
+        }
+
+        private string GetConnectionString(bool useDatabase, bool useEngine)
+        {
+            IList<string> paramsToIgnore = new List<string>(); // list of parameters that will be ignored when creating connection string
+            if (!useDatabase)
             {
-                FireboltException? exception = Assert.Throws<FireboltException>(() =>
-                {
-                    connection.Open();
-                    DbCommand command = connection.CreateCommand();
-                    command.CommandText = "SELECT TOP 1 * FROM information_schema.tables";
-                    command.ExecuteReader();
-                });
+                paramsToIgnore.Add(nameof(Database));
             }
+            if (!useEngine)
+            {
+                paramsToIgnore.Add(nameof(Engine));
+            }
+            return ConnectionStringWithout(paramsToIgnore.ToArray());
         }
 
         [Test]

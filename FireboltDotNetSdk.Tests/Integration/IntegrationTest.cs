@@ -25,17 +25,13 @@ namespace FireboltDotNetSdk.Tests
         protected static string Database = EnvWithDefault("FIREBOLT_DATABASE");
         protected static string? Endpoint = GetEnvironmentVariable("FIREBOLT_ENDPOINT");
         protected static string Env = EnvWithDefault("FIREBOLT_ENV", "dev");
+        // Endpoint is not specified by CI/CD (YAML) for v2 where account and engine name are mandatory.
         protected static string? Account = Endpoint == null ? EnvWithDefault("FIREBOLT_ACCOUNT") : GetEnvironmentVariable("FIREBOLT_ACCOUNT");
         protected static string? Engine = Endpoint == null ? EnvWithDefault("FIREBOLT_ENGINE_NAME") : GetEnvironmentVariable("FIREBOLT_ENGINE_NAME");
         protected static string? ClientId = GetEnvironmentVariable("FIREBOLT_CLIENT_ID");
         protected static string? ClientSecret = GetEnvironmentVariable("FIREBOLT_CLIENT_SECRET");
         protected static string? UserName = GetEnvironmentVariable("FIREBOLT_USERNAME");
         protected static string? Password = GetEnvironmentVariable("FIREBOLT_PASSWORD");
-
-        // protected static string ConnectionString()
-        // {
-        //     return ConnectionStringWithout();
-        // }
 
         protected static string ConnectionString(params Tuple<string, string?>[] more)
         {

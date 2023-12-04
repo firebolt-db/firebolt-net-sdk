@@ -68,7 +68,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select count(*) from information_schema.tables where table_name = 'tables'")]
         public void SuccessfulQueryTest(string query)
         {
-            Assert.That(CreateCommand("select 1").ExecuteScalar(), Is.EqualTo(1));
+            Assert.That(CreateCommand(query).ExecuteScalar(), Is.EqualTo(1));
         }
 
         [TestCase("CREATE DIMENSION TABLE dummy(id INT)", Description = "It is forbidden to create table using system engine", Category = "v2")]

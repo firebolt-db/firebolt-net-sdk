@@ -270,28 +270,13 @@ namespace FireboltDotNetSdk.Client
 
         private FireboltClient CreateClient()
         {
-            switch (GetVersion())
+            var builder = new FireboltConnectionStringBuilder(_connectionString);
+            switch (builder.Version)
             {
                 case 1: return new FireboltClient1(Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
                 case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
                 default: throw new NotSupportedException("Unsupported DB version");
             }
-        }
-
-        private int GetVersion()
-        {
-            var builder = new FireboltConnectionStringBuilder(_connectionString);
-            if (builder.Endpoint == null)
-            {
-                return 2; // new format
-            }
-            // old format
-            if (builder.ClientId != null && builder.ClientSecret != null && builder.UserName == null && builder.Password == null)
-            {
-                return 2;
-            }
-            FireboltConnectionSettings settings = builder.BuildSettings();
-            return settings.Principal.Contains("@") ? 1 : 2;
         }
 
         private List<object?>? getOneLine(string query, IDictionary<string, object?>? parameters = null)

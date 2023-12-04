@@ -89,18 +89,16 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("database=testdb.ib;clientid=testuser;account=accountname;endpoint=api.mock.firebolt.io")]
         public void ParsingMissClientSecretConnectionStringTest(string connectionString)
         {
-            var ex = Throws<FireboltException>(
-                delegate { new FireboltConnection(connectionString); });
-            That(ex?.Message, Is.EqualTo("Either Password or ClientSecret parameter is missing in the connection string"));
+            var ex = Throws<FireboltException>(delegate { new FireboltConnection(connectionString); });
+            That(ex?.Message, Is.EqualTo("Either ClientSecret or Password must be provided"));
         }
 
         [TestCase("database=testdb.ib;clientid=;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
         [TestCase("database=testdb.ib;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
         public void ParsingMissClientIdConnectionStringTest(string connectionString)
         {
-            var ex = Throws<FireboltException>(
-                delegate { new FireboltConnection(connectionString); });
-            That(ex?.Message, Is.EqualTo("Either UserName or ClientId parameter is missing in the connection string"));
+            var ex = Throws<FireboltException>(delegate { new FireboltConnection(connectionString); });
+            That(ex?.Message, Is.EqualTo("Either ClientId or UserName must be provided"));
         }
 
         [TestCase("database=testdb.ib;clientid=client;username=user;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io")]
@@ -122,13 +120,12 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd")]
         public void ParsingMissAccountConnectionStringTestV2(string connectionString)
         {
-            var ex = Throws<FireboltException>(
-                delegate { new FireboltConnection(connectionString); });
+            var ex = Throws<FireboltException>(delegate { new FireboltConnection(connectionString); });
             That(ex?.Message, Is.EqualTo("Account parameter is missing in the connection string"));
         }
 
-        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=;endpoint=api.mock.firebolt.io")]
-        [TestCase("database=testdb.ib;clientid=testuser;clientsecret=testpwd;endpoint=api.mock.firebolt.io")]
+        [TestCase("database=testdb.ib;username=testuser@domain.com;password=testpwd;account=;endpoint=api.mock.firebolt.io")]
+        [TestCase("database=testdb.ib;username=testuser@domain.com;password=testpwd;endpoint=api.mock.firebolt.io")]
         public void ParsingMissAccountConnectionStringTestV1(string connectionString)
         {
             IsNotNull(new FireboltConnection(connectionString)); // V1 does not require account and should succeed
@@ -406,8 +403,6 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             ;
-            // const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
-            // var cs = new FireboltConnection(connectionString) { Client = client };
             cs.Open(); // should succeed
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
             // 1. to retrive token

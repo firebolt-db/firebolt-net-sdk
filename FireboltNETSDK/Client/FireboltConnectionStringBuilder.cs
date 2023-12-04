@@ -35,7 +35,8 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The name of the user.</returns>
         public string? UserName
         {
-            get => GetString(nameof(UserName));
+            // get => GetString(nameof(UserName));
+            get => GetString(nameof(UserName)) ?? (GetString(nameof(ClientId)) == null ? throw new FireboltException("Either ClientId or UserName must be provided") : null);
             init => this[nameof(UserName)] = value;
         }
 
@@ -46,13 +47,9 @@ namespace FireboltDotNetSdk.Client
         [DisallowNull]
         public string? Password
         {
-            get => GetString(nameof(Password));
-            init
-            {
-                if (string.IsNullOrEmpty(value))
-                    throw new ArgumentException("Value cannot be null or empty.", nameof(value));
-                this[nameof(Password)] = Regex.Escape(value);
-            }
+            // get => GetString(nameof(Password));
+            get => GetString(nameof(Password)) ?? (GetString(nameof(ClientSecret)) == null ? throw new FireboltException("Either ClientSecret or Password must be provided") : null);
+            init => this[nameof(Password)] = value != null ? Regex.Escape(value) : value;
         }
 
         /// <summary>
@@ -61,7 +58,8 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The name of the user.</returns>
         public string? ClientId
         {
-            get => GetString(nameof(ClientId));
+            // get => GetString(nameof(ClientId));
+            get => GetString(nameof(ClientId)) ?? (GetString(nameof(UserName)) == null ? throw new FireboltException("Either ClientId or UserName must be provided") : null);
             init => this[nameof(ClientId)] = value;
         }
 
@@ -71,7 +69,8 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The password.</returns>
         public string? ClientSecret
         {
-            get => GetString(nameof(ClientSecret));
+            // get => GetString(nameof(ClientSecret));
+            get => GetString(nameof(ClientSecret)) ?? (GetString(nameof(Password)) == null ? throw new FireboltException("Either ClientSecret or Password must be provided") : null);
             init => this[nameof(ClientSecret)] = value != null ? Regex.Escape(value) : value;
         }
 
@@ -99,7 +98,6 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public string? Endpoint
         {
-            // TODO: mandatory for v1
             get => GetString(nameof(Endpoint));
             init => this[nameof(Endpoint)] = value;
         }
@@ -109,8 +107,8 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public string? Account
         {
-            // TODO: mandatory for v2 + check all parameters!!!
-            get => GetString(nameof(Account)) ?? (Endpoint == null ? throw new FireboltException("Account parameter is missing in the connection string") : null);
+            // get => GetString(nameof(Account));
+            get => GetString(nameof(Account)) ?? (Version == 2 ? throw new FireboltException("Account parameter is missing in the connection string") : null);
             init => this[nameof(Account)] = value;
         }
 
@@ -121,6 +119,12 @@ namespace FireboltDotNetSdk.Client
         {
             get => GetString(nameof(Engine));
             init => this[nameof(Engine)] = value;
+        }
+
+        public int Version
+        {
+            get;
+            private set;
         }
 
         static FireboltConnectionStringBuilder()
@@ -146,6 +150,7 @@ namespace FireboltDotNetSdk.Client
         public FireboltConnectionStringBuilder(string connectionString)
         {
             ConnectionString = connectionString;
+            InitVersion();
         }
 
         /// <inheritdoc/>
@@ -174,6 +179,22 @@ namespace FireboltDotNetSdk.Client
         private string? GetString(string key)
         {
             return TryGetValue(key, out var value) ? (string)value : null;
+        }
+
+        private void InitVersion()
+        {
+            if (Endpoint == null)
+            {
+                Version = 2;
+                return;
+            }
+            // old format
+            if (ClientId != null && ClientSecret != null && UserName == null && Password == null)
+            {
+                Version = 2;
+                return;
+            }
+            Version = BuildSettings().Principal.Contains("@") ? 1 : 2;
         }
     }
 }
