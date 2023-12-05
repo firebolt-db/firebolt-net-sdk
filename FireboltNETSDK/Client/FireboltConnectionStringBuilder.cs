@@ -179,12 +179,6 @@ namespace FireboltDotNetSdk.Client
 
         private void InitVersion()
         {
-            if (Endpoint == null)
-            {
-                Version = 2;
-                return;
-            }
-            // old format
             if (ClientId != null && ClientSecret != null && UserName == null && Password == null)
             {
                 Version = 2;
