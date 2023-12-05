@@ -57,11 +57,19 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The name of the database specified in the connection settings. The default value is an empty string.</returns>
         public override string Database => _database;
 
+        /// <summary>
+        /// Either user name or client ID (or any other identifier of person/software that connects to Firebolt)
+        /// </summary>
+        /// <returns>The principal (user name, client ID etc)</returns>
         public string Principal
         {
             get => _connectionState.Settings.Principal;
         }
 
+        /// <summary>
+        /// Either password or client secret (or any other secret sequence that ensures security)
+        /// </summary>
+        /// <returns>The secret (password, client secret etc)</returns>
         public string Secret
         {
             get => _connectionState.Settings.Secret;
