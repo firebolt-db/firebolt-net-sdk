@@ -160,7 +160,7 @@ namespace FireboltDotNetSdk.Tests
             ExecuteDateTimeTest(
                 USER_CONNECTION_STRING,
                 "SELECT '2022-05-11 23:01:02.123123 Europe/Berlin'::timestamptz",
-                new string[] { "SET advanced_mode=1", "SET time_zone=Asia/Calcutta" },
+                new string[] { "SET time_zone=Asia/Calcutta" },
                 DateTime.Parse("2022-05-11 21:01:02.123123Z"));
         }
 
@@ -170,7 +170,7 @@ namespace FireboltDotNetSdk.Tests
             ExecuteDateTimeTest(
                 USER_CONNECTION_STRING,
                 "SELECT '1111-01-05 17:04:42.123456'::timestamptz",
-                new string[] { "SET advanced_mode=1", "SET time_zone=Asia/Calcutta" },
+                new string[] { "SET time_zone=Asia/Calcutta" },
                 DateTime.Parse("1111-01-05 11:11:14.123456Z"));
         }
 
@@ -219,7 +219,7 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             new List<string>()
             {
-                "SET advanced_mode=1", "SET output_format_firebolt_type_names=true", "SET bool_output_format=postgres"
+                "SET bool_output_format=postgres"
             }
             .ForEach(set => { command.CommandText = set; command.ExecuteNonQuery(); });
             command.CommandText = "SELECT true::boolean";
