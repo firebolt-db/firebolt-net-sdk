@@ -41,6 +41,7 @@ public abstract class FireboltClient
 
     protected readonly string _jsonContentType = "application/json";
     private readonly string _textContentType = "text/plain";
+    private IDictionary<string, string> connectionParameters = new Dictionary<string, string>();
 
     public FireboltClient(string id, string secret, string endpoint, string? env, HttpMessageInvoker httpClient)
     {
@@ -109,10 +110,7 @@ public abstract class FireboltClient
             Port = -1
         };
 
-        var parameters = new Dictionary<string, string>
-    {
-        { "output_format", "JSON_Compact" }
-    };
+        var parameters = new Dictionary<string, string>() { { "output_format", "JSON_Compact" } };
         if (databaseName != null)
         {
             parameters["database"] = databaseName;
@@ -120,6 +118,10 @@ public abstract class FireboltClient
         if (accountId != null)
         {
             parameters["account_id"] = accountId;
+        }
+        foreach (var item in connectionParameters)
+        {
+            parameters[item.Key] = item.Value;
         }
         var queryStr = parameters.Aggregate(new StringBuilder(),
                   (q, param) => q.AppendFormat("{0}{1}={2}",
@@ -226,6 +228,22 @@ public abstract class FireboltClient
 
         try
         {
+            string updateParametersHeader = "Firebolt-Update-Parameters";
+            if (response.Headers.Contains(updateParametersHeader))
+            {
+                foreach (string[] kv in response.Headers.GetValues(updateParametersHeader).Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)))
+                {
+                    if (kv.Length == 1 || "".Equals(kv[1]))
+                    {
+                        connectionParameters.Remove(kv[0]);
+                    }
+                    else
+                    {
+                        connectionParameters[kv[0]] = kv[1];
+                    }
+                }
+            }
+
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
