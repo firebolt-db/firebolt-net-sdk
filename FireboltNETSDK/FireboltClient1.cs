@@ -21,7 +21,7 @@ using static System.Net.HttpStatusCode;
 using FireboltDotNetSdk.Exception;
 using static FireboltDotNetSdk.Utils.Constant;
 using Newtonsoft.Json;
-
+using FireboltDotNetSdk.Client;
 using static FireboltDotNetSdk.Client.FireRequest;
 using static FireboltDotNetSdk.Client.FireResponse;
 
@@ -36,7 +36,7 @@ public class FireboltClient1 : FireboltClient
             "ENGINE_STATUS_PROVISIONING_STARTED", "ENGINE_STATUS_PROVISIONING_PENDING",
             "ENGINE_STATUS_PROVISIONING_FINISHED", "ENGINE_STATUS_RUNNING_REVISION_STARTING"
     };
-    public FireboltClient1(string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(id, secret, endpoint, env, httpClient)
+    public FireboltClient1(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, null, httpClient)
     {
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
         _account = account;

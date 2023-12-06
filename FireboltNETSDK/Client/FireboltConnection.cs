@@ -55,7 +55,7 @@ namespace FireboltDotNetSdk.Client
         /// Gets the name of the database specified in the connection settings.
         /// </summary>
         /// <returns>The name of the database specified in the connection settings. The default value is an empty string.</returns>
-        public override string Database => _database;
+        public override string Database { get => _database; }
 
         /// <summary>
         /// Either user name or client ID (or any other identifier of person/software that connects to Firebolt)
@@ -90,9 +90,10 @@ namespace FireboltDotNetSdk.Client
             get => _connectionState.Settings?.Account ?? string.Empty;
         }
 
-        private string? EngineName
+        internal string? EngineName
         {
-            get => _connectionState.Settings?.Engine;
+            get;
+            set;
         }
 
         public string? AccountId
@@ -165,6 +166,7 @@ namespace FireboltDotNetSdk.Client
                 }
                 _connectionState.Settings = connectionSettings;
                 _database = _connectionState.Settings?.Database ?? string.Empty;
+                EngineName = _connectionState.Settings?.Engine;
                 if (isOpen)
                 {
                     Open();
@@ -194,6 +196,7 @@ namespace FireboltDotNetSdk.Client
 
             _connectionState = new FireboltConnectionState(ConnectionState.Closed, connectionSettings, 0);
             _database = _connectionState.Settings?.Database ?? string.Empty;
+            EngineName = _connectionState.Settings?.Engine;
             _connectionString = stringBuilder.ConnectionString;
         }
 
@@ -281,7 +284,7 @@ namespace FireboltDotNetSdk.Client
             var builder = new FireboltConnectionStringBuilder(_connectionString);
             switch (builder.Version)
             {
-                case 1: return new FireboltClient1(Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
+                case 1: return new FireboltClient1(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
                 case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
                 default: throw new NotSupportedException("Unsupported DB version");
             }

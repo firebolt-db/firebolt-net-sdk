@@ -219,6 +219,7 @@ namespace FireboltDotNetSdk.Tests
         {
             SetAllFieldsUsingConnectionStringFirstGoodThenWrong<HttpRequestException>(nameof(UserName), nameof(Password));
         }
+
         private void SetAllFieldsUsingConnectionStringFirstGoodThenWrong<E>(params string[] restrictedNames) where E : System.Exception
         {
             var connString1 = ConnectionStringWithout(restrictedNames);
