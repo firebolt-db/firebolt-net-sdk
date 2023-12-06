@@ -23,6 +23,7 @@ using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
+using FireboltDotNetSdk.Client;
 using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk;
@@ -35,21 +36,27 @@ public abstract class FireboltClient
 
     private string? _token;
     protected readonly string _endpoint;
+    protected readonly FireboltConnection _connection;
     protected readonly string _id;
     protected readonly string _secret;
     protected readonly string _env;
+    private readonly string? _protocolVersion;
 
     protected readonly string _jsonContentType = "application/json";
     private readonly string _textContentType = "text/plain";
+    private readonly string HEADER_PROTOCOL_VERSION = "Firebolt-Protocol-Version";
+    private IDictionary<string, string> queryParameters = new Dictionary<string, string>();
 
-    public FireboltClient(string id, string secret, string endpoint, string? env, HttpMessageInvoker httpClient)
+    public FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpMessageInvoker httpClient)
     {
         _httpClient = httpClient;
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
         _endpoint = env != null ? $"api.{env}.firebolt.io" : endpoint;
+        _connection = connection;
         _id = id;
         _secret = secret;
         _env = env ?? "app";
+        _protocolVersion = protocolVersion;
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
@@ -109,10 +116,7 @@ public abstract class FireboltClient
             Port = -1
         };
 
-        var parameters = new Dictionary<string, string>
-    {
-        { "output_format", "JSON_Compact" }
-    };
+        var parameters = new Dictionary<string, string>() { { "output_format", "JSON_Compact" } };
         if (databaseName != null)
         {
             parameters["database"] = databaseName;
@@ -120,6 +124,10 @@ public abstract class FireboltClient
         if (accountId != null)
         {
             parameters["account_id"] = accountId;
+        }
+        foreach (var item in queryParameters)
+        {
+            parameters[item.Key] = item.Value;
         }
         var queryStr = parameters.Aggregate(new StringBuilder(),
                   (q, param) => q.AppendFormat("{0}{1}={2}",
@@ -210,7 +218,11 @@ public abstract class FireboltClient
     {
         using var request = new HttpRequestMessage();
         request.Method = method;
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(_jsonContentType));
+        if (_protocolVersion != null)
+        {
+            request.Headers.Add(HEADER_PROTOCOL_VERSION, _protocolVersion);
+        }
         request.Content = content;
         request.RequestUri = new Uri(uri, UriKind.RelativeOrAbsolute);
 
@@ -226,6 +238,7 @@ public abstract class FireboltClient
 
         try
         {
+            ReconnectIfNeeded(response.Headers);
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
@@ -269,6 +282,40 @@ public abstract class FireboltClient
             {
                 response.Dispose();
             }
+        }
+    }
+
+    private void ReconnectIfNeeded(HttpResponseHeaders headers)
+    {
+        string updateParametersHeader = "Firebolt-Update-Parameters";
+        if (!headers.Contains(updateParametersHeader))
+        {
+            return;
+        }
+        string? newDatabase = null;
+        bool reconnect = false;
+        foreach (string[] kv in headers.GetValues(updateParametersHeader).Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)))
+        {
+            if (kv.Length == 1 || "".Equals(kv[1]))
+            {
+                queryParameters.Remove(kv[0]);
+            }
+            else
+            {
+                queryParameters[kv[0]] = kv[1];
+                switch (kv[0])
+                {
+                    case "database":
+                        newDatabase = kv[1];
+                        reconnect = true;
+                        break;
+                        // for future: add here other options when they are required and implemented in server side (e.g. engine etc)
+                }
+            }
+        }
+        if (reconnect)
+        {
+            _connection.ChangeDatabase(newDatabase ?? _connection.Database);
         }
     }
 

@@ -229,6 +229,64 @@ namespace FireboltDotNetSdk.Tests
             Assert.True(databases.Select(l => l[0]).Contains(Database));
         }
 
+        [Test]
+        [Category("v2")]
+        [Category("dev")]
+        public void UseTest()
+        {
+            string databaseName = Database + "_other_" + suffix;
+            string engineName = databaseName + "_engine";
+            string tableName = databaseName + "_table";
+            string table1 = tableName + "_1";
+            string table2 = tableName + "_2";
+
+            try
+            {
+                CreateCommand($"use {Database}").ExecuteNonQuery(); // use current DB; shouldn't have any effect
+                Assert.IsNull(GetTableDbName(table1)); // the table does not exist yet
+                CreateCommand($"CREATE TABLE {table1} ( id LONG)").ExecuteNonQuery(); // create table1 in current DB
+                Assert.That(GetTableDbName(table1), Is.EqualTo(Database)); // now table t1 exists
+                Assert.Throws<FireboltException>(() => CreateCommand($"use {databaseName}").ExecuteNonQuery()); // DB does not exist
+                CreateCommand($"CREATE DATABASE IF NOT EXISTS {databaseName}").ExecuteNonQuery(); // create DB
+                CreateCommand($"use {databaseName}").ExecuteNonQuery(); // Now this should succeed            
+                CreateCommand($"CREATE TABLE {table2} ( id LONG)").ExecuteNonQuery(); // create table2 in other DB
+                Assert.IsNull(GetTableDbName(table1)); // table1 does not exist here
+                Assert.That(GetTableDbName(table2), Is.EqualTo(databaseName)); // but table2 does exist
+            }
+            finally
+            {
+                string[] commands2 = new string[] {
+                    $"STOP ENGINE {engineName}",
+                    $"DROP ENGINE {engineName}",
+                    $"DROP DATABASE {databaseName}",
+                };
+                foreach (string cmd in commands2)
+                {
+                    try
+                    {
+                        CreateCommand(cmd).ExecuteNonQuery();
+                    }
+                    catch (FireboltException) { } // ignore possible exception
+                }
+            }
+        }
+
+        private string? GetTableDbName(string table)
+        {
+            DbCommand command = Connection.CreateCommand();
+            command.CommandText = "select table_catalog from information_schema.tables where table_name=@t";
+            command.Parameters.Add(CreateParameter(command, "@t", table));
+            return (string?)command.ExecuteScalar();
+        }
+
+        private DbParameter CreateParameter(DbCommand command, string name, object? value)
+        {
+            DbParameter parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value;
+            return parameter;
+        }
+
         private DbCommand CreateCommand(string sql)
         {
             DbCommand command = Connection.CreateCommand();

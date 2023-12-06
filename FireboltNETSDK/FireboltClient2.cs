@@ -29,14 +29,11 @@ namespace FireboltDotNetSdk;
 public class FireboltClient2 : FireboltClient
 {
     private const string engineStatusRunning = "Running";
-    private readonly FireboltConnection _connection;
     private readonly string _account;
-    public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(id, secret, endpoint, env, httpClient)
+    public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, "2.0", httpClient)
     {
-        _connection = connection;
         _account = account;
     }
-
 
     /// <param name="account"></param>
     /// <param name="cancellationToken">
