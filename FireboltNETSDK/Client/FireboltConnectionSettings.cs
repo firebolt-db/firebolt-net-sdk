@@ -102,16 +102,22 @@ namespace FireboltDotNetSdk.Client
 
         private string GetNotNullValue(string? firstValue, string? secondValue)
         {
-            return new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray()[0];
+            return GetNotNullValues(firstValue, secondValue)[0];
+        }
+
+        private string[] GetNotNullValues(string? firstValue, string? secondValue)
+        {
+            return new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray();
         }
 
         private void ValidateValues(string firstName, string secondName, string? firstValue, string? secondValue)
         {
-            string[] notNullValues = new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray();
+            string[] notNullValues = GetNotNullValues(firstValue, secondValue);
             int notNullCount = notNullValues.Count();
             switch (notNullCount)
             {
                 case 0: throw new FireboltException($"Either {firstName} or {secondName} parameter is missing in the connection string");
+                case 1: break; // OK
                 case 2: throw new FireboltException($"Ambiguous values of {firstName} and {secondName}. Use only one of them");
                 // this cannot happen. Added to satisfy compiler and to prevent future bugs.
                 default: throw new InvalidOperationException($"{notNullCount} values for {firstName} or {secondName}. Only one value is legal");
