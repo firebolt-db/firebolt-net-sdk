@@ -63,8 +63,10 @@ namespace FireboltDotNetSdk.Client
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
             ConnectionString = builder.ConnectionString;
-            Principal = GetOneValue(nameof(builder.UserName), nameof(builder.ClientId), builder.UserName, builder.ClientId);
-            Secret = GetOneValue(nameof(builder.Password), nameof(builder.ClientSecret), builder.Password, builder.ClientSecret);
+            ValidateValues(nameof(builder.UserName), nameof(builder.ClientId), builder.UserName, builder.ClientId);
+            Principal = GetNotNullValue(builder.UserName, builder.ClientId);
+            ValidateValues(nameof(builder.Password), nameof(builder.ClientSecret), builder.Password, builder.ClientSecret);
+            Secret = GetNotNullValue(builder.Password, builder.ClientSecret);
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
@@ -98,14 +100,18 @@ namespace FireboltDotNetSdk.Client
             return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
         }
 
-        private string GetOneValue(string firstName, string secondName, string? firstValue, string? secondValue)
+        private string GetNotNullValue(string? firstValue, string? secondValue)
+        {
+            return new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray()[0];
+        }
+
+        private void ValidateValues(string firstName, string secondName, string? firstValue, string? secondValue)
         {
             string[] notNullValues = new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray();
             int notNullCount = notNullValues.Count();
             switch (notNullCount)
             {
                 case 0: throw new FireboltException($"Either {firstName} or {secondName} parameter is missing in the connection string");
-                case 1: return notNullValues[0];
                 case 2: throw new FireboltException($"Ambiguous values of {firstName} and {secondName}. Use only one of them");
                 // this cannot happen. Added to satisfy compiler and to prevent future bugs.
                 default: throw new InvalidOperationException($"{notNullCount} values for {firstName} or {secondName}. Only one value is legal");
