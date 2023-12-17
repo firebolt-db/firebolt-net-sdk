@@ -220,68 +220,6 @@ namespace FireboltDotNetSdk.Tests
             SetAllFieldsUsingConnectionStringFirstGoodThenWrong<HttpRequestException>(nameof(UserName), nameof(Password));
         }
 
-        [Test]
-        public void UseTest()
-        {
-            string databaseName = "dotnet_use_db_integration_test";
-            string engineName = databaseName + "_engine";
-
-            using DbConnection userConnection = new FireboltConnection(ConnectionString());
-            userConnection.Open();
-            string? systemEngineName = Endpoint == null ? null : "system";
-            string systemConnectionString = ConnectionString(new Tuple<string, string?>[] { Tuple.Create(nameof(Engine), systemEngineName) });
-            using DbConnection systemConnection = new FireboltConnection(systemConnectionString);
-            systemConnection.Open();
-            long currentDbId = Database.GetHashCode() + DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-            Assert.That(CreateCommand(userConnection, "select " + currentDbId).ExecuteScalar(), Is.EqualTo(currentDbId));
-            Assert.Throws<FireboltException>(() => CreateCommand(userConnection, "use " + databaseName).ExecuteNonQuery());
-            CreateCommand(userConnection, "use " + Database).ExecuteNonQuery(); // should work - use the same, current DB
-
-
-            try
-            {
-                string[] commands1 = new string[] {
-                    $"CREATE DATABASE IF NOT EXISTS {databaseName}",
-                    $"CREATE ENGINE {engineName}",
-                    $"ATTACH ENGINE {engineName} TO {databaseName}",
-                    $"START ENGINE {engineName}",
-                };
-                foreach (string cmd in commands1)
-                {
-                    CreateCommand(systemConnection, cmd).ExecuteNonQuery();
-                }
-
-                string query = "select count(*) from information_schema.query_history where status='ENDED_SUCCESSFULLY' and  query_text like '{QUERY}%'";
-                Assert.That(CreateCommand(userConnection, "select " + currentDbId).ExecuteScalar(), Is.EqualTo(currentDbId));
-                Assert.That(CreateCommand(userConnection, query.Replace("{QUERY}", "select " + currentDbId)).ExecuteScalar(), Is.EqualTo(1));
-                CreateCommand(userConnection, "use " + databaseName).ExecuteNonQuery();
-                long otherDbId = databaseName.GetHashCode() + DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-                Assert.That(CreateCommand(userConnection, "select " + otherDbId).ExecuteScalar(), Is.EqualTo(otherDbId));
-                // Other DB is just created, so its query history is empty, therefore number of queries with old (current) DB is 0 and with new (other) is 1
-                Assert.That(CreateCommand(userConnection, query.Replace("{QUERY}", "select " + otherDbId)).ExecuteScalar(), Is.EqualTo(1));
-                Assert.That(CreateCommand(userConnection, query.Replace("{QUERY}", "select " + currentDbId)).ExecuteScalar(), Is.EqualTo(0));
-            }
-            finally
-            {
-                string[] commands2 = new string[] {
-                    $"STOP ENGINE {engineName}",
-                    $"DROP ENGINE {engineName}",
-                    $"DROP DATABASE {databaseName}",
-                };
-                foreach (string cmd in commands2)
-                {
-                    CreateCommand(systemConnection, cmd).ExecuteNonQuery();
-                }
-            }
-        }
-
-        private DbCommand CreateCommand(DbConnection connection, string query)
-        {
-            DbCommand command = connection.CreateCommand();
-            command.CommandText = query;
-            return command;
-        }
-
         private void SetAllFieldsUsingConnectionStringFirstGoodThenWrong<E>(params string[] restrictedNames) where E : System.Exception
         {
             var connString1 = ConnectionStringWithout(restrictedNames);

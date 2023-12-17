@@ -11,12 +11,14 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     public class FireboltClientTest
     {
+        const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=test_pwd;account=accountname;endpoint=api.mock.firebolt.io";
 
         [Test]
         public void ExecuteQueryAsyncNullDataTest()
         {
             Mock<HttpClient> httpClientMock = new();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
             FireboltException? exception = Assert.ThrowsAsync<FireboltException>(() => client.ExecuteQueryAsync("", "databaseName", null, "commandText", new HashSet<string>(), CancellationToken.None));
 
             Assert.NotNull(exception);
@@ -27,7 +29,8 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteQueryExceptionTest()
         {
             Mock<HttpClient> httpClientMock = new();
-            FireboltClient client = new FireboltClient1("any", "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, "any", "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
             var tokenField = typeof(FireboltClient).GetField("_token", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             Assert.NotNull(tokenField);
             tokenField!.SetValue(client, "abc");
@@ -39,7 +42,8 @@ namespace FireboltDotNetSdk.Tests
         public async Task ExecuteQueryTest()
         {
             Mock<HttpClient> httpClientMock = new();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClientMock.Object);
             var tokenField = typeof(FireboltClient).GetField("_token", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             Assert.NotNull(tokenField);
             tokenField!.SetValue(client, "abc");
@@ -52,7 +56,8 @@ namespace FireboltDotNetSdk.Tests
         public async Task ExecuteQueryWithoutAccessTokenTest()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
             LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
 
             //We expect 2 calls :
@@ -73,7 +78,8 @@ namespace FireboltDotNetSdk.Tests
         public async Task ExecuteQueryWithRetryWhenUnauthorizedTest()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
             LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
 
             //We expect 4 calls :
@@ -98,7 +104,8 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteQueryWithRetryWhenUnauthorizedExceptionTest()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
             LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
 
 
@@ -121,7 +128,8 @@ namespace FireboltDotNetSdk.Tests
         public async Task SuccessfulLoginWithCachedToken()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
             LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK));
             string token1 = await client.EstablishConnection();
@@ -135,7 +143,8 @@ namespace FireboltDotNetSdk.Tests
         public async Task SuccessfulLoginWhenOldTokenIsExpired()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
             LoginResponse loginResponse1 = new FireResponse.LoginResponse("access_token1", "0", "Bearer");
             LoginResponse loginResponse2 = new FireResponse.LoginResponse("access_token2", "3600", "Bearer");
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
@@ -153,7 +162,8 @@ namespace FireboltDotNetSdk.Tests
         public void NotAuthorizedLogin()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
             string errorMessage = "login failed";
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(GetResponseMessage(errorMessage, HttpStatusCode.Unauthorized));
             string actualErrorMessage = Assert.ThrowsAsync<FireboltException>(() => client.EstablishConnection()).Message;
@@ -186,7 +196,8 @@ namespace FireboltDotNetSdk.Tests
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
             .ReturnsAsync(GetResponseMessage(new GetAccountIdByNameResponse() { id = "my_account_id" }, HttpStatusCode.OK));
-            FireboltClient client = new FireboltClient1(Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
             GetAccountIdByNameResponse response = await client.GetAccountIdByNameAsync("my_account_name", CancellationToken.None);
             Assert.That(response.id, Is.EqualTo("my_account_id"));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));

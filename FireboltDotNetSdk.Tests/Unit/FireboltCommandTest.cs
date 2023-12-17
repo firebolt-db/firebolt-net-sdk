@@ -12,10 +12,14 @@ namespace FireboltDotNetSdk.Tests
     public class MockClient : FireboltClient
     {
         private static Mock<HttpClient> httpClientMock = new();
+        const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=test_pwd;account=accountname;endpoint=api.mock.firebolt.io";
+        private static FireboltConnection connection = new FireboltConnection(connectionString);
+
+
         private readonly string? _response;
         public string? Query { get; private set; }
 
-        public MockClient(string? response) : base("id", "secret", "", null, httpClientMock.Object)
+        public MockClient(string? response) : base(connection, "id", "secret", "", null, null, httpClientMock.Object)
         {
             _response = response;
             TokenSecureStorage.CacheToken(new LoginResponse("token", "60", "type"), "id", "secret").Wait();

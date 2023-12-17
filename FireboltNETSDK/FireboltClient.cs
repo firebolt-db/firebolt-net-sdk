@@ -23,6 +23,7 @@ using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
+using FireboltDotNetSdk.Client;
 using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk;
@@ -35,22 +36,27 @@ public abstract class FireboltClient
 
     private string? _token;
     protected readonly string _endpoint;
+    protected readonly FireboltConnection _connection;
     protected readonly string _id;
     protected readonly string _secret;
     protected readonly string _env;
+    private readonly string? _protocolVersion;
 
     protected readonly string _jsonContentType = "application/json";
     private readonly string _textContentType = "text/plain";
+    private readonly string HEADER_PROTOCOL_VERSION = "Firebolt-Protocol-Version";
     private IDictionary<string, string> connectionParameters = new Dictionary<string, string>();
 
-    public FireboltClient(string id, string secret, string endpoint, string? env, HttpMessageInvoker httpClient)
+    public FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpMessageInvoker httpClient)
     {
         _httpClient = httpClient;
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
         _endpoint = env != null ? $"api.{env}.firebolt.io" : endpoint;
+        _connection = connection;
         _id = id;
         _secret = secret;
         _env = env ?? "app";
+        _protocolVersion = protocolVersion;
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
@@ -212,7 +218,11 @@ public abstract class FireboltClient
     {
         using var request = new HttpRequestMessage();
         request.Method = method;
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse("application/json"));
+        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(_jsonContentType));
+        if (_protocolVersion != null)
+        {
+            request.Headers.Add(HEADER_PROTOCOL_VERSION, _protocolVersion);
+        }
         request.Content = content;
         request.RequestUri = new Uri(uri, UriKind.RelativeOrAbsolute);
 
@@ -231,6 +241,9 @@ public abstract class FireboltClient
             string updateParametersHeader = "Firebolt-Update-Parameters";
             if (response.Headers.Contains(updateParametersHeader))
             {
+                string? newDatabase = null;
+                string? newEngine = null;
+                bool reconnect = false;
                 foreach (string[] kv in response.Headers.GetValues(updateParametersHeader).Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)))
                 {
                     if (kv.Length == 1 || "".Equals(kv[1]))
@@ -240,7 +253,26 @@ public abstract class FireboltClient
                     else
                     {
                         connectionParameters[kv[0]] = kv[1];
+                        switch (kv[0])
+                        {
+                            case "database":
+                                newDatabase = kv[1];
+                                reconnect = true;
+                                break;
+                            case "engine":
+                                newEngine = kv[1];
+                                reconnect = true;
+                                break;
+                        }
                     }
+                }
+                if (reconnect)
+                {
+                    if (newEngine != null)
+                    {
+                        _connection.EngineName = newEngine;
+                    }
+                    _connection.ChangeDatabase(newDatabase ?? _connection.Database);
                 }
             }
 

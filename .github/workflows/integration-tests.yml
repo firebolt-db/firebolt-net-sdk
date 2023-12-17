@@ -102,9 +102,11 @@ jobs:
           if [ "${{ github.event.inputs.environment }}" == 'staging' ]; then
             echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_STAGING }}" >> "$GITHUB_ENV"
             echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_STAGING }}" >> "$GITHUB_ENV"
+            echo "EXCLUDE_ENV=dev" >> "$GITHUB_ENV"
           else
             echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_DEV }}" >> "$GITHUB_ENV"
             echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_DEV }}" >> "$GITHUB_ENV"
+            echo "EXCLUDE_ENV=staging" >> "$GITHUB_ENV"
           fi
 
       - name: Keep environment name in the summary
@@ -147,8 +149,9 @@ jobs:
           FIREBOLT_ENDPOINT: "api.${{ github.event.inputs.environment }}.firebolt.io"
           FIREBOLT_USERNAME: ${{ env.USERNAME }}
           FIREBOLT_PASSWORD: ${{ env.PASSWORD }}
+          EXCLUDE_ENV: ${{ env.EXCLUDE_ENV }}
         run: |
-          dotnet test --filter '(Category=Integration|Category=v1)&Category!=v2' -l "console;verbosity=normal"
+          dotnet test --filter '(Category=Integration|Category=v1)&Category!=v2&Category!=${{ env.EXCLUDE_ENV }}' -l "console;verbosity=normal"
 
 
   tests2:
@@ -179,9 +182,11 @@ jobs:
           if [ "${{ inputs.environment }}" == 'staging' ]; then
              echo "CLIENT_ID=${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}" >> "$GITHUB_ENV"
              echo "CLIENT_SECRET=${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}" >> "$GITHUB_ENV"
+             echo "EXCLUDE_ENV=dev" >> "$GITHUB_ENV"
           else
              echo "CLIENT_ID=${{ secrets.FIREBOLT_CLIENT_ID_NEW_IDN }}" >> "$GITHUB_ENV"
              echo "CLIENT_SECRET=${{ secrets.FIREBOLT_CLIENT_SECRET_NEW_IDN }}" >> "$GITHUB_ENV"
+             echo "EXCLUDE_ENV=staging" >> "$GITHUB_ENV"
           fi
 
       - name: Keep environment name in the summary
@@ -224,5 +229,6 @@ jobs:
           FIREBOLT_ENGINE_NAME: ${{ steps.setup2.outputs.engine_name }}
           FIREBOLT_CLIENT_ID: ${{ env.CLIENT_ID }}
           FIREBOLT_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
+          EXCLUDE_ENV: ${{ env.EXCLUDE_ENV }}
         run: |
-          dotnet test --filter '(Category=Integration|Category=v2)&Category!=v1' -l "console;verbosity=normal"
+          dotnet test --filter '(Category=Integration|Category=v2)&Category!=v1&Category!=${{ env.EXCLUDE_ENV }}' -l "console;verbosity=normal"
