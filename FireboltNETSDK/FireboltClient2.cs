@@ -28,7 +28,7 @@ using static FireboltDotNetSdk.Utils.Constant;
 namespace FireboltDotNetSdk;
 public class FireboltClient2 : FireboltClient
 {
-    private const string engineStatusRunning = "Running";
+    private ISet<string> engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
     private readonly string _account;
     public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, "2.0", httpClient)
     {
@@ -106,31 +106,50 @@ public class FireboltClient2 : FireboltClient
         // Connecting to system engine by default
         var result = await GetSystemEngineUrl(_account);
         _connection.EngineUrl = result.engineUrl;
-        if (engineName == null)
+        string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
+        if (engineName == null || "system".Equals(engineName))
         {
-            return new ConnectionResponse(result.engineUrl!, database, true);
+            return ConnectToSystemEngine(_connection.InfraVersion, database);
         }
         // Engine is specified
+        return ConnectToCustomEngine(_connection.InfraVersion, engineName, database);
+    }
+
+    private ConnectionResponse ConnectToSystemEngine(int infraVersion, string database)
+    {
+        Execute("select 1"); // needed to get the InfraVersion back
+        if (_connection.InfraVersion == 2)
+        {
+            _protocolVersion = "2.1";
+        }
+        return new ConnectionResponse(_connection.EngineUrl, database, true);
+    }
+
+
+    private ConnectionResponse ConnectToCustomEngine(int infraVersion, string engineName, string database)
+    {
+        switch (infraVersion)
+        {
+            case 1: return ConnectToCustomEngineUsingInformationSchema(engineName, database);
+            case 2:
+                _protocolVersion = "2.1";
+                return ConnectToCustomEngineUsingResponseHeaders(engineName, database);
+            default: throw new FireboltException($"Unexpected infrastructure version {infraVersion}");
+        }
+    }
+
+    private ConnectionResponse ConnectToCustomEngineUsingInformationSchema(string engineName, string database)
+    {
         if (database == string.Empty)
         {
             // If no db provided - try to fetch it
             database = GetEngineDatabase(engineName) ?? throw new FireboltException($"Engine {engineName} is attached to a database current user can not access");
         }
-        return new ConnectionResponse(GetEngineUrlByEngineNameAndDb(engineName, database), database, false);
-    }
-
-    private string GetEngineUrlByEngineNameAndDb(string engineName, string database)
-    {
         var hasAccess = IsDatabaseAccessible(database);
         if (!hasAccess)
         {
             throw new FireboltException($"Database {database} does not exist or current user does not have access to it!");
         }
-        return GetEngineUrl(engineName, database);
-    }
-
-    private string GetEngineUrl(string engineName, string? database)
-    {
         var query = @$"SELECT engs.url, engs.attached_to, dbs.database_name, status 
                     FROM information_schema.engines as engs 
                     LEFT JOIN information_schema.databases as dbs
@@ -149,7 +168,7 @@ public class FireboltClient2 : FireboltClient
         {
             throw new FireboltException($"Engine {engineName} is not attached to {database}");
         }
-        if (!engineStatusRunning.Equals(reader.GetString(3), StringComparison.OrdinalIgnoreCase))
+        if (!engineStatusesRunning.Contains(reader.GetString(3)))
         {
             throw new FireboltException($"Engine {engineName} is not running");
         }
@@ -157,7 +176,17 @@ public class FireboltClient2 : FireboltClient
         {
             throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database {database}");
         }
-        return reader.GetString(0);
+        return new ConnectionResponse(reader.GetString(0).Split("?", 2)[0], database ?? string.Empty, false);
+    }
+
+    private ConnectionResponse ConnectToCustomEngineUsingResponseHeaders(string engineName, string database)
+    {
+        if (!string.IsNullOrEmpty(database))
+        {
+            Execute("USE DATABASE " + database);
+        }
+        Execute("USE ENGINE " + engineName);
+        return new ConnectionResponse(_connection.EngineUrl, database ?? string.Empty, false);
     }
 
     private string? GetEngineDatabase(string engineName)
@@ -168,14 +197,30 @@ public class FireboltClient2 : FireboltClient
 
     private bool IsDatabaseAccessible(string database)
     {
-        return Query("SELECT database_name FROM information_schema.databases WHERE database_name=@DatabaseName", "@DatabaseName", database).Read();
+        string query = "SELECT * FROM information_schema.{0}s WHERE {0}_name=@Name";
+        if (Query(string.Format(query, "database"), "@Name", database).Read())
+        {
+            return true;
+        }
+        return Query(string.Format(query, "table"), "@Name", "catalogs").Read() && Query(string.Format(query, "catalog"), "@Name", database).Read();
     }
 
     private DbDataReader Query(string query, string paramName, string paramValue)
     {
-        var command = _connection.CreateCommand();
-        command.CommandText = query;
+        var command = CreateCommand(query);
         command.Parameters.Add(new FireboltParameter(paramName, paramValue));
         return command.ExecuteReader();
+    }
+
+    private int Execute(string query)
+    {
+        return CreateCommand(query).ExecuteNonQuery();
+    }
+
+    private DbCommand CreateCommand(string sql)
+    {
+        var command = _connection.CreateCommand();
+        command.CommandText = sql;
+        return command;
     }
 }

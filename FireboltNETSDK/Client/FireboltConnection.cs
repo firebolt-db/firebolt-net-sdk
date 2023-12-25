@@ -22,6 +22,9 @@ using System.Runtime.CompilerServices;
 using FireboltDotNetSdk.Utils;
 using IsolationLevel = System.Data.IsolationLevel;
 using static FireboltDotNetSdk.Client.FireResponse;
+using static FireboltDotNetSdk.Client.FireboltCommand;
+using FireboltDotNetSdk.Exception;
+using System.Text;
 
 [assembly: InternalsVisibleTo("FireboltDotNetSdk.Tests")]
 [assembly: InternalsVisibleTo("FireboltDotNetSdk")]
@@ -50,6 +53,8 @@ namespace FireboltDotNetSdk.Client
         private string? _serverVersion;
         private FireboltClient? _fireboltClient;
         public readonly HashSet<string> SetParamList = new();
+        private int _infraVersion = 1;
+        private bool _usePrefixForEachByte = true;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -96,18 +101,32 @@ namespace FireboltDotNetSdk.Client
             set;
         }
 
+        internal bool IsSystem
+        {
+            get => _isSystem;
+        }
+
         public string? AccountId
         {
             get
             {
                 if (_accountId == null && Account != null && _isSystem)
                 {
-                    _accountId = Client?.GetAccountIdByNameAsync(Account, CancellationToken.None).GetAwaiter().GetResult().id;
+                    GetAccountIdByNameResponse account = Client.GetAccountIdByNameAsync(Account, CancellationToken.None).GetAwaiter().GetResult();
+                    _accountId = account.id;
+                    _infraVersion = account.infraVersion;
                 }
-                return _isSystem ? _accountId : null;
+                return _accountId;
+                //return _isSystem ? _accountId : null;
             }
+            set => _accountId = value;
         }
 
+        internal int InfraVersion
+        {
+            get => _infraVersion;
+            set => _infraVersion = value;
+        }
 
         /// <summary>
         /// Gets the state of the connection.
@@ -144,7 +163,7 @@ namespace FireboltDotNetSdk.Client
                     return;
                 }
                 var connectionSettings = new FireboltConnectionStringBuilder(value).BuildSettings();
-                if (connectionSettings.Database == Database
+                if (connectionSettings.Database == Database && connectionSettings.Engine == EngineName
                     && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
                     && connectionSettings.Account == Account
                     && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
@@ -172,6 +191,11 @@ namespace FireboltDotNetSdk.Client
                     Open();
                 }
             }
+        }
+
+        internal bool UsePrefixForEachByte
+        {
+            get => _usePrefixForEachByte;
         }
 
         /// <summary>
@@ -283,6 +307,14 @@ namespace FireboltDotNetSdk.Client
         internal void ValidateConnection()
         {
             CreateDbCommand("SELECT 1").ExecuteScalar();
+            try
+            {
+                CreateDbCommand($"SELECT '{BYTE_ARRAY_PREFIX}42{BYTE_ARRAY_PREFIX}42'::BYTEA").ExecuteScalar();
+            }
+            catch (FireboltException)
+            {
+                _usePrefixForEachByte = false;
+            }
         }
 
         private FireboltClient CreateClient()
@@ -388,6 +420,16 @@ namespace FireboltDotNetSdk.Client
             _connectionString = EditConnectionString(_connectionString, "database", databaseName);
             _connectionState.Settings = new FireboltConnectionStringBuilder(_connectionString).BuildSettings();
             return isOpen;
+        }
+
+        internal void UpdateConnectionSettings(FireboltConnectionStringBuilder builder, CancellationToken cancellationToken)
+        {
+            _connectionString = builder.ToConnectionString();
+            FireboltConnectionSettings settings = builder.BuildSettings();
+            _database = settings.Database ?? string.Empty;
+            EngineName = settings?.Engine;
+            _isSystem = EngineName == null || EngineName.Equals("system"); // TODO: expose this as function and use it. 
+
         }
     }
 }

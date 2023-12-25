@@ -40,11 +40,15 @@ public abstract class FireboltClient
     protected readonly string _id;
     protected readonly string _secret;
     protected readonly string _env;
-    private readonly string? _protocolVersion;
+    public string? _protocolVersion;
 
     protected readonly string _jsonContentType = "application/json";
     private readonly string _textContentType = "text/plain";
     private readonly string HEADER_PROTOCOL_VERSION = "Firebolt-Protocol-Version";
+    private readonly string HEADER_UPDATE_PARAMETER = "Firebolt-Update-Parameters";
+    private readonly string HEADER_UPDATE_ENDPOINT = "Firebolt-Update-Endpoint";
+    private readonly string HEADER_RESET_SESSION = "Firebolt-Reset-Session";
+
     private IDictionary<string, string> queryParameters = new Dictionary<string, string>();
 
     public FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpMessageInvoker httpClient)
@@ -121,9 +125,13 @@ public abstract class FireboltClient
         {
             parameters["database"] = databaseName;
         }
-        if (accountId != null)
+        if ((_connection.IsSystem || _connection.InfraVersion >= 2) && accountId != null)
         {
             parameters["account_id"] = accountId;
+        }
+        if (!_connection.IsSystem && _connection.InfraVersion >= 2 && _connection.EngineName != null)
+        {
+            parameters["engine"] = _connection.EngineName;
         }
         foreach (var item in queryParameters)
         {
@@ -238,7 +246,7 @@ public abstract class FireboltClient
 
         try
         {
-            ReconnectIfNeeded(response.Headers);
+            ProcessResponseHeaders(response.Headers, cancellationToken);
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
@@ -285,37 +293,82 @@ public abstract class FireboltClient
         }
     }
 
-    private void ReconnectIfNeeded(HttpResponseHeaders headers)
+    private void ProcessResponseHeaders(HttpResponseHeaders headers, CancellationToken cancellationToken)
     {
-        string updateParametersHeader = "Firebolt-Update-Parameters";
-        if (!headers.Contains(updateParametersHeader))
+        FireboltConnectionStringBuilder connectionBuilder = new FireboltConnectionStringBuilder(_connection.ConnectionString);
+        bool shouldUpdateConnection = false;
+        if (headers.Contains(HEADER_RESET_SESSION))
         {
-            return;
+            queryParameters.Clear();
+            shouldUpdateConnection = true;
         }
-        string? newDatabase = null;
-        bool reconnect = false;
-        foreach (string[] kv in headers.GetValues(updateParametersHeader).Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)))
+
+        List<string[]> parameters = new List<string[]>();
+        if (headers.Contains(HEADER_UPDATE_ENDPOINT))
+        {
+            string? endpointHeader = headers.GetValues(HEADER_UPDATE_ENDPOINT).FirstOrDefault();
+            if (endpointHeader != null)
+            {
+                string[] enpointHeaderParts = endpointHeader.Split('?', 2, StringSplitOptions.TrimEntries);
+                if (!enpointHeaderParts[0].Equals(connectionBuilder.Endpoint))
+                {
+                    connectionBuilder.Endpoint = enpointHeaderParts[0];
+                    shouldUpdateConnection = true;
+                }
+                parameters.AddRange(enpointHeaderParts[1].Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
+            }
+        }
+        if (headers.Contains(HEADER_UPDATE_PARAMETER))
+        {
+            shouldUpdateConnection = true;
+            parameters.AddRange(headers.GetValues(HEADER_UPDATE_PARAMETER).Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
+        }
+        foreach (string[] kv in parameters)
         {
             if (kv.Length == 1 || "".Equals(kv[1]))
             {
                 queryParameters.Remove(kv[0]);
+                shouldUpdateConnection = true;
             }
             else
             {
-                queryParameters[kv[0]] = kv[1];
                 switch (kv[0])
                 {
                     case "database":
-                        newDatabase = kv[1];
-                        reconnect = true;
+                        if (!kv[1].Equals(connectionBuilder.Database))
+                        {
+                            connectionBuilder.Database = kv[1];
+                            shouldUpdateConnection = true;
+                        }
                         break;
-                        // for future: add here other options when they are required and implemented in server side (e.g. engine etc)
+                    case "engine":
+                        if (!kv[1].Equals(connectionBuilder.Engine))
+                        {
+                            connectionBuilder.Engine = kv[1];
+                            shouldUpdateConnection = true;
+                        }
+                        break;
+                    case "account_id":
+                        if (!string.IsNullOrEmpty(_connection.AccountId) && !_connection.AccountId.Equals(kv[1]))
+                        {
+                            throw new FireboltException("Failed to execute command. Account parameter mismatch. Contact support");
+                        }
+                        _connection.AccountId = kv[1];
+                        break;
+                    default:
+                        if (!kv[1].Equals(queryParameters[kv[0]]))
+                        {
+                            queryParameters[kv[0]] = kv[1];
+                            shouldUpdateConnection = true;
+                        }
+                        break;
                 }
             }
         }
-        if (reconnect)
+        if (shouldUpdateConnection)
         {
-            _connection.ChangeDatabase(newDatabase ?? _connection.Database);
+            //_connection.ConnectionString = connectionBuilder.ToConnectionString();
+            _connection.UpdateConnectionSettings(connectionBuilder, cancellationToken);
         }
     }
 

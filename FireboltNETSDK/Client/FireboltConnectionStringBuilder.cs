@@ -35,7 +35,8 @@ namespace FireboltDotNetSdk.Client
         public string? UserName
         {
             get => GetString(nameof(UserName));
-            init => this[nameof(UserName)] = value;
+            // init => this[nameof(UserName)] = value;
+            set => this[nameof(UserName)] = value;
         }
 
         /// <summary>
@@ -47,7 +48,8 @@ namespace FireboltDotNetSdk.Client
         {
             // get => GetString(nameof(Password));
             get => GetString(nameof(Password));
-            init => this[nameof(Password)] = value != null ? Regex.Escape(value) : value;
+            // init => this[nameof(Password)] = value != null ? Regex.Escape(value) : value;
+            set => this[nameof(Password)] = value != null ? Regex.Escape(value) : value;
         }
 
         /// <summary>
@@ -57,7 +59,8 @@ namespace FireboltDotNetSdk.Client
         public string? ClientId
         {
             get => GetString(nameof(ClientId));
-            init => this[nameof(ClientId)] = value;
+            // init => this[nameof(ClientId)] = value;
+            set => this[nameof(ClientId)] = value;
         }
 
         /// <summary>
@@ -67,7 +70,8 @@ namespace FireboltDotNetSdk.Client
         public string? ClientSecret
         {
             get => GetString(nameof(ClientSecret));
-            init => this[nameof(ClientSecret)] = value != null ? Regex.Escape(value) : value;
+            // init => this[nameof(ClientSecret)] = value != null ? Regex.Escape(value) : value;
+            set => this[nameof(ClientSecret)] = value != null ? Regex.Escape(value) : value;
         }
 
         /// <summary>
@@ -77,7 +81,8 @@ namespace FireboltDotNetSdk.Client
         public string? Database
         {
             get => GetString(nameof(Database));
-            init => this[nameof(Database)] = value;
+            // init => this[nameof(Database)] = value;
+            set => this[nameof(Database)] = value;
         }
 
         /// <summary>
@@ -86,7 +91,8 @@ namespace FireboltDotNetSdk.Client
         public string? Env
         {
             get => GetString(nameof(Env));
-            init => this[nameof(Env)] = value;
+            // init => this[nameof(Env)] = value;
+            set => this[nameof(Env)] = value;
         }
 
         /// <summary>
@@ -95,7 +101,8 @@ namespace FireboltDotNetSdk.Client
         public string? Endpoint
         {
             get => GetString(nameof(Endpoint));
-            init => this[nameof(Endpoint)] = value;
+            // init => this[nameof(Endpoint)] = value;
+            set => this[nameof(Endpoint)] = value;
         }
 
         /// <summary>
@@ -104,7 +111,8 @@ namespace FireboltDotNetSdk.Client
         public string? Account
         {
             get => GetString(nameof(Account));
-            init => this[nameof(Account)] = value;
+            // init => this[nameof(Account)] = value;
+            set => this[nameof(Account)] = value;
         }
 
         /// <summary>
@@ -113,7 +121,8 @@ namespace FireboltDotNetSdk.Client
         public string? Engine
         {
             get => GetString(nameof(Engine));
-            init => this[nameof(Engine)] = value;
+            // init => this[nameof(Engine)] = value;
+            set => this[nameof(Engine)] = value;
         }
 
         public int Version
@@ -184,6 +193,13 @@ namespace FireboltDotNetSdk.Client
                 return;
             }
             Version = BuildSettings().Principal.Contains("@") ? 1 : 2;
+        }
+
+        public string ToConnectionString()
+        {
+            ICollection<string> x = (ICollection<string>)Keys;
+            x.Select(n => "");
+            return string.Join(';', ((ICollection<string>)Keys).Select(key => $"{key}={this[key]}"));
         }
     }
 }

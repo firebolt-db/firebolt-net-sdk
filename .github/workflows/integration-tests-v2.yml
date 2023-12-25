@@ -1,15 +1,24 @@
 name: Integration tests 2.0
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       database:
         description: 'Database - a new one will be created if not provided'
         required: false
         default: ''
+        type: string
       engine:
         description: 'Engine - a new one will be created if not provided'
         required: false
-  workflow_call:
+        type: string
+      account:
+        description: 'Account'
+        required: true
+        type: string
+      run:
+        description: 'Run command'
+        required: true
+        type: string
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN:
         required: true
@@ -49,7 +58,7 @@ jobs:
         with:
           firebolt-client-id: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
           firebolt-client-secret: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
-          account: ${{ vars.FIREBOLT_ACCOUNT }}
+          account: ${{ inputs.account }}
           api-endpoint: "api.staging.firebolt.io"
           instance-type: "B2"
 
@@ -74,10 +83,10 @@ jobs:
       - name: Run integration tests
         env:
           FIREBOLT_ENV: staging
-          FIREBOLT_ACCOUNT: ${{ vars.FIREBOLT_ACCOUNT }}
+          FIREBOLT_ACCOUNT: ${{ inputs.account }}
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
           FIREBOLT_CLIENT_ID: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN  }}
           FIREBOLT_CLIENT_SECRET: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN  }}
         run: |
-          dotnet test --filter '(Category=Integration|Category=v2)&Category!=v1' -l "console;verbosity=normal"
+          ${{ inputs.run }}

@@ -83,6 +83,21 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string>(new string[] { commandText.Replace("SET ", "") })));
         }
 
+        [TestCase("SET database=my", "Could not set parameter. Set parameter 'database' is not allowed. Try again with 'USE database' instead of SET.")]
+        [TestCase("SET engine=my", "Could not set parameter. Set parameter 'engine' is not allowed. Try again with 'USE engine' instead of SET.")]
+        [TestCase("SET DATABASE=my", "Could not set parameter. Set parameter 'DATABASE' is not allowed. Try again with 'USE DATABASE' instead of SET.")]
+        [TestCase("SET ENGINE=my", "Could not set parameter. Set parameter 'ENGINE' is not allowed. Try again with 'USE ENGINE' instead of SET.")]
+        [TestCase("SET account_id=123", "Could not set parameter. Set parameter 'account_id' is not allowed. Try again with a different parameter name.")]
+        [TestCase("SET ACCOUNT_ID=123", "Could not set parameter. Set parameter 'ACCOUNT_ID' is not allowed. Try again with a different parameter name.")]
+        [TestCase("SET output_format=csv", "Could not set parameter. Set parameter 'output_format' is not allowed. Try again with a different parameter name.")]
+        [TestCase("SET OUTPUT_FORMAT=json", "Could not set parameter. Set parameter 'OUTPUT_FORMAT' is not allowed. Try again with a different parameter name.")]
+        public void ForbiddenSetTest(string commandText, string expectedErrorMessage)
+        {
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" };
+            var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
+            Assert.That(Assert.Throws<InvalidOperationException>(() => cs.ExecuteNonQuery())?.Message, Is.EqualTo(expectedErrorMessage));
+        }
+
         [TestCase("Select 1")]
         public void ExecuteSelectWhenConnectionIsMissingTest(string commandText)
         {

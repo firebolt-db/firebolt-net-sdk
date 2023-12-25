@@ -22,7 +22,6 @@ namespace FireboltDoNetSdk.Utils
 
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
-        private const string ByteAPrefix = "\\x";
         internal static IDictionary<string, double> doubleInfinity = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
         {
             { "inf", double.PositiveInfinity },
@@ -50,11 +49,11 @@ namespace FireboltDoNetSdk.Utils
             switch (columnType.Type)
             {
                 case FireboltDataType.Long:
-                    return Convert.ToInt64(str);
+                    return Convert.ToInt64(str.Trim('"'));
                 case FireboltDataType.Int:
-                    return Convert.ToInt32(str);
+                    return Convert.ToInt32(str.Trim('"'));
                 case FireboltDataType.Decimal:
-                    return Convert.ToDecimal(str);
+                    return Convert.ToDecimal(str.Trim('"'));
                 case FireboltDataType.String:
                     return str;
                 case FireboltDataType.DateTime:
@@ -63,11 +62,11 @@ namespace FireboltDoNetSdk.Utils
                 case FireboltDataType.Date:
                     return ParseDateTime(str);
                 case FireboltDataType.Short:
-                    return Convert.ToInt16(str);
+                    return Convert.ToInt16(str.Trim('"'));
                 case FireboltDataType.Double:
-                    return doubleInfinity.ContainsKey(str) ? doubleInfinity[str] : Convert.ToDouble(str, CultureInfo.InvariantCulture);
+                    return doubleInfinity.ContainsKey(str) ? doubleInfinity[str] : Convert.ToDouble(str.Trim('"'), CultureInfo.InvariantCulture);
                 case FireboltDataType.Float:
-                    return floatInfinity.ContainsKey(str) ? floatInfinity[str] : Convert.ToSingle(str, CultureInfo.InvariantCulture);
+                    return floatInfinity.ContainsKey(str) ? floatInfinity[str] : Convert.ToSingle(str.Trim('"'), CultureInfo.InvariantCulture);
                 case FireboltDataType.Boolean:
                     return bool.Parse(str);
                 case FireboltDataType.Array:
