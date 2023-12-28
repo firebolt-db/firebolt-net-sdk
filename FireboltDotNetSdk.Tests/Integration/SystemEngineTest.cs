@@ -194,6 +194,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v1")]
+        [Category("slow")]
         public void StartStopEngineAndDropDbTestV1()
         {
             AssertStartStopEngineAndDropDbTest(e => e.Response, "Engine not found");
@@ -201,6 +202,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
+        [Category("slow")]
         public void StartStopEngineAndDropDbTestV2()
         {
             AssertStartStopEngineAndDropDbTest(e => e.Message, $"Engine {newEngineName} is not running");
@@ -232,6 +234,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         [Category("v2")]
         [Category("dev")]
+        [Category("slow")]
         public void UseTest()
         {
             string databaseName = Database + "_other_" + suffix;

@@ -52,11 +52,17 @@ namespace FireboltDotNetSdk.Tests
             executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
-        [Ignore("sleepEachRow function is currently not supported on staging")]
-        [TestCase("select sleepEachRow(1) from numbers(5)")]
-        public void ExecuteSetTest(string commandText)
+        [Test, Timeout(600000)]
+        [Category("slow")]
+        public void ExecuteLongTest()
         {
-            executeTest(SYSTEM_CONNECTION_STRING, commandText, "SET use_standard_sql=0", true);
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandTimeout = 0; // make command timeout unlimited
+            command.CommandText = "SELECT checksum(*) FROM generate_series(1, 200000000000)";
+            DbDataReader reader = command.ExecuteReader();
+            Assert.NotNull(reader);
         }
 
         [TestCase("select * from information_schema.tables")]
