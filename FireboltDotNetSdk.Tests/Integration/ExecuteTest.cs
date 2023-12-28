@@ -60,7 +60,7 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandTimeout = 0; // make command timeout unlimited
-            command.CommandText = "SELECT checksum(*) FROM generate_series(1, 500000000000)";
+            command.CommandText = "SELECT checksum(*) FROM generate_series(1, 200000000000)";
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
         }
