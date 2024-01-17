@@ -87,7 +87,11 @@ public class FireboltClient2 : FireboltClient
         }
         catch (FireboltException e) when (e.StatusCode == HttpStatusCode.NotFound)
         {
-            throw new FireboltException(HttpStatusCode.NotFound, $"Account with name {accountName} was not found");
+            throw new FireboltException(
+                $"Account '{accountName}' does not exist in this organization or is not authorized. " +
+                "Please verify the account name and make sure your service account has the correct RBAC permissions and is linked to a user.", e)
+            { StatusCode = e.StatusCode };
+
         }
     }
 

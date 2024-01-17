@@ -274,6 +274,37 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
+        [Test]
+        [Category("v2")]
+        public void ConnectToAccountWithoutUser()
+        {
+            string sa_account_name = $"{Database}_sa_no_user_{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}";
+            try
+            {
+                CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = \"Ecosytem test with no user\"").ExecuteNonQuery();
+                DbDataReader reader = CreateCommand($"CALL fb_GENERATESERVICEACCOUNTKEY('{sa_account_name}')").ExecuteReader();
+                Assert.IsTrue(reader.Read());
+
+                string clientId = reader.GetString(1);
+                string clientSecret = reader.GetString(2);
+                if (string.IsNullOrEmpty(clientId)) // Currently this is bugged so retrieve id via a query. FIR-28719
+                {
+                    clientId = (string)CreateCommand($"SELECT service_account_id FROM information_schema.service_accounts WHERE service_account_name='{sa_account_name}'").ExecuteScalar()!;
+                }
+                string connectionString = ConnectionString(new Tuple<string, string?>[]
+                {
+                    Tuple.Create<string, string?>(nameof(ClientId), clientId),
+                    Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
+                });
+                var badConnection = new FireboltConnection(connectionString);
+                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open()).Message, Does.Match($"Account '{Account}' does not exist.+RBAC"));
+            }
+            finally
+            {
+                CreateCommand($"DROP SERVICE ACCOUNT {sa_account_name}").ExecuteNonQuery();
+            }
+        }
+
         private string? GetTableDbName(string table)
         {
             DbCommand command = Connection.CreateCommand();

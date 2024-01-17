@@ -188,6 +188,28 @@ namespace FireboltDotNetSdk.Tests
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
+
+        [Test]
+        public void UnauthorizedAccount()
+        {
+            string engineUrl = "http://api.test.firebolt.io";
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            LoginResponse loginResponse = new LoginResponse("access_token", "3600", "Bearer");
+            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
+            .ReturnsAsync(GetResponseMessage(new GetSystemEngineUrlResponse() { engineUrl = engineUrl }, HttpStatusCode.NotFound))
+            .ReturnsAsync(GetResponseMessage(new GetAccountIdByNameResponse(), HttpStatusCode.NotFound));
+            var connection = new FireboltConnection("database=testdb.ib;clientid=testuser;clientsecret=test_pwd;account=accountname");
+            FireboltClient2 client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
+
+            FireboltException e = Assert.Throws<FireboltException>(() => client.GetSystemEngineUrl("my_account").GetAwaiter().GetResult());
+            Assert.That(e.Message, Does.StartWith($"Account 'my_account' does not exist"));
+
+            e = Assert.Throws<FireboltException>(() => client.GetAccountIdByNameAsync("your_account", CancellationToken.None).GetAwaiter().GetResult());
+            Assert.That(e.Message, Does.StartWith($"Account 'your_account' does not exist"));
+        }
+
+
         [Test]
         public async Task GetAccountIdByNameAsync()
         {

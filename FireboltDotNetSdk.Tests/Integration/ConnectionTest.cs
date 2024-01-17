@@ -77,14 +77,15 @@ namespace FireboltDotNetSdk.Tests
             return ConnectionStringWithout(paramsToIgnore.ToArray());
         }
 
-        [Test]
-        public void InvalidAccountConnectTest()
+        [TestCase("Account with name non-existing-account-123 was not found", Category = "v1")]
+        [TestCase("Account 'non-existing-account-123' does not exist in this organization", Category = "v2")]
+        public void InvalidAccountConnectTest(string errorMessage)
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Account), "non-existing-account-123"));
             DbConnection connection = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => connection.Open());
             Assert.NotNull(exception);
-            Assert.That(exception!.Message, Does.Contain("Account with name non-existing-account-123 was not found"));
+            Assert.That(exception!.Message, Does.Contain(errorMessage));
         }
 
         [Test]
