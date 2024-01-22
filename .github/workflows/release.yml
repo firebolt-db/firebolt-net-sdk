@@ -10,11 +10,7 @@ on:
 jobs:
   integration-tests:
     uses: ./.github/workflows/integration-tests.yml
-    secrets:
-      FIREBOLT_CLIENT_ID_STAGING_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STAGING_NEW_IDN }}
-      FIREBOLT_CLIENT_SECRET_STAGING_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STAGING_NEW_IDN }}
-      FIREBOLT_CLIENT_ID_DEV_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_DEV_NEW_IDN }}
-      FIREBOLT_CLIENT_SECRET_DEV_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_DEV_NEW_IDN }}
+    secrets: inherit
     with:
       environment: dev
       branch: ${{ inputs.branch }}
