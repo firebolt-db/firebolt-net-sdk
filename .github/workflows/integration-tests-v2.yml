@@ -78,7 +78,7 @@ jobs:
         with:
           firebolt-client-id: ${{ env.CLIENT_ID }}
           firebolt-client-secret: ${{ env.CLIENT_SECRET }}
-          account: ${{ github.event.inputs.account }}
+          account: ${{ vars.FIREBOLT_ACCOUNT }}
           api-endpoint: "api.${{ github.event.inputs.environment }}.firebolt.io"
           instance-type: "B2"
 
@@ -103,7 +103,7 @@ jobs:
       - name: Run integration tests
         env:
           FIREBOLT_ENV: ${{ inputs.environment }}
-          FIREBOLT_ACCOUNT: ${{ github.event.inputs.account }}
+          FIREBOLT_ACCOUNT: ${{ vars.FIREBOLT_ACCOUNT }}
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
           FIREBOLT_CLIENT_ID: ${{ env.CLIENT_ID }}
