@@ -72,8 +72,8 @@ jobs:
         run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
 
       - name: Setup database and engine
-        if: ${{ github.event.inputs.database2 == '' }}
-        id: setup2
+        if: ${{ github.event.inputs.database == '' }}
+        id: setup
         uses: firebolt-db/integration-testing-setup@v2
         with:
           firebolt-client-id: ${{ env.CLIENT_ID }}
@@ -88,7 +88,7 @@ jobs:
           if ! [[ -z "${{ github.event.inputs.database }}" ]]; then
               echo "database_name=${{ github.event.inputs.database }}" >> $GITHUB_OUTPUT
           else
-              echo "database_name=${{ steps.setup2.outputs.database_name }}" >> $GITHUB_OUTPUT
+              echo "database_name=${{ steps.setup.outputs.database_name }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Determine engine name
@@ -97,15 +97,15 @@ jobs:
           if ! [[ -z "${{ github.event.inputs.engine }}" ]]; then
               echo "engine_name=${{ github.event.inputs.engine }}" >> $GITHUB_OUTPUT
           else
-              echo "engine_name=${{ steps.setup2.outputs.engine_name }}" >> $GITHUB_OUTPUT
+              echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Run integration tests
         env:
           FIREBOLT_ENV: ${{ inputs.environment }}
           FIREBOLT_ACCOUNT: ${{ github.event.inputs.account }}
-          FIREBOLT_DATABASE: ${{ steps.setup2.outputs.database_name }}
-          FIREBOLT_ENGINE_NAME: ${{ steps.setup2.outputs.engine_name }}
+          FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
+          FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
           FIREBOLT_CLIENT_ID: ${{ env.CLIENT_ID }}
           FIREBOLT_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
           EXCLUDE_ENV: ${{ env.EXCLUDE_ENV }}

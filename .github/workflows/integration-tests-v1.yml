@@ -60,12 +60,12 @@ jobs:
       - name: Determine env variables
         run: |
           if [ "${{ github.event.inputs.environment }}" == 'staging' ]; then
-            echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_STAGING }}" >> "$GITHUB_ENV"
-            echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_STAGING }}" >> "$GITHUB_ENV"
+            echo "USERNAME=${{ secrets.FIREBOLT_STG_USERNAME }}" >> "$GITHUB_ENV"
+            echo "PASSWORD=${{ secrets.FIREBOLT_STG_PASSWORD }}" >> "$GITHUB_ENV"
             echo "EXCLUDE_ENV=dev" >> "$GITHUB_ENV"
           else
-            echo "USERNAME=${{ secrets.FIREBOLT_USERNAME_DEV }}" >> "$GITHUB_ENV"
-            echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD_DEV }}" >> "$GITHUB_ENV"
+            echo "USERNAME=${{ secrets.FIREBOLT_USERNAME }}" >> "$GITHUB_ENV"
+            echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD }}" >> "$GITHUB_ENV"
             echo "EXCLUDE_ENV=staging" >> "$GITHUB_ENV"
           fi
 
@@ -73,8 +73,8 @@ jobs:
         run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
 
       - name: Setup database and engine
-        if: ${{ github.event.inputs.database1 == '' }}
-        id: setup1
+        if: ${{ github.event.inputs.database == '' }}
+        id: setup
         uses: firebolt-db/integration-testing-setup@v1
         with:
           firebolt-username: ${{ env.USERNAME }}
@@ -89,7 +89,7 @@ jobs:
           if ! [[ -z "${{ github.event.inputs.database }}" ]]; then
               echo "database_name=${{ github.event.inputs.database }}" >> $GITHUB_OUTPUT
           else
-              echo "database_name=${{ steps.setup1.outputs.database_name }}" >> $GITHUB_OUTPUT
+              echo "database_name=${{ steps.setup.outputs.database_name }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Determine engine name
@@ -98,14 +98,14 @@ jobs:
           if ! [[ -z "${{ github.event.inputs.engine }}" ]]; then
               echo "engine_name=${{ github.event.inputs.engine }}" >> $GITHUB_OUTPUT
           else
-              echo "engine_name=${{ steps.setup1.outputs.engine_name }}" >> $GITHUB_OUTPUT
+              echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Run integration tests
         env:
           FIREBOLT_ENV: ${{ inputs.environment }}
-          FIREBOLT_DATABASE: ${{ steps.setup1.outputs.database_name }}
-          FIREBOLT_ENGINE_NAME: ${{ steps.setup1.outputs.engine_name }}
+          FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
+          FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
           FIREBOLT_ENDPOINT: "api.${{ github.event.inputs.environment }}.firebolt.io"
           FIREBOLT_USERNAME: ${{ env.USERNAME }}
           FIREBOLT_PASSWORD: ${{ env.PASSWORD }}
