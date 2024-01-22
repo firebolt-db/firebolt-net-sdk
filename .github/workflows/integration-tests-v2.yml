@@ -35,7 +35,6 @@ on:
         
 jobs:
   tests:
-    if: ${{ github.event.inputs.run-v2 == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
