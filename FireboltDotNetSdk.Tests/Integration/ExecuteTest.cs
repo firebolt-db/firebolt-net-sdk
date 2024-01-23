@@ -4,6 +4,7 @@ using System.Collections;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDoNetSdk.Utils;
+using NodaTime.Extensions;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -52,17 +53,24 @@ namespace FireboltDotNetSdk.Tests
             executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
-        [Test, Timeout(600000)]
+        [Test, Timeout(1000000)]
         [Category("slow")]
         public void ExecuteLongTest()
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandTimeout = 0; // make command timeout unlimited
-            command.CommandText = "SELECT checksum(*) FROM generate_series(1, 200000000000)";
+            command.CommandText = "SELECT checksum(*) FROM generate_series(1, 250000000000)";
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
+            watch.Stop();
+            var elapsed = watch.ElapsedDuration().TotalSeconds;
+            if (elapsed < 350)
+            {
+                Assert.Fail($"Expected execution time to be more than 350 sec but was {elapsed} sec");
+            }
         }
 
         [TestCase("select * from information_schema.tables")]
