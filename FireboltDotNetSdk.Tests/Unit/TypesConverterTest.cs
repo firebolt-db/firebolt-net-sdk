@@ -58,9 +58,9 @@ public class TypesConverterTest
     public void FailingConvertProvidedValues(string columnTypeName, string value)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
-        FormatException e = Assert.Throws<FormatException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
+        FormatException? e = Assert.Throws<FormatException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
         string visualTypeName = char.ToUpper(columnTypeName[0]) + columnTypeName.Substring(1);
-        Assert.That(e.Message, Is.EqualTo($"Input string was not in a correct format."));
+        Assert.That(e?.Message, Is.EqualTo($"Input string was not in a correct format."));
     }
 
     [Test]
@@ -127,7 +127,7 @@ public class TypesConverterTest
     {
         FireboltException? exception = Assert.Throws<FireboltException>(() => TypesConverter.ParseJsonResponse(json));
         Assert.That(exception?.Message, Is.EqualTo(expectedMessage));
-        Assert.That(exception.GetBaseException().Message, Is.EqualTo(expectedBaseMessage));
+        Assert.That(exception?.GetBaseException().Message, Is.EqualTo(expectedBaseMessage));
     }
 
     [Test]
@@ -192,12 +192,12 @@ public class TypesConverterTest
     [Test]
     public void ConvertNotNullValueOfNullType()
     {
-        Assert.That(Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal("hello", ColumnType.Of("null"))).GetBaseException().Message, Is.EqualTo("Not null value in null type"));
+        Assert.That(Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal("hello", ColumnType.Of("null")))?.GetBaseException().Message, Is.EqualTo("Not null value in null type"));
     }
 
     [Test]
     public void ConvertWrongType()
     {
-        Assert.That(Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal("hello", ColumnType.Of("something wrong"))).GetBaseException().Message, Is.EqualTo("The data type returned from the server is not supported: something wrong"));
+        Assert.That(Assert.Throws<FireboltException>(() => TypesConverter.ConvertToCSharpVal("hello", ColumnType.Of("something wrong")))?.GetBaseException().Message, Is.EqualTo("The data type returned from the server is not supported: something wrong"));
     }
 }
