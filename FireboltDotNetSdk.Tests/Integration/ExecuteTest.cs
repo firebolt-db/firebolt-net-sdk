@@ -53,7 +53,7 @@ namespace FireboltDotNetSdk.Tests
             executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
-        [Test, Timeout(1000000)]
+        [Test, Timeout(1200000)]
         [Category("slow")]
         public void ExecuteLongTest()
         {
@@ -62,7 +62,10 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandTimeout = 0; // make command timeout unlimited
-            command.CommandText = "SELECT checksum(*) FROM generate_series(1, 250000000000)";
+            var max = UserName == null ? 400000000000 : 250000000000;
+            command.CommandText = "SELECT checksum(*) FROM generate_series(1, @max)";
+            command.Prepare();
+            command.Parameters.Add(CreateParameter(command, "@max", max));
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
             watch.Stop();

@@ -71,12 +71,12 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(CreateCommand(query).ExecuteScalar(), Is.EqualTo(1));
         }
 
-        [TestCase("CREATE DIMENSION TABLE dummy(id INT)", Description = "It is forbidden to create table using system engine", Category = "v2")]
+        [TestCase("CREATE TABLE dummy(id INT); SELECT * FROM dummy", Description = "It is forbidden to select from a table using system engine", Category = "v2")]
         public void ErrorsTest(string query)
         {
             var command = CreateCommand(query);
             string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Message ?? "";
-            Assert.True(errorMessage.Contains("Cannot execute a DDL query on the system engine."));
+            Assert.True(errorMessage.Contains("Run this query on a user engine."));
         }
 
         [Test]
