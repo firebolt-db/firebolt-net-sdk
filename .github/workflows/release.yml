@@ -13,7 +13,6 @@ jobs:
     secrets: inherit
     with:
       environment: dev
-      branch: ${{ inputs.branch }}
 
   publish:
     runs-on: ubuntu-latest
@@ -26,7 +25,6 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT }}
-          ref: ${{ inputs.branch }}
 
       - name: Setup git config
         run: |
@@ -72,14 +70,14 @@ jobs:
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ inputs.version }}"
-          git push origin ${{ inputs.branch }}
+          git commit -m "Automatic version bump to ${{ steps.tag_generation.outputs.new_version }}"
+          git push origin main
         shell: bash
 
       - name: Publish tag on github
         run: |
-          git tag ${{ inputs.version }}
-          git push origin ${{ inputs.version }}
+          git tag ${{ steps.tag_generation.outputs.new_version }}
+          git push origin ${{ steps.tag_generation.outputs.new_version }}
         shell: bash
 
       - name: Set up .NET 6.0
@@ -96,7 +94,7 @@ jobs:
 
       - name: Publish package on Nuget
         run: |
-          dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.version }}.nupkg \
+          dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.tag_generation.outputs.new_version }}.nupkg \
             --api-key ${{ secrets.PUBLISH_API_KEY }} \
             --source https://api.nuget.org/v3/index.json
         shell: bash
