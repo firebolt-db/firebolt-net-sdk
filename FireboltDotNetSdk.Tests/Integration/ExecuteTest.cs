@@ -62,6 +62,7 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandTimeout = 0; // make command timeout unlimited
+            // Use more rows for FB2.0 since it seems to be faster
             var max = UserName == null ? 400000000000 : 250000000000;
             command.CommandText = "SELECT checksum(*) FROM generate_series(1, @max)";
             command.Prepare();
