@@ -269,6 +269,7 @@ namespace FireboltDotNetSdk.Client
                 EngineUrl = response.EngineUrl;
                 _isSystem = response.IsSystem;
                 _database = response.Database;
+                ValidateConnection();
                 OnSessionEstablished();
                 return EngineUrl != null;
             }
@@ -277,6 +278,11 @@ namespace FireboltDotNetSdk.Client
                 Close();
                 throw;
             }
+        }
+
+        internal void ValidateConnection()
+        {
+            CreateDbCommand("SELECT 1").ExecuteScalar();
         }
 
         private FireboltClient CreateClient()
@@ -311,7 +317,12 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc cref="CreateDbCommand()"/>
         protected override DbCommand CreateDbCommand()
         {
-            return new FireboltCommand(this, null, new FireboltParameterCollection());
+            return CreateDbCommand(null);
+        }
+
+        private DbCommand CreateDbCommand(string? command)
+        {
+            return new FireboltCommand(this, command, new FireboltParameterCollection());
         }
 
         internal void OnSessionEstablished()
