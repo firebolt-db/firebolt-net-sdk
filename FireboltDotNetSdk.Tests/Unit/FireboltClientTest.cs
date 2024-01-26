@@ -35,7 +35,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.NotNull(tokenField);
             tokenField!.SetValue(client, "abc");
             httpClientMock.Setup(c => c.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).Throws<HttpRequestException>();
-            HttpRequestException e = Assert.ThrowsAsync<HttpRequestException>(() => client.ExecuteQuery("DBName", "EngineURL", "null", "Select 1"));
+            Assert.ThrowsAsync<HttpRequestException>(() => client.ExecuteQuery("DBName", "EngineURL", "null", "Select 1"));
         }
 
         [Test]
@@ -166,7 +166,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
             string errorMessage = "login failed";
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(GetResponseMessage(errorMessage, HttpStatusCode.Unauthorized));
-            string actualErrorMessage = Assert.ThrowsAsync<FireboltException>(() => client.EstablishConnection()).Message;
+            string actualErrorMessage = Assert.ThrowsAsync<FireboltException>(() => client.EstablishConnection())?.Message ?? "";
             Assert.IsTrue(actualErrorMessage.Contains("The operation is unauthorized"));
             Assert.IsTrue(actualErrorMessage.Contains(errorMessage));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -202,11 +202,11 @@ namespace FireboltDotNetSdk.Tests
             var connection = new FireboltConnection("database=testdb.ib;clientid=testuser;clientsecret=test_pwd;account=accountname");
             FireboltClient2 client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
 
-            FireboltException e = Assert.Throws<FireboltException>(() => client.GetSystemEngineUrl("my_account").GetAwaiter().GetResult());
-            Assert.That(e.Message, Does.StartWith($"Account 'my_account' does not exist"));
+            FireboltException? e = Assert.Throws<FireboltException>(() => client.GetSystemEngineUrl("my_account").GetAwaiter().GetResult());
+            Assert.That(e?.Message, Does.StartWith($"Account 'my_account' does not exist"));
 
             e = Assert.Throws<FireboltException>(() => client.GetAccountIdByNameAsync("your_account", CancellationToken.None).GetAwaiter().GetResult());
-            Assert.That(e.Message, Does.StartWith($"Account 'your_account' does not exist"));
+            Assert.That(e?.Message, Does.StartWith($"Account 'your_account' does not exist"));
         }
 
 

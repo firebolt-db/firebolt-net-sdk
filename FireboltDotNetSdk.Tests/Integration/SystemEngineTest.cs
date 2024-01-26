@@ -71,12 +71,12 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(CreateCommand(query).ExecuteScalar(), Is.EqualTo(1));
         }
 
-        [TestCase("CREATE DIMENSION TABLE dummy(id INT)", Description = "It is forbidden to create table using system engine", Category = "v2")]
+        [TestCase("CREATE TABLE dummy(id INT); SELECT * FROM dummy", Description = "It is forbidden to select from a table using system engine", Category = "v2")]
         public void ErrorsTest(string query)
         {
             var command = CreateCommand(query);
-            string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); }).Message;
-            Assert.True(errorMessage.Contains("Cannot execute a DDL query on the system engine."));
+            string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Message ?? "";
+            Assert.True(errorMessage.Contains("Run this query on a user engine."));
         }
 
         [Test]
@@ -111,17 +111,17 @@ namespace FireboltDotNetSdk.Tests
             var command = Connection.CreateCommand();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
 
             CreateCommand($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, "-");
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
 
             CreateCommand($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
         }
 
         private void VerifyEngineSpec(DbCommand command, string engineName, string spec)
@@ -197,7 +197,7 @@ namespace FireboltDotNetSdk.Tests
         [Category("slow")]
         public void StartStopEngineAndDropDbTestV1()
         {
-            AssertStartStopEngineAndDropDbTest(e => e.Response, "Engine not found");
+            AssertStartStopEngineAndDropDbTest(e => e?.Response, "Engine not found");
         }
 
         [Test]
@@ -205,10 +205,10 @@ namespace FireboltDotNetSdk.Tests
         [Category("slow")]
         public void StartStopEngineAndDropDbTestV2()
         {
-            AssertStartStopEngineAndDropDbTest(e => e.Message, $"Engine {newEngineName} is not running");
+            AssertStartStopEngineAndDropDbTest(e => e?.Message, $"Engine {newEngineName} is not running");
         }
 
-        private void AssertStartStopEngineAndDropDbTest(Func<FireboltException, string?> messageGetter, string errorMessage)
+        private void AssertStartStopEngineAndDropDbTest(Func<FireboltException?, string?> messageGetter, string errorMessage)
         {
             DbCommand command = Connection.CreateCommand();
 
@@ -297,7 +297,7 @@ namespace FireboltDotNetSdk.Tests
                     Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
                 });
                 var badConnection = new FireboltConnection(connectionString);
-                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open()).Message, Does.Match($"Account '{Account}' does not exist.+RBAC"));
+                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match($"Account '{Account}' does not exist.+RBAC"));
             }
             finally
             {

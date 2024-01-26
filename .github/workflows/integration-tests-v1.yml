@@ -1,0 +1,115 @@
+name: Integration tests 1.0
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run the tests against'
+        type: choice
+        required: true
+        default: 'dev'
+        options:
+          - dev
+          - staging
+      database:
+        description: 'Database - a new one will be created if not provided'
+        required: false
+        default: ''
+      engine:
+        description: 'Engine - a new one will be created if not provided'
+        required: false
+        
+  workflow_call:
+    inputs:
+      environment:
+        default: 'staging'
+        required: false
+        type: string
+    secrets:
+      FIREBOLT_USERNAME:
+        required: true
+      FIREBOLT_PASSWORD:
+        required: true
+      FIREBOLT_STG_USERNAME:
+        required: true
+      FIREBOLT_STG_PASSWORD:
+        required: true
+        
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Set up .NET 6.0
+        id: dotnet-setup
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0
+
+      - name: use .NET 6.0
+        run: |
+          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'    
+
+      - name: Install dependencies
+        run: |
+          dotnet restore
+
+      - name: Determine env variables
+        run: |
+          if [ "${{ github.event.inputs.environment }}" == 'staging' ]; then
+            echo "USERNAME=${{ secrets.FIREBOLT_STG_USERNAME }}" >> "$GITHUB_ENV"
+            echo "PASSWORD=${{ secrets.FIREBOLT_STG_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "EXCLUDE_ENV=dev" >> "$GITHUB_ENV"
+          else
+            echo "USERNAME=${{ secrets.FIREBOLT_USERNAME }}" >> "$GITHUB_ENV"
+            echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "EXCLUDE_ENV=staging" >> "$GITHUB_ENV"
+          fi
+
+      - name: Keep environment name in the summary
+        run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
+
+      - name: Setup database and engine
+        if: ${{ github.event.inputs.database == '' }}
+        id: setup
+        uses: firebolt-db/integration-testing-setup@v1
+        with:
+          firebolt-username: ${{ env.USERNAME }}
+          firebolt-password: ${{ env.PASSWORD }}
+          api-endpoint: "api.${{ github.event.inputs.environment }}.firebolt.io"
+          region: "us-east-1"
+          instance-type: "B2"
+
+      - name: Determine database name
+        id: find-database-name
+        run: |
+          if ! [[ -z "${{ github.event.inputs.database }}" ]]; then
+              echo "database_name=${{ github.event.inputs.database }}" >> $GITHUB_OUTPUT
+          else
+              echo "database_name=${{ steps.setup.outputs.database_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine engine name
+        id: find-engine-name
+        run: |
+          if ! [[ -z "${{ github.event.inputs.engine }}" ]]; then
+              echo "engine_name=${{ github.event.inputs.engine }}" >> $GITHUB_OUTPUT
+          else
+              echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run integration tests
+        env:
+          FIREBOLT_ENV: ${{ inputs.environment }}
+          FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
+          FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
+          FIREBOLT_ENDPOINT: "api.${{ github.event.inputs.environment }}.firebolt.io"
+          FIREBOLT_USERNAME: ${{ env.USERNAME }}
+          FIREBOLT_PASSWORD: ${{ env.PASSWORD }}
+          EXCLUDE_ENV: ${{ env.EXCLUDE_ENV }}
+        run: |
+          dotnet test --filter '(Category=Integration|Category=v1)&Category!=v2&Category!=${{ env.EXCLUDE_ENV }}' -l "console;verbosity=normal"
+
