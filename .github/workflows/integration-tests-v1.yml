@@ -96,7 +96,7 @@ jobs:
         id: find-engine-name
         run: |
           if ! [[ -z "${{ inputs.engine }}" ]]; then
-              echo "engine_name=${{ replaceinputs.engine }}" >> $GITHUB_OUTPUT
+              echo "engine_name=${{ inputs.engine }}" >> $GITHUB_OUTPUT
           else
               echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
           fi
