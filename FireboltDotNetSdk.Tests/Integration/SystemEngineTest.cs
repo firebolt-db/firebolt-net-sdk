@@ -233,7 +233,6 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
-        [Category("dev")]
         [Category("slow")]
         public void UseTest()
         {

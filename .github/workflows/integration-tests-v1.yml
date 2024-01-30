@@ -1,15 +1,6 @@
 name: Integration tests 1.0
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to run the tests against'
-        type: choice
-        required: true
-        default: 'dev'
-        options:
-          - dev
-          - staging
       database:
         description: 'Database - a new one will be created if not provided'
         required: false
@@ -19,16 +10,7 @@ on:
         required: false
         
   workflow_call:
-    inputs:
-      environment:
-        default: 'staging'
-        required: false
-        type: string
     secrets:
-      FIREBOLT_USERNAME:
-        required: true
-      FIREBOLT_PASSWORD:
-        required: true
       FIREBOLT_STG_USERNAME:
         required: true
       FIREBOLT_STG_PASSWORD:
@@ -57,18 +39,6 @@ jobs:
         run: |
           dotnet restore
 
-      - name: Determine env variables
-        run: |
-          if [ "${{ inputs.environment }}" == 'staging' ]; then
-            echo "USERNAME=${{ secrets.FIREBOLT_STG_USERNAME }}" >> "$GITHUB_ENV"
-            echo "PASSWORD=${{ secrets.FIREBOLT_STG_PASSWORD }}" >> "$GITHUB_ENV"
-            echo "EXCLUDE_ENV=dev" >> "$GITHUB_ENV"
-          else
-            echo "USERNAME=${{ secrets.FIREBOLT_USERNAME }}" >> "$GITHUB_ENV"
-            echo "PASSWORD=${{ secrets.FIREBOLT_PASSWORD }}" >> "$GITHUB_ENV"
-            echo "EXCLUDE_ENV=staging" >> "$GITHUB_ENV"
-          fi
-
       - name: Keep environment name in the summary
         run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
 
@@ -77,9 +47,9 @@ jobs:
         id: setup
         uses: firebolt-db/integration-testing-setup@v1
         with:
-          firebolt-username: ${{ env.USERNAME }}
-          firebolt-password: ${{ env.PASSWORD }}
-          api-endpoint: "api.${{ inputs.environment }}.firebolt.io"
+          firebolt-username: ${{ secrets.FIREBOLT_STG_USERNAME }}
+          firebolt-password: ${{ secrets.FIREBOLT_STG_PASSWORD }}
+          api-endpoint: "api.staging.firebolt.io"
           region: "us-east-1"
           instance-type: "B2"
 
@@ -103,13 +73,12 @@ jobs:
 
       - name: Run integration tests
         env:
-          FIREBOLT_ENV: ${{ inputs.environment }}
+          FIREBOLT_ENV: staging
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
-          FIREBOLT_ENDPOINT: "api.${{ inputs.environment }}.firebolt.io"
-          FIREBOLT_USERNAME: ${{ env.USERNAME }}
-          FIREBOLT_PASSWORD: ${{ env.PASSWORD }}
-          EXCLUDE_ENV: ${{ env.EXCLUDE_ENV }}
+          FIREBOLT_ENDPOINT: "api.staging.firebolt.io"
+          FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
+          FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
         run: |
-          dotnet test --filter '(Category=Integration|Category=v1)&Category!=v2&Category!=${{ env.EXCLUDE_ENV }}' -l "console;verbosity=normal"
+          dotnet test --filter '(Category=Integration|Category=v1)&Category!=v2' -l "console;verbosity=normal"
 
