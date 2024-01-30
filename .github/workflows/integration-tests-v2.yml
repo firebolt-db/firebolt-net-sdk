@@ -77,7 +77,7 @@ jobs:
           FIREBOLT_ACCOUNT: ${{ vars.FIREBOLT_ACCOUNT }}
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
-          FIREBOLT_CLIENT_ID: ${{ env.CLIENT_ID }}
-          FIREBOLT_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
+          FIREBOLT_CLIENT_ID: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN  }}
+          FIREBOLT_CLIENT_SECRET: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN  }}
         run: |
           dotnet test --filter '(Category=Integration|Category=v2)&Category!=v1' -l "console;verbosity=normal"
