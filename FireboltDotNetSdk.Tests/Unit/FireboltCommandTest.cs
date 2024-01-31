@@ -65,7 +65,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SET param=1,param=2")]
         public void SetTest(string commandText)
         {
-            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(""), EngineUrl = "engine" };
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" };
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
             Assert.IsEmpty(cs.SetParamList);
             cs.ExecuteNonQuery();
@@ -76,7 +76,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SET param=1,param=2")]
         public async Task SetTestAsync(string commandText)
         {
-            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(""), EngineUrl = "engine" };
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" };
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
             Assert.IsEmpty(cs.SetParamList);
             await cs.ExecuteNonQueryAsync();
@@ -129,7 +129,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SET param=1,param=2")]
         public void ClearSetListTest(string commandText)
         {
-            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(""), EngineUrl = "engine" };
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" };
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
 
             cs.ExecuteNonQuery();

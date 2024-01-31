@@ -270,6 +270,50 @@ namespace FireboltDotNetSdk.Tests
             conn.Close();
         }
 
+        [TestCase("SET time_zone=Asia/Calcutta")]
+        [TestCase("set time_zone=Asia/Calcutta")]
+        public void SetGoodParameterTest(string setCommand)
+        {
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+            HashSet<string> expectedParamerters = new HashSet<string>() { "time_zone=Asia/Calcutta" };
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = setCommand;
+            command.ExecuteNonQuery();
+            Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
+            conn.Close();
+        }
+
+        [Test]
+        public void SetWrongParameterTest()
+        {
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = "SET foo=bar";
+            string errorMessage = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery()).Message;
+            Assert.That(errorMessage, Does.Contain("parameter foo is not allowed"));
+            Assert.That(conn.SetParamList, Is.EqualTo(new HashSet<string>()));
+            conn.Close();
+        }
+
+        [Test]
+        public void SetGoodThenWrongParameterTest()
+        {
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+            HashSet<string> expectedParamerters = new HashSet<string>() { "time_zone=Asia/Calcutta" };
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = "SET time_zone=Asia/Calcutta";
+            command.ExecuteNonQuery();
+            Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
+
+            command.CommandText = "SET foo=bar";
+            string errorMessage = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery()).Message;
+            Assert.That(errorMessage, Does.Contain("parameter foo is not allowed"));
+            Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
+            conn.Close();
+        }
 
         [Test]
         public void ExecuteSelectBoolean()
