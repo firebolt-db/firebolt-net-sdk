@@ -162,5 +162,11 @@ namespace FireboltDoNetSdk.Utils
         {
             return infinityValues.Contains(value);
         }
+
+        public static bool isNaN(object value)
+        {
+            // NaN values should not be compared with ==, so we use IsNaN
+            return value is double d && double.IsNaN(d) || value is float f && float.IsNaN(f);
+        }
     }
 }

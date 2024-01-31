@@ -71,12 +71,12 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(CreateCommand(query).ExecuteScalar(), Is.EqualTo(1));
         }
 
-        [TestCase("CREATE DIMENSION TABLE dummy(id INT)", Description = "It is forbidden to create table using system engine", Category = "v2")]
+        [TestCase("CREATE TABLE dummy(id INT); SELECT * FROM dummy", Description = "It is forbidden to select from a table using system engine", Category = "v2")]
         public void ErrorsTest(string query)
         {
             var command = CreateCommand(query);
-            string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); }).Message;
-            Assert.True(errorMessage.Contains("Cannot execute a DDL query on the system engine."));
+            string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Message ?? "";
+            Assert.True(errorMessage.Contains("Run this query on a user engine."));
         }
 
         [Test]
@@ -111,17 +111,17 @@ namespace FireboltDotNetSdk.Tests
             var command = Connection.CreateCommand();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
 
             CreateCommand($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, "-");
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
 
             CreateCommand($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery()).Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
         }
 
         private void VerifyEngineSpec(DbCommand command, string engineName, string spec)
@@ -197,7 +197,7 @@ namespace FireboltDotNetSdk.Tests
         [Category("slow")]
         public void StartStopEngineAndDropDbTestV1()
         {
-            AssertStartStopEngineAndDropDbTest(e => e.Response, "Engine not found");
+            AssertStartStopEngineAndDropDbTest(e => e?.Response, "Engine not found");
         }
 
         [Test]
@@ -205,10 +205,10 @@ namespace FireboltDotNetSdk.Tests
         [Category("slow")]
         public void StartStopEngineAndDropDbTestV2()
         {
-            AssertStartStopEngineAndDropDbTest(e => e.Message, $"Engine {newEngineName} is not running");
+            AssertStartStopEngineAndDropDbTest(e => e?.Message, $"Engine {newEngineName} is not running");
         }
 
-        private void AssertStartStopEngineAndDropDbTest(Func<FireboltException, string?> messageGetter, string errorMessage)
+        private void AssertStartStopEngineAndDropDbTest(Func<FireboltException?, string?> messageGetter, string errorMessage)
         {
             DbCommand command = Connection.CreateCommand();
 
@@ -233,8 +233,8 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
-        [Category("dev")]
         [Category("slow")]
+        [Ignore("not yet released on staging")]
         public void UseTest()
         {
             string databaseName = Database + "_other_" + suffix;
@@ -271,6 +271,37 @@ namespace FireboltDotNetSdk.Tests
                     }
                     catch (FireboltException) { } // ignore possible exception
                 }
+            }
+        }
+
+        [Test]
+        [Category("v2")]
+        public void ConnectToAccountWithoutUser()
+        {
+            string sa_account_name = $"{Database}_sa_no_user_{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}";
+            try
+            {
+                CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = \"Ecosytem test with no user\"").ExecuteNonQuery();
+                DbDataReader reader = CreateCommand($"CALL fb_GENERATESERVICEACCOUNTKEY('{sa_account_name}')").ExecuteReader();
+                Assert.IsTrue(reader.Read());
+
+                string clientId = reader.GetString(1);
+                string clientSecret = reader.GetString(2);
+                if (string.IsNullOrEmpty(clientId)) // Currently this is bugged so retrieve id via a query. FIR-28719
+                {
+                    clientId = (string)CreateCommand($"SELECT service_account_id FROM information_schema.service_accounts WHERE service_account_name='{sa_account_name}'").ExecuteScalar()!;
+                }
+                string connectionString = ConnectionString(new Tuple<string, string?>[]
+                {
+                    Tuple.Create<string, string?>(nameof(ClientId), clientId),
+                    Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
+                });
+                var badConnection = new FireboltConnection(connectionString);
+                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match($"Account '{Account}' does not exist.+RBAC"));
+            }
+            finally
+            {
+                CreateCommand($"DROP SERVICE ACCOUNT {sa_account_name}").ExecuteNonQuery();
             }
         }
 

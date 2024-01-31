@@ -1,0 +1,84 @@
+name: Integration tests 1.0
+on:
+  workflow_dispatch:
+      database:
+        description: 'Database - a new one will be created if not provided'
+        required: false
+        default: ''
+      engine:
+        description: 'Engine - a new one will be created if not provided'
+        required: false
+        
+  workflow_call:
+    secrets:
+      FIREBOLT_STG_USERNAME:
+        required: true
+      FIREBOLT_STG_PASSWORD:
+        required: true
+        
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Set up .NET 6.0
+        id: dotnet-setup
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0
+
+      - name: use .NET 6.0
+        run: |
+          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'    
+
+      - name: Install dependencies
+        run: |
+          dotnet restore
+
+      - name: Keep environment name in the summary
+        run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
+
+      - name: Setup database and engine
+        if: ${{ inputs.database == '' }}
+        id: setup
+        uses: firebolt-db/integration-testing-setup@v1
+        with:
+          firebolt-username: ${{ secrets.FIREBOLT_STG_USERNAME }}
+          firebolt-password: ${{ secrets.FIREBOLT_STG_PASSWORD }}
+          api-endpoint: "api.staging.firebolt.io"
+          region: "us-east-1"
+          instance-type: "B2"
+
+      - name: Determine database name
+        id: find-database-name
+        run: |
+          if ! [[ -z "${{ inputs.database }}" ]]; then
+              echo "database_name=${{ inputs.database }}" >> $GITHUB_OUTPUT
+          else
+              echo "database_name=${{ steps.setup.outputs.database_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine engine name
+        id: find-engine-name
+        run: |
+          if ! [[ -z "${{ inputs.engine }}" ]]; then
+              echo "engine_name=${{ inputs.engine }}" >> $GITHUB_OUTPUT
+          else
+              echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run integration tests
+        env:
+          FIREBOLT_ENV: staging
+          FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
+          FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
+          FIREBOLT_ENDPOINT: "api.staging.firebolt.io"
+          FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
+          FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
+        run: |
+          dotnet test --filter '(Category=Integration|Category=v1)&Category!=v2' -l "console;verbosity=normal"
+
