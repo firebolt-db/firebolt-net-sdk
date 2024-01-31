@@ -63,7 +63,7 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandTimeout = 0; // make command timeout unlimited
             // Use more rows for FB2.0 since it seems to be faster
-            var max = UserName == null ? 400000000000 : 250000000000;
+            var max = UserName == null ? 430000000000 : 250000000000;
             command.CommandText = "SELECT checksum(*) FROM generate_series(1, @max)";
             command.Prepare();
             command.Parameters.Add(CreateParameter(command, "@max", max));
@@ -502,8 +502,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT '-NaN'::float")]
         public void SelectNaN(string query)
         {
-            var conn = new FireboltConnection(USER_CONNECTION_STRING);
-            conn.Open();
+            var conn = new FireboltConnection(USER_CONNECTION_STRING); conn.Open();
             DbDataReader reader = ExecuteTest(conn, query, double.NaN, typeof(float));
             Assert.That(double.IsNaN(reader.GetDouble(0)), Is.True);
             Assert.That(float.IsNaN(reader.GetFloat(0)), Is.True);
