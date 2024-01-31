@@ -76,7 +76,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var command = CreateCommand(query);
             string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Message ?? "";
-            Assert.True(errorMessage.Contains("Run this query on a user engine."));
+            Assert.True(errorMessage.Contains("Run this statement on a user engine."));
         }
 
         [Test]
