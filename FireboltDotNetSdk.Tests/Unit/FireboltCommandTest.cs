@@ -106,7 +106,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteRederInvalidQuery(string? query, string? response, string expectedErrorMessage)
         {
             var cs = createCommand(query, response);
-            Assert.That(Assert.Throws<InvalidOperationException>(() => cs.ExecuteReader()).Message, Is.EqualTo(expectedErrorMessage));
+            Assert.That(Assert.Throws<InvalidOperationException>(() => cs.ExecuteReader())?.Message, Is.EqualTo(expectedErrorMessage));
         }
 
         [Test]

@@ -616,21 +616,21 @@ namespace FireboltDotNetSdk.Tests
             string posInf = float.PositiveInfinity.ToString();
             string negInf = float.NegativeInfinity.ToString();
 
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(0))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(1))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(2))?.Message, Is.EqualTo($"Cannot convert {negInf} to Int16"));
 
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(0))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(1))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int16"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt16(2))?.Message, Is.EqualTo($"Cannot convert {negInf} to Int16"));
 
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int32"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int32"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int32"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(0))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int32"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(1))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int32"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt32(2))?.Message, Is.EqualTo($"Cannot convert {negInf} to Int32"));
 
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(0)).Message, Is.EqualTo($"Cannot convert {posInf} to Int64"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(1)).Message, Is.EqualTo($"Cannot convert {posInf} to Int64"));
-            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(2)).Message, Is.EqualTo($"Cannot convert {negInf} to Int64"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(0))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int64"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(1))?.Message, Is.EqualTo($"Cannot convert {posInf} to Int64"));
+            Assert.That(Assert.Throws<InvalidCastException>(() => reader.GetInt64(2))?.Message, Is.EqualTo($"Cannot convert {negInf} to Int64"));
 
             Assert.That(reader.Read(), Is.EqualTo(false));
         }
