@@ -233,8 +233,8 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
-        [Category("dev")]
         [Category("slow")]
+        [Ignore("not yet released on staging")]
         public void UseTest()
         {
             string databaseName = Database + "_other_" + suffix;
