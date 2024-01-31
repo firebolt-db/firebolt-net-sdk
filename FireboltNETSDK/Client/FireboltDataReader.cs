@@ -326,7 +326,7 @@ namespace FireboltDotNetSdk.Client
 
         public override short GetInt16(int ordinal)
         {
-            object value = ThrowIfInfinity(GetValue(ordinal), typeof(short));
+            object value = ThrowIfInfinityOrNaN(GetValue(ordinal), typeof(short));
             switch (value)
             {
                 case float f: return (short)f;
@@ -343,7 +343,7 @@ namespace FireboltDotNetSdk.Client
 
         public override int GetInt32(int ordinal)
         {
-            object value = ThrowIfInfinity(GetValue(ordinal), typeof(int));
+            object value = ThrowIfInfinityOrNaN(GetValue(ordinal), typeof(int));
             switch (value)
             {
                 case float f: return (int)f;
@@ -359,7 +359,7 @@ namespace FireboltDotNetSdk.Client
         }
         public override long GetInt64(int ordinal)
         {
-            object value = ThrowIfInfinity(GetValue(ordinal), typeof(long));
+            object value = ThrowIfInfinityOrNaN(GetValue(ordinal), typeof(long));
             switch (value)
             {
                 case float f: return (long)f;
@@ -374,9 +374,9 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private static object ThrowIfInfinity(object value, Type type)
+        private static object ThrowIfInfinityOrNaN(object value, Type type)
         {
-            if (TypesConverter.isInfinity(value))
+            if (TypesConverter.isInfinity(value) || TypesConverter.isNaN(value))
             {
                 throw new InvalidCastException($"Cannot convert {value} to {type.Name}");
             }
