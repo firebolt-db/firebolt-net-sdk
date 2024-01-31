@@ -438,16 +438,31 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [TestCase("SELECT 1/0", double.PositiveInfinity, float.PositiveInfinity)]
-        [TestCase("SELECT 1/0  as int16", double.PositiveInfinity, float.PositiveInfinity)]
-        [TestCase("SELECT -1/0", double.NegativeInfinity, float.NegativeInfinity)]
+        [TestCase("SELECT 'inf'::float", double.PositiveInfinity, float.PositiveInfinity)]
+        [TestCase("SELECT '-inf'::float", double.NegativeInfinity, float.NegativeInfinity)]
         public void SelectInfinity(string query, double doubleExpected, float floatExpected)
         {
             var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
-            DbDataReader reader = ExecuteTest(conn, query, doubleExpected, typeof(double));
+            DbDataReader reader = ExecuteTest(conn, query, doubleExpected, typeof(float));
             Assert.That(reader.GetDouble(0), Is.EqualTo(doubleExpected));
             Assert.That(reader.GetFloat(0), Is.EqualTo(floatExpected));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
+            Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
+            Assert.That(reader.Read(), Is.EqualTo(false));
+            conn.Close();
+        }
+
+        [TestCase("SELECT 'NaN'::float")]
+        [TestCase("SELECT '-NaN'::float")]
+        public void SelectNaN(string query)
+        {
+            var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+            DbDataReader reader = ExecuteTest(conn, query, double.NaN, typeof(float));
+            Assert.That(double.IsNaN(reader.GetDouble(0)), Is.True);
+            Assert.That(float.IsNaN(reader.GetFloat(0)), Is.True);
             Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
             Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
             Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));

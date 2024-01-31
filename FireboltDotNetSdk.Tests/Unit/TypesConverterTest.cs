@@ -39,9 +39,13 @@ public class TypesConverterTest
     [TestCase("float", "inf", float.PositiveInfinity)]
     [TestCase("float", "+inf", float.PositiveInfinity)]
     [TestCase("float", "-inf", float.NegativeInfinity)]
+    [TestCase("float", "nan", float.NaN)]
+    [TestCase("float", "-nan", float.NaN)]
     [TestCase("double", "inf", double.PositiveInfinity)]
     [TestCase("double", "+inf", double.PositiveInfinity)]
     [TestCase("double", "-inf", double.NegativeInfinity)]
+    [TestCase("double", "nan", double.NaN)]
+    [TestCase("double", "-nan", double.NaN)]
     public void ConvertProvidedValues(string columnTypeName, string value, object expectedValue)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
