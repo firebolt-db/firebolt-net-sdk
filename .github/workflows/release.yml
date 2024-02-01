@@ -51,7 +51,7 @@ jobs:
         id: tag_generation
         run: |
           OLD_VERSION=$(git describe --tags --abbrev=0)
-          echo "Old tag was ${OLD_TAG}"
+          echo "Old version was ${OLD_VERSION}"
           CHANGE_LOG=$(git log $OLD_TAG..HEAD --pretty=format:%s)
           NEW_VERSION=$(python3 release_action/scripts/generate_version_tag.py "${CHANGE_LOG}" $OLD_VERSION --major_release "${{ inputs.major-release }}")
           echo "new_version=$NEW_VERSION" >>  $GITHUB_OUTPUT
