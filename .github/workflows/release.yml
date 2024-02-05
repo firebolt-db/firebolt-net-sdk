@@ -68,7 +68,7 @@ jobs:
           git commit -m "Automatic version bump to ${{ steps.tag_generation.outputs.new_version }}"
           git push origin main
         shell: bash
-
+        
       - name: Publish tag on github
         run: |
           git tag ${{ steps.tag_generation.outputs.new_version }}
@@ -76,9 +76,14 @@ jobs:
         shell: bash
 
       - name: Set up .NET 6.0
+        id: dotnet-setup
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 6.0
+          
+      - name: use .NET 6.0
+        run: |
+          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
 
       - name: Build package
         run: |
