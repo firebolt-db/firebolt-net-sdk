@@ -26,7 +26,7 @@ on:
       run-v1:
         description: 'Run tests against Firebolt DB v1'
         required: true
-        default: true
+        default: 'true'
         type: choice
         options:
           - 'true'
@@ -34,7 +34,7 @@ on:
       run-v2:
         description: 'Run tests against Firebolt DB v2'
         required: true
-        default: true
+        default: 'true'
         type: choice
         options:
           - 'true'
@@ -42,7 +42,7 @@ on:
       run-database-with-engine-v2:
         description: 'Run tests against Firebolt DB v2 and Engine V2'
         required: true
-        default: true
+        default: 'true'
         type: choice
         options:
           - 'true'
