@@ -90,7 +90,7 @@ jobs:
     with:
       database: ${{ inputs.database-with-engine-v2 }}
       engine: ${{ inputs.engine_v2_fb_2_0 }}
-      account: ${{ vars. FIREBOLT_ACCOUNT_V2 }}
+      account: ${{ vars.FIREBOLT_ACCOUNT_V2 }}
       run: dotnet test --filter 'Category=Integration&(Category=engine-v2|Category=general)' -l "console;verbosity=normal"
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}

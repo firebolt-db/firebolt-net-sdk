@@ -296,14 +296,29 @@ public abstract class FireboltClient
     private void ProcessResponseHeaders(HttpResponseHeaders headers, CancellationToken cancellationToken)
     {
         FireboltConnectionStringBuilder connectionBuilder = new FireboltConnectionStringBuilder(_connection.ConnectionString);
-        bool shouldUpdateConnection = false;
-        if (headers.Contains(HEADER_RESET_SESSION))
+        bool shouldUpdateConnection = ProcessResetSession(headers);
+        List<string[]> parameters = new List<string[]>();
+        shouldUpdateConnection = ExtractParameters(headers, connectionBuilder, parameters, shouldUpdateConnection);
+        shouldUpdateConnection = ProcessParameters(connectionBuilder, parameters, shouldUpdateConnection);
+
+        if (shouldUpdateConnection)
+        {
+            _connection.UpdateConnectionSettings(connectionBuilder, cancellationToken);
+        }
+    }
+
+    private bool ProcessResetSession(HttpResponseHeaders headers)
+    {
+        if (queryParameters.Count() > 0 && headers.Contains(HEADER_RESET_SESSION))
         {
             queryParameters.Clear();
-            shouldUpdateConnection = true;
+            return true;
         }
+        return false;
+    }
 
-        List<string[]> parameters = new List<string[]>();
+    private bool ExtractParameters(HttpResponseHeaders headers, FireboltConnectionStringBuilder connectionBuilder, List<string[]> parameters, bool shouldUpdateConnection)
+    {
         if (headers.Contains(HEADER_UPDATE_ENDPOINT))
         {
             string? endpointHeader = headers.GetValues(HEADER_UPDATE_ENDPOINT).FirstOrDefault();
@@ -323,6 +338,11 @@ public abstract class FireboltClient
             shouldUpdateConnection = true;
             parameters.AddRange(headers.GetValues(HEADER_UPDATE_PARAMETER).Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
         }
+        return shouldUpdateConnection;
+    }
+
+    private bool ProcessParameters(FireboltConnectionStringBuilder connectionBuilder, List<string[]> parameters, bool shouldUpdateConnection)
+    {
         foreach (string[] kv in parameters)
         {
             if (kv.Length == 1 || "".Equals(kv[1]))
@@ -365,11 +385,7 @@ public abstract class FireboltClient
                 }
             }
         }
-        if (shouldUpdateConnection)
-        {
-            //_connection.ConnectionString = connectionBuilder.ToConnectionString();
-            _connection.UpdateConnectionSettings(connectionBuilder, cancellationToken);
-        }
+        return shouldUpdateConnection;
     }
 
     private async void AddAccessToken(HttpRequestMessage request)

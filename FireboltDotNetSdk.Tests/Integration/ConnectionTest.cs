@@ -46,9 +46,11 @@ namespace FireboltDotNetSdk.Tests
             connection.Close();
         }
 
-        [TestCase(false, false, Description = "Connect without database and engine", Category = "v1")]
-        [TestCase(false, true, Description = "Connect with engine but without database", Category = "v1")]
-        public void FailedConnectTest(bool useDatabase, bool useEngine)
+        [TestCase(false, false, "SELECT 1", Description = "Connect without database and engine", Category = "v1")]
+        [TestCase(false, true, "SELECT 1", Description = "Connect with engine but without database", Category = "v1")]
+        [TestCase(false, false, "SELECT TOP 1 * FROM information_schema.tables", Description = "Connect without database and engine", Category = "v1")]
+        [TestCase(false, true, "SELECT TOP 1 * FROM information_schema.tables", Description = "Connect with engine but without database", Category = "v1")]
+        public void FailedConnectTest(bool useDatabase, bool useEngine, string query)
         {
             var connString = GetConnectionString(useDatabase, useEngine);
             // if engine is specified we use default database
@@ -60,7 +62,7 @@ namespace FireboltDotNetSdk.Tests
             {
                 connection.Open();
                 DbCommand command = connection.CreateCommand();
-                command.CommandText = "SELECT 1";
+                command.CommandText = query;
                 command.ExecuteReader();
             });
         }

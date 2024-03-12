@@ -107,7 +107,7 @@ public class FireboltClient2 : FireboltClient
         var result = await GetSystemEngineUrl(_account);
         _connection.EngineUrl = result.engineUrl;
         string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
-        if (engineName == null || "system".Equals(engineName))
+        if (engineName == null || FireboltConnection.SYSTEM_ENGINE.Equals(engineName))
         {
             return ConnectToSystemEngine(_connection.InfraVersion, database);
         }

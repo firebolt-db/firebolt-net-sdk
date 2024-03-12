@@ -70,7 +70,7 @@ public class FireboltClient1 : FireboltClient
             {
                 engineUrl = await GetEngineUrlByEngineName(accountId, engineName!, cancellationToken);
             }
-            return new ConnectionResponse(engineUrl, databaseName, "system".Equals(engineName));
+            return new ConnectionResponse(engineUrl, databaseName, FireboltConnection.SYSTEM_ENGINE.Equals(engineName));
         }
         catch (System.Exception ex)
         {

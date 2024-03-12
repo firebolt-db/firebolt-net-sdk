@@ -35,6 +35,7 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltConnection : DbConnection
     {
+        internal readonly static string SYSTEM_ENGINE = "system";
         private FireboltConnectionState _connectionState;
 
         public FireboltClient Client
@@ -428,8 +429,8 @@ namespace FireboltDotNetSdk.Client
             FireboltConnectionSettings settings = builder.BuildSettings();
             _database = settings.Database ?? string.Empty;
             EngineName = settings?.Engine;
-            _isSystem = EngineName == null || EngineName.Equals("system"); // TODO: expose this as function and use it. 
-
+            _isSystem = EngineName == null || SYSTEM_ENGINE.Equals(EngineName);
         }
+
     }
 }

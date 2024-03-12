@@ -19,7 +19,7 @@ namespace FireboltDotNetSdk.Tests
         [OneTimeSetUp]
         public void Init()
         {
-            string? systemEngineName = Endpoint == null ? null : "system";
+            string? systemEngineName = Endpoint == null ? null : FireboltConnection.SYSTEM_ENGINE;
             string connectionString = ConnectionString(new Tuple<string, string?>[] { Tuple.Create<string, string?>(nameof(Engine), systemEngineName) });
             Connection = new FireboltConnection(connectionString);
             Connection.Open();
