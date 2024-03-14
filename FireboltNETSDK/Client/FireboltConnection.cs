@@ -118,7 +118,6 @@ namespace FireboltDotNetSdk.Client
                     _infraVersion = account.infraVersion;
                 }
                 return _accountId;
-                //return _isSystem ? _accountId : null;
             }
             set => _accountId = value;
         }
