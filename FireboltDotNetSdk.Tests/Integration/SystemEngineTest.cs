@@ -32,25 +32,20 @@ namespace FireboltDotNetSdk.Tests
         [OneTimeTearDown]
         public void Cleanup()
         {
-            if (Connection != null)
+            if (Connection == null)
             {
-                try
-                {
-                    if (Connection.InfraVersion == 1)
-                    {
-                        //We first attach the engine to an existing database as it can't be dropped if not attached
-                        CreateCommand($"ATTACH ENGINE {newEngineName} TO {Database}").ExecuteNonQuery();
-                    }
-                    CreateCommand($"STOP ENGINE {newEngineName}").ExecuteNonQuery();
-                    CreateCommand($"DROP ENGINE {newEngineName}").ExecuteNonQuery();
-                }
-                catch (System.Exception) { }
-                try
-                {
-                    CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
-                }
-                catch (FireboltException) { };
+                return;
             }
+            if (Connection.InfraVersion == 1)
+            {
+                //We first attach the engine to an existing database as it can't be dropped if not attached
+                executeSafely($"ATTACH ENGINE {newEngineName} TO {Database}");
+            }
+            executeSafely(
+                $"STOP ENGINE {newEngineName}",
+                $"DROP ENGINE {newEngineName}",
+                $"DROP DATABASE IF EXISTS {newDatabaseName}"
+            );
         }
 
         private void CreateDatabase(string dbName, string? attachedEngine = null)
