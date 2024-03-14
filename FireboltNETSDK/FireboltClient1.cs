@@ -65,12 +65,20 @@ public class FireboltClient1 : FireboltClient
 
         try
         {
-            string? engineUrl = await GetDefaultEngineUrl(accountId, databaseName, cancellationToken); // if engineName is supplied this call validates that database exists
+            string? engineUrl = null;
             if (engineName != null)
             {
                 engineUrl = await GetEngineUrlByEngineName(accountId, engineName!, cancellationToken);
             }
-            return new ConnectionResponse(engineUrl, databaseName, FireboltConnection.SYSTEM_ENGINE.Equals(engineName));
+            else if (databaseName != null)
+            {
+                engineUrl = await GetDefaultEngineUrl(accountId, databaseName, cancellationToken);
+            }
+            if (engineUrl == null)
+            {
+                throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {databaseName} database");
+            }
+            return new ConnectionResponse(engineUrl!, databaseName!, FireboltConnection.SYSTEM_ENGINE.Equals(engineName));
         }
         catch (System.Exception ex)
         {

@@ -65,6 +65,7 @@ namespace FireboltDotNetSdk.Tests
                 command.CommandText = query;
                 command.ExecuteReader();
             });
+            Console.WriteLine(exception);
         }
 
         private string GetConnectionString(bool useDatabase, bool useEngine)
