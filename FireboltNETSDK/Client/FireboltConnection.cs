@@ -54,7 +54,7 @@ namespace FireboltDotNetSdk.Client
         private string? _serverVersion;
         private FireboltClient? _fireboltClient;
         public readonly HashSet<string> SetParamList = new();
-        private int _infraVersion = 1;
+        private int _infraVersion = 0;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -115,6 +115,10 @@ namespace FireboltDotNetSdk.Client
                     GetAccountIdByNameResponse account = Client.GetAccountIdByNameAsync(Account, CancellationToken.None).GetAwaiter().GetResult();
                     _accountId = account.id;
                     _infraVersion = account.infraVersion;
+                }
+                else if (_infraVersion == 0)
+                {
+                    _infraVersion = 1; // older versions of DB does not supply infra version, so we assume 1
                 }
                 return _accountId;
             }
