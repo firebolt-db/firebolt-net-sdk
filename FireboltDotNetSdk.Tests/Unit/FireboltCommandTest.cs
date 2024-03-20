@@ -250,8 +250,8 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(null, "NULL")]
         [TestCase(true, "True")]
         [TestCase(false, "False")]
-        [TestCase(new byte[0], "'\\x'::BYTEA")]
-        [TestCase(new byte[] { 1, 2, 3 }, "'\\x01\\x02\\x03'::BYTEA")]
+        [TestCase(new byte[0], "E'\\x'::BYTEA")]
+        [TestCase(new byte[] { 1, 2, 3 }, "E'\\x01\\x02\\x03'::BYTEA")]
         public void SetParamTest(object paramValue, object expect)
         {
             MockClient client = new MockClient("");

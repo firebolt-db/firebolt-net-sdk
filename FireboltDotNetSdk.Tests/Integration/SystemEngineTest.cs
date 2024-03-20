@@ -232,7 +232,7 @@ namespace FireboltDotNetSdk.Tests
         [Category("slow")]
         public void StartStopEngineAndDropDbTestEngineV2()
         {
-            AssertStartStopEngineAndDropDbTest(false, "ENGINE_STATE_RUNNING", "ENGINE_STATE_RUNNING", "ENGINE_STATE_STOPPED", e => e?.Response?.Trim(), $"Engine '{newEngineName}' does not exist, it is stopped or you don't have permission to access it");
+            AssertStartStopEngineAndDropDbTest(false, "RUNNING", "RUNNING", "STOPPED", e => e?.Response?.Trim(), $"Engine '{newEngineName}' does not exist, it is stopped or you don't have permission to access it");
         }
 
         private void AssertStartStopEngineAndDropDbTest(bool createdStopped, string initialStatus, string afterStartStatus, string afterStopStatus, Func<FireboltException?, string?> messageGetter, string errorMessage)

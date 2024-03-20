@@ -55,7 +55,6 @@ namespace FireboltDotNetSdk.Client
         private FireboltClient? _fireboltClient;
         public readonly HashSet<string> SetParamList = new();
         private int _infraVersion = 1;
-        private bool _usePrefixForEachByte = true;
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -193,11 +192,6 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        internal bool UsePrefixForEachByte
-        {
-            get => _usePrefixForEachByte;
-        }
-
         /// <summary>
         /// Initializes a new instance of <see cref="FireBoltConnection"/> with the settings.
         /// </summary>
@@ -307,14 +301,6 @@ namespace FireboltDotNetSdk.Client
         internal void ValidateConnection()
         {
             CreateDbCommand("SELECT 1").ExecuteScalar();
-            try
-            {
-                CreateDbCommand($"SELECT '{BYTE_ARRAY_PREFIX}42{BYTE_ARRAY_PREFIX}42'::BYTEA").ExecuteScalar();
-            }
-            catch (FireboltException)
-            {
-                _usePrefixForEachByte = false;
-            }
         }
 
         private FireboltClient CreateClient()

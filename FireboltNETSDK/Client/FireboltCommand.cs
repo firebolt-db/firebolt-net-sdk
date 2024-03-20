@@ -292,8 +292,7 @@ namespace FireboltDotNetSdk.Client
             }
             else if (value is byte[])
             {
-                string separator = _connection?.UsePrefixForEachByte ?? true ? BYTE_ARRAY_PREFIX : string.Empty;
-                verifyParameters = "'" + BYTE_ARRAY_PREFIX + BitConverter.ToString((byte[])value).Replace("-", separator) + "'::BYTEA";
+                verifyParameters = "E'" + BYTE_ARRAY_PREFIX + BitConverter.ToString((byte[])value).Replace("-", BYTE_ARRAY_PREFIX) + "'::BYTEA";
             }
             else if (typeof(IList).IsAssignableFrom(value.GetType())) // works for lists and arrays
             {
