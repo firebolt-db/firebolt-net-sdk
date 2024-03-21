@@ -2,27 +2,6 @@ name: Integration tests
 on:
   workflow_dispatch:
     inputs:
-      database1:
-        description: 'Database (v1) - a new one will be created if not provided'
-        required: false
-        default: ''
-      database2:
-        description: 'Database (v2) - a new one will be created if not provided'
-        required: false
-        default: ''
-      database-with-engine-v2:
-        description: 'Database (v2) for Firebolt v2 - a new one will be created if not provided'
-        required: false
-        default: ''
-      engine1:
-        description: 'Engine (v1) - a new one will be created if not provided'
-        required: false
-      engine2:
-        description: 'Engine (v2) - a new one will be created if not provided'
-        required: false
-      engine_v2_fb_2_0:
-        description: 'Engine (v2) for Firebolt v2 - a new one will be created if not provided'
-        required: false
       run-v1:
         description: 'Run tests against Firebolt DB v1'
         required: true
@@ -79,7 +58,7 @@ jobs:
       database: ${{ inputs.database2 }}
       engine: ${{ inputs.engine2 }}
       account: ${{ vars.FIREBOLT_ACCOUNT_V1 }}
-      run: dotnet test --filter 'Category=Integration&(Category=v2|Category=general)' -l "console;verbosity=normal"
+      category: v2
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
       FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
@@ -91,7 +70,7 @@ jobs:
       database: ${{ inputs.database-with-engine-v2 }}
       engine: ${{ inputs.engine_v2_fb_2_0 }}
       account: ${{ vars.FIREBOLT_ACCOUNT_V2 }}
-      run: dotnet test --filter 'Category=Integration&(Category=engine-v2|Category=general)' -l "console;verbosity=normal"
+      category: engine-v2
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
       FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}      

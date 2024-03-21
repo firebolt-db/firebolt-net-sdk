@@ -1,5 +1,14 @@
 name: Integration tests 1.0
 on:
+  workflow_dispatch:
+    inputs:
+      database:
+        description: 'Database - a new one will be created if not provided'
+        required: false
+        default: ''
+      engine:
+        description: 'Engine - a new one will be created if not provided'
+        required: false
   workflow_call:
     inputs:
       database:
