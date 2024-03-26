@@ -48,12 +48,14 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("SELECT -80000 as int32")]
         [TestCase("SELECT 30000000000 as uint64")]
         [TestCase("SELECT -30000000000 as int64")]
+        [Category("general")]
         public void ExecuteSelectTest(string commandText)
         {
             executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
         [Test, Timeout(1200000)]
+        [Category("general")]
         [Category("slow")]
         public void ExecuteLongTest()
         {
@@ -77,7 +79,7 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [TestCase("select * from information_schema.tables")]
+        [TestCase("select * from information_schema.tables", Category = "general")]
         public void ExecuteSetEngineTest(string commandText)
         {
             executeTest(USER_CONNECTION_STRING, commandText, null, false);
@@ -106,6 +108,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(0)] // 0 means infinite
         [TestCase(10)]
         [TestCase(null)] // timeout is not set, i.e. default = 30 sec is used
+        [Category("general")]
         public void WithTimeout(int? timeout)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
@@ -120,6 +123,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ShortTimeout()
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
@@ -132,6 +136,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(1)] // too short
         [TestCase(10)]
         [TestCase(10000)] // very long
+        [Category("general")]
         public void CancelCommand(int timeout)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
@@ -150,6 +155,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select 2, 'two'", 2)]
         [TestCase("select 'three', 3", "three")]
         [TestCase("SELECT 'one', 1 UNION ALL SELECT 'two', 2", "one")]
+        [Category("general")]
         public void ExecuteScalar(string query, object expectedValue)
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
@@ -168,6 +174,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
+        [Category("engine-v2")]
         public void ExecuteTestInvalidCredentialsV2()
         {
             ExecuteTestInvalidCredentials(SYSTEM_WRONG_CREDENTIALS2);
@@ -183,6 +190,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectTimestampNtz()
         {
             ExecuteDateTimeTest(
@@ -193,6 +201,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectTimestampPgDate()
         {
             ExecuteDateTimeTest(
@@ -204,6 +213,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectTimestampTz()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
@@ -216,6 +226,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectTimestampTzWithMinutesInTz()
         {
             ExecuteDateTimeTest(
@@ -226,6 +237,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectTimestampTzWithTzWithMinutesAndSecondsInTz()
         {
             ExecuteDateTimeTest(
@@ -236,6 +248,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectTimestampTzWithTzWithDefaultTz()
         {
             ExecuteDateTimeTest(
@@ -272,6 +285,7 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase("SET time_zone=Asia/Calcutta")]
         [TestCase("set time_zone=Asia/Calcutta")]
+        [Category("general")]
         public void SetGoodParameterTest(string setCommand)
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
@@ -285,19 +299,20 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void SetWrongParameterTest()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SET foo=bar";
-            string errorMessage = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery()).Message;
-            Assert.That(errorMessage, Does.Contain("parameter foo is not allowed"));
-            Assert.That(conn.SetParamList, Is.EqualTo(new HashSet<string>()));
+            FireboltException exception = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
+            Assert.That(exception.Response?.Trim(), Is.EqualTo(conn.InfraVersion == 1 ? "parameter foo is not allowed" : "query param not allowed: foo"));
             conn.Close();
         }
 
         [Test]
+        [Category("general")]
         public void SetGoodThenWrongParameterTest()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
@@ -309,33 +324,31 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
 
             command.CommandText = "SET foo=bar";
-            string errorMessage = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery()).Message;
-            Assert.That(errorMessage, Does.Contain("parameter foo is not allowed"));
+            FireboltException exception = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
+            Assert.That(exception.Response?.Trim(), Is.EqualTo(conn.InfraVersion == 1 ? "parameter foo is not allowed" : "query param not allowed: foo"));
             Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
             conn.Close();
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectBoolean()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
-
             DbCommand command = conn.CreateCommand();
-            new List<string>()
-            {
-                "SET bool_output_format=postgres"
-            }
-            .ForEach(set => { command.CommandText = set; command.ExecuteNonQuery(); });
-            command.CommandText = "SELECT true::boolean";
+            command.CommandText = "SELECT true, false";
             DbDataReader reader = command.ExecuteReader();
             Assert.IsTrue(reader.Read());
             Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(bool)));
             Assert.That(reader.GetBoolean(0), Is.EqualTo(true));
+            Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(bool)));
+            Assert.That(reader.GetBoolean(1), Is.EqualTo(false));
             Assert.IsFalse(reader.Read());
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteServiceAccountLogin()
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
@@ -350,20 +363,21 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteInformationSchema()
         {
-            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
             DbCommand command = conn.CreateCommand();
-            command.CommandText = "SELECT table_name, number_of_rows from information_schema.tables";
+            command.CommandText = "SELECT table_name, length(table_name) from information_schema.tables";
             DbDataReader reader = command.ExecuteReader();
             List<string> tableNames = new List<string>();
             while (reader.Read())
             {
                 string name = reader.GetString(0);
                 tableNames.Add(name);
-                long rowsCount = reader.GetInt64(1);
-                Assert.That(rowsCount, Is.GreaterThanOrEqualTo(0));
+                long length = reader.GetInt64(1);
+                Assert.That(length, Is.EqualTo(name.Length));
             }
             List<string> expectedTables = new List<string>() { "databases", "engines", "tables", "views", "columns", "accounts", "users" };
             expectedTables.ForEach(table => Assert.That(tableNames.Contains(table), Is.EqualTo(true)));
@@ -378,6 +392,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
+        [Category("engine-v2")]
         public void ExecuteServiceAccountLoginWithInvalidCredentialsV2()
         {
             ExecuteServiceAccountLoginWithInvalidCredentials(SYSTEM_WRONG_CREDENTIALS2);
@@ -392,7 +407,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase(nameof(Password), Category = "v1")]
-        [TestCase(nameof(ClientSecret), Category = "v2")]
+        [TestCase(nameof(ClientSecret), Category = "v2,engine-v2")]
         public void ExecuteServiceAccountLoginWithMissingSecret(string secretField)
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Engine), null), new Tuple<string, string?>(secretField, ""));
@@ -402,12 +417,14 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectArray()
         {
             ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,NULL,3]", new int?[] { 1, null, 3 }, typeof(int[]));
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectTwoDimensionalArray()
         {
             ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,NULL,3]]", new int?[1][] { new int?[] { 1, null, 3 } }, typeof(int[][]));
@@ -438,33 +455,42 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ExecuteSelectByteA()
         {
             ExecuteTest(SYSTEM_CONNECTION_STRING, "SELECT 'hello_world_123ツ\n\u0048'::bytea", Encoding.UTF8.GetBytes("hello_world_123ツ\n\u0048"), typeof(byte[]));
         }
 
         [Test]
+        [Category("general")]
         public void ShouldThrowExceptionWhenEngineIsNotFound()
         {
             var connString = $"{SYSTEM_CONNECTION_STRING};engine=InexistantEngine";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.That(exception!.Message, Is.EqualTo($"Engine InexistantEngine not found."));
+            switch (conn.InfraVersion)
+            {
+                case 1: Assert.That(exception!.Message, Is.EqualTo("Engine InexistantEngine not found.")); break;
+                case 2: Assert.That(exception!.Response?.Trim(), Is.EqualTo("Engine 'InexistantEngine' does not exist, it is stopped or you don't have permission to access it")); break;
+            }
         }
 
         [Test]
+        [Category("general")]
         public void Select1()
         {
             ExecuteTest(USER_CONNECTION_STRING, "SELECT 1", 1, typeof(int));
         }
 
         [Test]
+        [Category("general")]
         public void WrongQuerySystemEngine()
         {
             WrongQuery(SYSTEM_CONNECTION_STRING);
         }
 
         [Test]
+        [Category("general")]
         public void WrongQueryUserEngine()
         {
             WrongQuery(USER_CONNECTION_STRING);
@@ -484,6 +510,7 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase("SELECT 'inf'::float", double.PositiveInfinity, float.PositiveInfinity)]
         [TestCase("SELECT '-inf'::float", double.NegativeInfinity, float.NegativeInfinity)]
+        [Category("general")]
         public void SelectInfinity(string query, double doubleExpected, float floatExpected)
         {
             var conn = new FireboltConnection(USER_CONNECTION_STRING);
@@ -500,6 +527,7 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase("SELECT 'NaN'::float")]
         [TestCase("SELECT '-NaN'::float")]
+        [Category("general")]
         public void SelectNaN(string query)
         {
             var conn = new FireboltConnection(USER_CONNECTION_STRING); conn.Open();
@@ -514,6 +542,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void CreateDropFillTableWithPrimitives()
         {
             byte[] bytes = Encoding.UTF8.GetBytes("hello.привет.שלום");
@@ -622,18 +651,21 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void CreateDropFillTableWithEmptyArrays()
         {
             CreateDropFillTableWithArrays("int", new int[0], typeof(int[]), "int", new int[0][], typeof(int[][]), "int", new int[0][][], typeof(int[][][]));
         }
 
         [Test]
+        [Category("general")]
         public void CreateDropFillTableWithNullArrays()
         {
             CreateDropFillTableWithArrays("int", null, typeof(int[]), "int", null, typeof(int[][]), "int", null, typeof(int[][][]));
         }
 
         [Test]
+        [Category("general")]
         public void CreateDropFillTableWithSingetonArrays()
         {
             CreateDropFillTableWithArrays(
@@ -643,6 +675,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void CreateDropFillTableWithFullArrays()
         {
             CreateDropFillTableWithArrays(
@@ -653,6 +686,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void CreateDropFillTableWithArraysOfDifferentTypes()
         {
             CreateDropFillTableWithArrays(

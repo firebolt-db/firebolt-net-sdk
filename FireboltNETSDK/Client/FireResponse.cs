@@ -104,6 +104,10 @@ namespace FireboltDotNetSdk.Client
             /// </summary>
             public string? id { get; init; }
 
+            /// <summary>
+            /// Retrieved record.
+            /// </summary>
+            public int infraVersion { get; init; } = 1;
         }
 
         public class GetSystemEngineUrlResponse
