@@ -46,25 +46,25 @@ namespace FireboltDotNetSdk.Tests
             connection.Close();
         }
 
-        [TestCase(false, false, "SELECT 1", Description = "Connect without database and engine", Category = "v1")]
-        [TestCase(false, true, "SELECT 1", Description = "Connect with engine but without database", Category = "v1")]
-        [TestCase(false, false, "SELECT TOP 1 * FROM information_schema.tables", Description = "Connect without database and engine", Category = "v1")]
-        [TestCase(false, true, "SELECT TOP 1 * FROM information_schema.tables", Description = "Connect with engine but without database", Category = "v1")]
-        public void FailedConnectTest(bool useDatabase, bool useEngine, string query)
+        [TestCase(false, false, null, "Cannot get url of default engine url from  database", Category = "v1")]
+        [TestCase(false, true, "SELECT 1", "The operation is unauthorized", Category = "v1")]
+        public void UnsuccessfulConnectTest(bool useDatabase, bool useEngine, string query, string errorMessage)
         {
             var connString = GetConnectionString(useDatabase, useEngine);
-            // if engine is specified we use default database
-            string expectedDatabase = useDatabase || useEngine ? Database : string.Empty;
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
 
             FireboltException? exception = Assert.Throws<FireboltException>(() =>
             {
                 connection.Open();
-                DbCommand command = connection.CreateCommand();
-                command.CommandText = query;
-                command.ExecuteReader();
+                if (query != null)
+                {
+                    DbCommand command = connection.CreateCommand();
+                    command.CommandText = query;
+                    command.ExecuteReader();
+                }
             });
+            Assert.That(exception!.Message, Does.Contain(errorMessage));
         }
 
         private string GetConnectionString(bool useDatabase, bool useEngine)
