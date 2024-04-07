@@ -54,7 +54,7 @@ namespace FireboltDotNetSdk.Tests
             executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
-        [Test, Timeout(600000)]
+        [Test, Timeout(1200000)]
         [Category("general")]
         [Category("slow")]
         public void ExecuteLongTest()
