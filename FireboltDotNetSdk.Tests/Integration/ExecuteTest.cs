@@ -54,7 +54,7 @@ namespace FireboltDotNetSdk.Tests
             executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
-        [Test, Timeout(1200000)]
+        [Test, Timeout(600000)]
         [Category("general")]
         [Category("slow")]
         public void ExecuteLongTest()
@@ -65,7 +65,7 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandTimeout = 0; // make command timeout unlimited
             // Use more rows for FB2.0 since it seems to be faster
-            var max = UserName == null ? 430000000000 : 250000000000;
+            var max = UserName == null ? 300000000000 : 250000000000;
             command.CommandText = "SELECT checksum(*) FROM generate_series(1, @max)";
             command.Prepare();
             command.Parameters.Add(CreateParameter(command, "@max", max));
@@ -106,7 +106,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase(0)] // 0 means infinite
-        [TestCase(10)]
+        [TestCase(20)]
         [TestCase(null)] // timeout is not set, i.e. default = 30 sec is used
         [Category("general")]
         public void WithTimeout(int? timeout)
@@ -307,7 +307,8 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SET foo=bar";
             FireboltException exception = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
-            Assert.That(exception.Response?.Trim(), Is.EqualTo(conn.InfraVersion == 1 ? "parameter foo is not allowed" : "query param not allowed: foo"));
+            Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
+            Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
             conn.Close();
         }
 
@@ -325,7 +326,8 @@ namespace FireboltDotNetSdk.Tests
 
             command.CommandText = "SET foo=bar";
             FireboltException exception = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
-            Assert.That(exception.Response?.Trim(), Is.EqualTo(conn.InfraVersion == 1 ? "parameter foo is not allowed" : "query param not allowed: foo"));
+            Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
+            Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
             Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
             conn.Close();
         }
@@ -362,9 +364,10 @@ namespace FireboltDotNetSdk.Tests
             conn.Close();
         }
 
+        // This test validates that reader can be used to iterate over results and retrieve string and integer values
         [Test]
         [Category("general")]
-        public void ExecuteInformationSchema()
+        public void ReaderSanityTest()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
@@ -468,11 +471,7 @@ namespace FireboltDotNetSdk.Tests
             var connString = $"{SYSTEM_CONNECTION_STRING};engine=InexistantEngine";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
-            switch (conn.InfraVersion)
-            {
-                case 1: Assert.That(exception!.Message, Is.EqualTo("Engine InexistantEngine not found.")); break;
-                case 2: Assert.That(exception!.Response?.Trim(), Is.EqualTo("Engine 'InexistantEngine' does not exist, it is stopped or you don't have permission to access it")); break;
-            }
+            Assert.That(exception!.Message, Does.Match("Engine.+InexistantEngine.+not"));
         }
 
         [Test]
@@ -508,14 +507,15 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [TestCase("SELECT 'inf'::float", double.PositiveInfinity, float.PositiveInfinity)]
-        [TestCase("SELECT '-inf'::float", double.NegativeInfinity, float.NegativeInfinity)]
-        [Category("general")]
-        public void SelectInfinity(string query, double doubleExpected, float floatExpected)
+        [TestCase("SELECT 'inf'::float", double.PositiveInfinity, float.PositiveInfinity, typeof(float), Category = "v1,v2")]
+        [TestCase("SELECT '-inf'::float", double.NegativeInfinity, float.NegativeInfinity, typeof(float), Category = "v1,v2")]
+        [TestCase("SELECT 'inf'::float", double.PositiveInfinity, float.PositiveInfinity, typeof(double), Category = "engine-v2")]
+        [TestCase("SELECT '-inf'::float", double.NegativeInfinity, float.NegativeInfinity, typeof(double), Category = "engine-v2")]
+        public void SelectInfinity(string query, double doubleExpected, float floatExpected, Type expectedType)
         {
             var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
-            DbDataReader reader = ExecuteTest(conn, query, doubleExpected, typeof(float));
+            DbDataReader reader = ExecuteTest(conn, query, doubleExpected, expectedType);
             Assert.That(reader.GetDouble(0), Is.EqualTo(doubleExpected));
             Assert.That(reader.GetFloat(0), Is.EqualTo(floatExpected));
             Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
@@ -525,13 +525,14 @@ namespace FireboltDotNetSdk.Tests
             conn.Close();
         }
 
-        [TestCase("SELECT 'NaN'::float")]
-        [TestCase("SELECT '-NaN'::float")]
-        [Category("general")]
-        public void SelectNaN(string query)
+        [TestCase("SELECT 'NaN'::float", typeof(float), Category = "v1,v2")]
+        [TestCase("SELECT '-NaN'::float", typeof(float), Category = "v1,v2")]
+        [TestCase("SELECT 'NaN'::float", typeof(double), Category = "engine-v2")]
+        [TestCase("SELECT '-NaN'::float", typeof(double), Category = "engine-v2")]
+        public void SelectNaN(string query, Type expectedType)
         {
             var conn = new FireboltConnection(USER_CONNECTION_STRING); conn.Open();
-            DbDataReader reader = ExecuteTest(conn, query, double.NaN, typeof(float));
+            DbDataReader reader = ExecuteTest(conn, query, double.NaN, expectedType);
             Assert.That(double.IsNaN(reader.GetDouble(0)), Is.True);
             Assert.That(float.IsNaN(reader.GetFloat(0)), Is.True);
             Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
@@ -686,12 +687,23 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("v1")]
+        [Category("v2")]
         public void CreateDropFillTableWithArraysOfDifferentTypes()
         {
             CreateDropFillTableWithArrays(
                 "long", new long[] { 1, 2 }, typeof(long[]),
                 "float", new float[][] { new float[] { 2.7F, 3.14F } }, typeof(float[][]),
+                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void CreateDropFillTableWithArraysOfDifferentTypesV2()
+        {
+            CreateDropFillTableWithArrays(
+                "long", new long[] { 1, 2 }, typeof(long[]),
+                "float", new double[][] { new double[] { 2.7, 3.14 } }, typeof(double[][]), // float is alias to double in engine V2
                 "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
         }
 

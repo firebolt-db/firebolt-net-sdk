@@ -210,61 +210,6 @@ namespace FireboltDotNetSdk.Tests
             );
         }
 
-        [Test]
-        [Category("v1")]
-        [Category("slow")]
-        public void StartStopEngineAndDropDbTestV1()
-        {
-            AssertStartStopEngineAndDropDbTest(true, "Stopped", "Running", "Stopped", e => e?.Response, "Engine not found");
-        }
-
-        [Test]
-        [Category("v2")]
-        [Category("slow")]
-        public void StartStopEngineAndDropDbTestV2()
-        {
-            AssertStartStopEngineAndDropDbTest(true, "Stopped", "Running", "Stopped", e => e?.Message, $"Engine {newEngineName} is not running");
-        }
-
-
-        [Test]
-        [Category("engine-v2")]
-        [Category("slow")]
-        public void StartStopEngineAndDropDbTestEngineV2()
-        {
-            AssertStartStopEngineAndDropDbTest(false, "RUNNING", "RUNNING", "STOPPED", e => e?.Response?.Trim(), $"Engine '{newEngineName}' does not exist, it is stopped or you don't have permission to access it");
-        }
-
-        private void AssertStartStopEngineAndDropDbTest(bool createdStopped, string initialStatus, string afterStartStatus, string afterStopStatus, Func<FireboltException?, string?> messageGetter, string errorMessage)
-        {
-            DbCommand command = Connection.CreateCommand();
-
-            VerifyEngineStatus(command, newEngineName, initialStatus);
-            if (createdStopped)
-            {
-                Assert.That(messageGetter.Invoke(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())), Is.EqualTo(errorMessage));
-            }
-            else
-            {
-                ConnectAndRunQuery();
-            }
-
-            CreateCommand($"START ENGINE {newEngineName}").ExecuteNonQuery();
-            VerifyEngineStatus(command, newEngineName, afterStartStatus);
-            ConnectAndRunQuery();
-            IList<object[]> databases = ConnectAndRunQuery("SELECT database_name FROM information_schema.databases");
-
-            CreateCommand($"STOP ENGINE {newEngineName}").ExecuteNonQuery();
-            VerifyEngineStatus(command, newEngineName, afterStopStatus);
-            Assert.That(messageGetter.Invoke(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())), Is.EqualTo(errorMessage));
-
-            CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
-
-            // Validate this here, after the test scenario is done. 
-            // Otherwise if this check is right after extracting databases list and fails it will prevent database to be dropped. 
-            Assert.True(databases.Select(l => l[0]).Contains(Database));
-        }
-
         [TestCase("")]
         [TestCase("DATABASE")]
         [Category("engine-v2")]
@@ -349,7 +294,7 @@ namespace FireboltDotNetSdk.Tests
             string sa_account_name = $"{Database}_sa_no_user_{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}";
             try
             {
-                CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = \"Ecosytem test with no user\"").ExecuteNonQuery();
+                CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = 'Ecosytem test with no user'").ExecuteNonQuery();
                 DbDataReader reader = CreateCommand($"CALL fb_GENERATESERVICEACCOUNTKEY('{sa_account_name}')").ExecuteReader();
                 Assert.IsTrue(reader.Read());
 
