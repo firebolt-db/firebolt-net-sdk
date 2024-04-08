@@ -133,6 +133,10 @@ public abstract class FireboltClient
         {
             parameters["engine"] = _connection.EngineName;
         }
+        if (!_connection.IsSystem && _connection.InfraVersion >= 2)
+        {
+            parameters["query_label"] = Guid.NewGuid().ToString();
+        }
         foreach (var item in queryParameters)
         {
             parameters[item.Key] = item.Value;

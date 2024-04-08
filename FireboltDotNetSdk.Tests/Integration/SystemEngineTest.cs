@@ -315,7 +315,6 @@ namespace FireboltDotNetSdk.Tests
             }
             finally
             {
-                temporarily disable for debugging
                 CreateCommand($"DROP SERVICE ACCOUNT {sa_account_name}").ExecuteNonQuery();
             }
         }
