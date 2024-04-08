@@ -334,7 +334,10 @@ public abstract class FireboltClient
                     connectionBuilder.Endpoint = enpointHeaderParts[0];
                     shouldUpdateConnection = true;
                 }
-                parameters.AddRange(enpointHeaderParts[1].Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
+                if (enpointHeaderParts.Length > 1)
+                {
+                    parameters.AddRange(enpointHeaderParts[1].Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
+                }
             }
         }
         if (headers.Contains(HEADER_UPDATE_PARAMETER))
@@ -345,7 +348,12 @@ public abstract class FireboltClient
         return shouldUpdateConnection;
     }
 
-    private bool ProcessParameters(FireboltConnectionStringBuilder connectionBuilder, List<string[]> parameters, bool shouldUpdateConnection)
+    protected List<string[]> ExtractParameters(string queryString)
+    {
+        return queryString.Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList();
+    }
+
+    protected bool ProcessParameters(FireboltConnectionStringBuilder connectionBuilder, List<string[]> parameters, bool shouldUpdateConnection)
     {
         foreach (string[] kv in parameters)
         {

@@ -105,8 +105,16 @@ public class FireboltClient2 : FireboltClient
         await EstablishConnection();
         // Connecting to system engine by default
         var result = await GetSystemEngineUrl(_account);
-        _connection.EngineUrl = result.engineUrl;
-        string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
+        if (result.engineUrl != null)
+        {
+            string[] urlParts = result.engineUrl.Split('?');
+            _connection.EngineUrl = urlParts[0];
+            string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
+            if (urlParts.Length > 1)
+            {
+                ProcessParameters(new FireboltConnectionStringBuilder(_connection.ConnectionString), ExtractParameters(urlParts[1]), false);
+            }
+        }
         if (engineName == null || FireboltConnection.SYSTEM_ENGINE.Equals(engineName))
         {
             return ConnectToSystemEngine(_connection.InfraVersion, database);

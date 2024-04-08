@@ -37,7 +37,8 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltCommand : DbCommand
     {
-        private static readonly ISet<string> forbiddenParameters = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "DATABASE", "ENGINE", "ACCOUNT_ID", "OUTPUT_FORMAT" };
+        private static readonly ISet<string> forbiddenParameters1 = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "DATABASE", "ENGINE", "ACCOUNT_ID", "OUTPUT_FORMAT" };
+        private static readonly ISet<string> forbiddenParameters2 = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "DATABASE", "ENGINE", "OUTPUT_FORMAT" };
         private static readonly ISet<string> useSupporting = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "DATABASE", "ENGINE" };
         private static readonly string FORBIDDEN_PROPERTY_ERROR_PREFIX = "Could not set parameter. Set parameter '{0}' is not allowed. ";
         private static readonly string FORBIDDEN_PROPERTY_ERROR_USE_SUFFIX = "Try again with 'USE {0}' instead of SET.";
@@ -203,6 +204,7 @@ namespace FireboltDotNetSdk.Client
         private string ValidateSetCommand(string setCommand)
         {
             string name = setCommand.Split("=")[0].Trim();
+            ISet<string> forbiddenParameters = Connection!.InfraVersion < 2 ? forbiddenParameters1 : forbiddenParameters2;
             if (forbiddenParameters.Contains(name))
             {
                 throw new InvalidOperationException(string.Format(useSupporting.Contains(name) ? USE_ERROR : SET_ERROR, name));
