@@ -300,26 +300,23 @@ namespace FireboltDotNetSdk.Tests
 
                 string clientId = reader.GetString(1);
                 string clientSecret = reader.GetString(2);
-                Console.WriteLine($"clientId={clientId}, clientSecret={clientSecret}");
                 if (string.IsNullOrEmpty(clientId)) // Currently this is bugged so retrieve id via a query. FIR-28719
                 {
                     clientId = (string)CreateCommand($"SELECT service_account_id FROM information_schema.service_accounts WHERE service_account_name='{sa_account_name}'").ExecuteScalar()!;
                 }
-                Console.WriteLine($"clientId={clientId}, clientSecret={clientSecret}");
                 string connectionString = ConnectionString(new Tuple<string, string?>[]
                 {
                     Tuple.Create<string, string?>(nameof(ClientId), clientId),
                     Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
                 });
-                Console.WriteLine($"bad connectionString={connectionString}");
                 var badConnection = new FireboltConnection(connectionString);
 
                 Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match($"[Aa]ccount '.+?' does not exist"));
             }
             finally
             {
-                //temporarily disable for debugging
-                //CreateCommand($"DROP SERVICE ACCOUNT {sa_account_name}").ExecuteNonQuery();
+                temporarily disable for debugging
+                CreateCommand($"DROP SERVICE ACCOUNT {sa_account_name}").ExecuteNonQuery();
             }
         }
 
