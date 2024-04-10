@@ -110,6 +110,15 @@ jobs:
               echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Setup env by build
+        id: setup-env
+        run: |
+          if [ ${{ inputs.category }} == 'engine-v2' ]; then
+              echo "run_setup=true" >> $GITHUB_OUTPUT
+          else
+              echo "run_setup=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run integration tests
         env:
           FIREBOLT_ENV: staging
@@ -118,5 +127,6 @@ jobs:
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
           FIREBOLT_CLIENT_ID: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN  }}
           FIREBOLT_CLIENT_SECRET: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN  }}
+          FIREBOLT_RUN_SETUP: ${{ steps.setup-env.outputs.run_setup }}
         run: |
           dotnet test --filter 'Category=Integration&(Category=${{ inputs.category }}|Category=general)' -l "console;verbosity=normal"
