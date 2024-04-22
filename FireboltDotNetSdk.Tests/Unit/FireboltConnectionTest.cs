@@ -397,7 +397,6 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - validate connection
-            //.ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"bytea\", \"name\": \"1\"}],\"data\":[[\"\\\\x4242\"]]}", HttpStatusCode.OK)) // select \x4242
             ;
             cs.Open(); // should succeed
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:

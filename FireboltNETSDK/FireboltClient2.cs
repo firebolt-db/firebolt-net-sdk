@@ -28,6 +28,7 @@ using static FireboltDotNetSdk.Utils.Constant;
 namespace FireboltDotNetSdk;
 public class FireboltClient2 : FireboltClient
 {
+    private const string PROTOCOL_VERSION = "2.1";
     private ISet<string> engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
     private readonly string _account;
     public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, "2.0", httpClient)
@@ -128,7 +129,7 @@ public class FireboltClient2 : FireboltClient
         Execute("select 1"); // needed to get the InfraVersion back
         if (_connection.InfraVersion == 2)
         {
-            _protocolVersion = "2.1";
+            _protocolVersion = PROTOCOL_VERSION;
         }
         return new ConnectionResponse(_connection.EngineUrl, database, true);
     }
@@ -140,7 +141,7 @@ public class FireboltClient2 : FireboltClient
         {
             case 1: return ConnectToCustomEngineUsingInformationSchema(engineName, database);
             case 2:
-                _protocolVersion = "2.1";
+                _protocolVersion = PROTOCOL_VERSION;
                 return ConnectToCustomEngineUsingResponseHeaders(engineName, database);
             default: throw new FireboltException($"Unexpected infrastructure version {infraVersion}");
         }
