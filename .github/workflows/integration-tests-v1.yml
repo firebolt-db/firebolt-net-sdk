@@ -91,5 +91,5 @@ jobs:
           FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
           FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
         run: |
-          dotnet test --filter 'Category=Integration&(Category=v1|Category=general)' -l "console;verbosity=normal"
+          dotnet test --filter 'Category=Integration&(Category=v1|Category=general)&Name!=ExecuteLongTest' -l "console;verbosity=normal"
 

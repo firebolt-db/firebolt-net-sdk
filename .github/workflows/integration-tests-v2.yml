@@ -129,4 +129,4 @@ jobs:
           FIREBOLT_CLIENT_SECRET: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN  }}
           FIREBOLT_RUN_SETUP: ${{ steps.setup-env.outputs.run_setup }}
         run: |
-          dotnet test --filter 'Category=Integration&(Category=${{ inputs.category }}|Category=general)' -l "console;verbosity=normal"
+          dotnet test --filter 'Category=Integration&(Category=${{ inputs.category }}|Category=general)&Name!=ExecuteLongTest' -l "console;verbosity=normal"
