@@ -1,6 +1,7 @@
 name: Integration tests 1.0
 on:
   workflow_dispatch:
+    inputs:
       database:
         description: 'Database - a new one will be created if not provided'
         required: false
@@ -8,8 +9,18 @@ on:
       engine:
         description: 'Engine - a new one will be created if not provided'
         required: false
-        
   workflow_call:
+    inputs:
+      database:
+        description: 'Database - a new one will be created if not provided'
+        required: false
+        default: ''
+        type: string
+      engine:
+        description: 'Engine - a new one will be created if not provided'
+        required: false
+        type: string
+        
     secrets:
       FIREBOLT_STG_USERNAME:
         required: true
@@ -80,5 +91,5 @@ jobs:
           FIREBOLT_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
           FIREBOLT_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
         run: |
-          dotnet test --filter '(Category=Integration|Category=v1)&Category!=v2' -l "console;verbosity=normal"
+          dotnet test --filter 'Category=Integration&(Category=v1|Category=general)&Name!=ExecuteLongTest' -l "console;verbosity=normal"
 

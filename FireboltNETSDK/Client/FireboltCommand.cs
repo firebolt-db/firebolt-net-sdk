@@ -37,6 +37,16 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public class FireboltCommand : DbCommand
     {
+        private static readonly ISet<string> forbiddenParameters1 = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "DATABASE", "ENGINE", "ACCOUNT_ID", "OUTPUT_FORMAT" };
+        private static readonly ISet<string> forbiddenParameters2 = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "DATABASE", "ENGINE", "OUTPUT_FORMAT" };
+        private static readonly ISet<string> useSupporting = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "DATABASE", "ENGINE" };
+        private static readonly string FORBIDDEN_PROPERTY_ERROR_PREFIX = "Could not set parameter. Set parameter '{0}' is not allowed. ";
+        private static readonly string FORBIDDEN_PROPERTY_ERROR_USE_SUFFIX = "Try again with 'USE {0}' instead of SET.";
+        private static readonly string FORBIDDEN_PROPERTY_ERROR_SET_SUFFIX = "Try again with a different parameter name.";
+        private static readonly string USE_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_USE_SUFFIX;
+        private static readonly string SET_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_SET_SUFFIX;
+        internal static readonly string BYTE_ARRAY_PREFIX = "\\x";
+
         private FireboltConnection? _connection;
         private string? _commandText;
         private bool _designTimeVisible = true;
@@ -166,7 +176,7 @@ namespace FireboltDotNetSdk.Client
             var engineUrl = Connection?.EngineUrl;
             if (commandText.Trim().ToUpper().StartsWith("SET"))
             {
-                commandText = commandText.Remove(0, 4).Trim();
+                commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
                 SetParamList.Add(commandText);
                 try
                 {
@@ -189,6 +199,17 @@ namespace FireboltDotNetSdk.Client
 
             Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection?.AccountId, newCommandText, SetParamList, cancellationToken);
             return await t;
+        }
+
+        private string ValidateSetCommand(string setCommand)
+        {
+            string name = setCommand.Split("=")[0].Trim();
+            ISet<string> forbiddenParameters = Connection!.InfraVersion < 2 ? forbiddenParameters1 : forbiddenParameters2;
+            if (forbiddenParameters.Contains(name))
+            {
+                throw new InvalidOperationException(string.Format(useSupporting.Contains(name) ? USE_ERROR : SET_ERROR, name));
+            }
+            return setCommand;
         }
 
         protected override Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
@@ -273,7 +294,7 @@ namespace FireboltDotNetSdk.Client
             }
             else if (value is byte[])
             {
-                verifyParameters = "'\\x" + BitConverter.ToString((byte[])value).Replace("-", "\\x") + "'::BYTEA";
+                verifyParameters = "E'" + BYTE_ARRAY_PREFIX + BitConverter.ToString((byte[])value).Replace("-", BYTE_ARRAY_PREFIX) + "'::BYTEA";
             }
             else if (typeof(IList).IsAssignableFrom(value.GetType())) // works for lists and arrays
             {

@@ -9,7 +9,33 @@ on:
       engine:
         description: 'Engine - a new one will be created if not provided'
         required: false
+      category:
+        description: 'Version of used engine (engine-v2 means v2, infra version 2.1)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'v2'
+          - 'engine-v2'
   workflow_call:
+    inputs:
+      database:
+        description: 'Database - a new one will be created if not provided'
+        required: false
+        default: ''
+        type: string
+      engine:
+        description: 'Engine - a new one will be created if not provided'
+        required: false
+        type: string
+      account:
+        description: 'Account'
+        required: true
+        type: string
+      category:
+        description: 'Run category'
+        required: true
+        type: string
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN:
         required: true
@@ -20,6 +46,19 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
+      - name: Set account engine v2
+        id: set-account
+        run: |
+          if ! [[ -z "${{ inputs.account }}" ]]; then
+            echo "account=${{ inputs.account }}" >> $GITHUB_OUTPUT
+            echo "account=${{ inputs.account }}"
+          elif [[ "${{ inputs.account }}" == "engine-v2" ]]; then
+            echo "account=${{ vars.FIREBOLT_ACCOUNT_V2 }}" >> $GITHUB_OUTPUT
+            echo "account=${{ vars.FIREBOLT_ACCOUNT_V2 }}"
+          else
+            echo "account=${{ vars.FIREBOLT_ACCOUNT_V1 }}" >> $GITHUB_OUTPUT
+            echo "account=${{ vars.FIREBOLT_ACCOUNT_V1 }}"
+          fi
       - name: Check out code
         uses: actions/checkout@v2
         with:
@@ -43,13 +82,13 @@ jobs:
         run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
 
       - name: Setup database and engine
-        if: ${{ inputs.database == '' }}
+        if: ${{ (inputs.database == '') && (inputs.category != 'engine-v2') }}
         id: setup
         uses: firebolt-db/integration-testing-setup@v2
         with:
           firebolt-client-id: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
           firebolt-client-secret: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
-          account: ${{ vars.FIREBOLT_ACCOUNT }}
+          account: ${{ steps.set-account.outputs.account }}
           api-endpoint: "api.staging.firebolt.io"
           instance-type: "B2"
 
@@ -71,13 +110,23 @@ jobs:
               echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Setup env by build
+        id: setup-env
+        run: |
+          if [ ${{ inputs.category }} == 'engine-v2' ]; then
+              echo "run_setup=true" >> $GITHUB_OUTPUT
+          else
+              echo "run_setup=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run integration tests
         env:
           FIREBOLT_ENV: staging
-          FIREBOLT_ACCOUNT: ${{ vars.FIREBOLT_ACCOUNT }}
+          FIREBOLT_ACCOUNT: ${{ steps.set-account.outputs.account }}
           FIREBOLT_DATABASE: ${{ steps.setup.outputs.database_name }}
           FIREBOLT_ENGINE_NAME: ${{ steps.setup.outputs.engine_name }}
           FIREBOLT_CLIENT_ID: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN  }}
           FIREBOLT_CLIENT_SECRET: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN  }}
+          FIREBOLT_RUN_SETUP: ${{ steps.setup-env.outputs.run_setup }}
         run: |
-          dotnet test --filter '(Category=Integration|Category=v2)&Category!=v1' -l "console;verbosity=normal"
+          dotnet test --filter 'Category=Integration&(Category=${{ inputs.category }}|Category=general)&Name!=ExecuteLongTest' -l "console;verbosity=normal"

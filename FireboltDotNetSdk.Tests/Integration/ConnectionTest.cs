@@ -8,14 +8,15 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class ConnectionTest : IntegrationTest
     {
-        [TestCase(true, false, Description = "Connect without engine but with database")]
-        [TestCase(false, true, Description = "Connect with engine but without database", Category = "v2")]
-        [TestCase(true, true, Description = "Connect with both engine and database")]
-        public void SuccessfulConnectTest(bool useDatabase, bool useEngine)
+        [TestCase(true, false, true, Description = "Connect without engine but with database", Category = "v1")]
+        [TestCase(false, true, true, Description = "Connect with engine but without database; used default database", Category = "v2")]
+        [TestCase(false, false, false, Description = "Connect without engine and without database", Category = "v2,engine-v2")]
+        [TestCase(false, true, false, Description = "Connect with engine but without database", Category = "engine-v2")]
+        [TestCase(true, true, true, Description = "Connect with both engine and database", Category = "v1,v2,engine-v2")]
+        public void SuccessfulConnectTest(bool useDatabase, bool useEngine, bool expectsDatabase)
         {
             var connString = GetConnectionString(useDatabase, useEngine);
-            // if engine is specified we use default database
-            string expectedDatabase = useDatabase || useEngine ? Database : string.Empty;
+            string expectedDatabase = expectsDatabase ? Database : string.Empty;
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
 
@@ -27,7 +28,7 @@ namespace FireboltDotNetSdk.Tests
 
             Assert.That(connection.DataSource ?? string.Empty, Is.EqualTo(expectedDatabase));
             DbCommand command = connection.CreateCommand();
-            command.CommandText = "SELECT TOP 1 * FROM information_schema.tables";
+            command.CommandText = "SELECT 1";
             // Test case for use engine
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
@@ -44,23 +45,25 @@ namespace FireboltDotNetSdk.Tests
             connection.Close();
         }
 
-        [TestCase(false, false, Description = "Connect without database and engine")]
-        [TestCase(false, true, Description = "Connect with engine but without database", Category = "v1")]
-        public void FailedConnectTest(bool useDatabase, bool useEngine)
+        [TestCase(false, false, null, "Cannot get url of default engine url from  database", Category = "v1")]
+        [TestCase(false, true, "SELECT 1", "The operation is unauthorized", Category = "v1")]
+        public void UnsuccessfulConnectTest(bool useDatabase, bool useEngine, string query, string errorMessage)
         {
             var connString = GetConnectionString(useDatabase, useEngine);
-            // if engine is specified we use default database
-            string expectedDatabase = useDatabase || useEngine ? Database : string.Empty;
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
 
             FireboltException? exception = Assert.Throws<FireboltException>(() =>
             {
                 connection.Open();
-                DbCommand command = connection.CreateCommand();
-                command.CommandText = "SELECT TOP 1 * FROM information_schema.tables";
-                command.ExecuteReader();
+                if (query != null)
+                {
+                    DbCommand command = connection.CreateCommand();
+                    command.CommandText = query;
+                    command.ExecuteReader();
+                }
             });
+            Assert.That(exception!.Message, Does.Contain(errorMessage));
         }
 
         private string GetConnectionString(bool useDatabase, bool useEngine)
@@ -78,7 +81,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase("Account with name non-existing-account-123 was not found", Category = "v1")]
-        [TestCase("Account 'non-existing-account-123' does not exist in this organization", Category = "v2")]
+        [TestCase("Account 'non-existing-account-123' does not exist in this organization", Category = "v2,engine-v2")]
         public void InvalidAccountConnectTest(string errorMessage)
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Account), "non-existing-account-123"));
@@ -89,6 +92,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ChangeDatabaseToNotExistingWhenConnectionIsOpen()
         {
             var connString = ConnectionString();
@@ -99,6 +103,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ChangeDatabaseToNotExistingWhenConnectionIsNotOpen()
         {
             var connString = ConnectionString();
@@ -109,6 +114,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ChangeDatabaseToExistingWhenConnectionIsOpen()
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Database), "DOES_NOT_EXIST"));
@@ -123,6 +129,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ChangeDatabaseToSameConnectionIsOpen()
         {
             var connString = ConnectionString();
@@ -136,6 +143,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void ChangeDatabaseToSameConnectionNotOpen()
         {
             var connString = ConnectionString();
@@ -151,6 +159,7 @@ namespace FireboltDotNetSdk.Tests
 
 
         [Test]
+        [Category("general")]
         public void SetConnectionStringSameValueNotOpen()
         {
             var connString = ConnectionString();
@@ -162,6 +171,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("general")]
         public void SetConnectionStringSameValueOpen()
         {
             var connString = ConnectionString();
@@ -192,6 +202,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
+        [Category("engine-v2")]
         public void SetAllFieldsUsingConnectionStringFirstWrongThenGoodV2()
         {
             var connString1 = ConnectionString(
@@ -216,6 +227,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
+        [Category("engine-v2")]
         public void SetAllFieldsUsingConnectionStringFirstGoodThenWrongV2()
         {
             SetAllFieldsUsingConnectionStringFirstGoodThenWrong<HttpRequestException>(nameof(UserName), nameof(Password));
@@ -237,6 +249,7 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase(nameof(Account))]
         [TestCase(nameof(Database))]
+        [Category("general")]
         public void SetFieldUsingConnectionStringFirstGoodThenWrong(string fieldName)
         {
             var connString1 = ConnectionString();

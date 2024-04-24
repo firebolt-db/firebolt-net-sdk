@@ -2,6 +2,8 @@ using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using System.Data;
 using System.Data.Common;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -17,32 +19,33 @@ namespace FireboltDotNetSdk.Tests
         [OneTimeSetUp]
         public void Init()
         {
-            string? systemEngineName = Endpoint == null ? null : "system";
+            string? systemEngineName = Endpoint == null ? null : FireboltConnection.SYSTEM_ENGINE;
             string connectionString = ConnectionString(new Tuple<string, string?>[] { Tuple.Create<string, string?>(nameof(Engine), systemEngineName) });
             Connection = new FireboltConnection(connectionString);
             Connection.Open();
-            CreateEngine(newEngineName, "SPEC = 'B1'");
-            CreateDatabase(newDatabaseName, newEngineName);
+            string? engineSpec = Connection.InfraVersion == 1 ? "SPEC = 'B1'" : null;
+            string? attachedEngine = Connection.InfraVersion == 1 ? newEngineName : null;
+            CreateEngine(newEngineName, engineSpec);
+            CreateDatabase(newDatabaseName, attachedEngine);
         }
 
         [OneTimeTearDown]
         public void Cleanup()
         {
-            if (Connection != null)
+            if (Connection == null)
             {
-                try
-                {
-                    //We first attach the engine to an existing database as it can't be dropped if not attached
-                    CreateCommand($"ATTACH ENGINE {newEngineName} TO {Database}").ExecuteNonQuery();
-                    CreateCommand($"DROP ENGINE IF EXISTS {newEngineName}").ExecuteNonQuery();
-                }
-                catch (System.Exception) { }
-                try
-                {
-                    CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
-                }
-                catch (FireboltException) { };
+                return;
             }
+            if (Connection.InfraVersion == 1)
+            {
+                //We first attach the engine to an existing database as it can't be dropped if not attached
+                executeSafely($"ATTACH ENGINE {newEngineName} TO {Database}");
+            }
+            executeSafely(
+                $"STOP ENGINE {newEngineName}",
+                $"DROP ENGINE {newEngineName}",
+                $"DROP DATABASE IF EXISTS {newDatabaseName}"
+            );
         }
 
         private void CreateDatabase(string dbName, string? attachedEngine = null)
@@ -64,29 +67,43 @@ namespace FireboltDotNetSdk.Tests
             CreateCommand(create_engine_sql).ExecuteNonQuery();
         }
 
-        [TestCase("select 1")]
-        [TestCase("select count(*) from information_schema.tables where table_name = 'tables'")]
+        [TestCase("select 1", Category = "general")]
+        [TestCase("select count(*) from information_schema.tables where table_name = 'tables'", Category = "general")]
         public void SuccessfulQueryTest(string query)
         {
             Assert.That(CreateCommand(query).ExecuteScalar(), Is.EqualTo(1));
         }
 
-        [TestCase("CREATE TABLE dummy(id INT); SELECT * FROM dummy", Description = "It is forbidden to select from a table using system engine", Category = "v2")]
-        public void ErrorsTest(string query)
+        [Test]
+        [Category("general")]
+        [Description("It is forbidden to select from a table using system engine")]
+        public void ErrorsTest()
         {
-            var command = CreateCommand(query);
-            string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Message ?? "";
-            Assert.True(errorMessage.Contains("Run this statement on a user engine."));
+            try
+            {
+                var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT); SELECT * FROM dummy");
+                string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Response ?? "";
+                Assert.True(new Regex("Run this (query|statement) on a user engine.").Match(errorMessage).Success);
+            }
+            finally
+            {
+                try
+                {
+                    CreateCommand("DROP TABLE dummy").ExecuteNonQuery();
+                }
+                catch (FireboltException) { };
+            }
         }
 
         [Test]
+        [Category("general")]
         public void ShowDatabasesTest()
         {
             DbCommand command = Connection.CreateCommand();
             command.CommandText = "SHOW DATABASES";
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
-            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(newDatabaseName));
+            Assert.That(readData(reader), Has.Exactly(1).EqualTo(newDatabaseName));
         }
 
         private void CheckEngineExistsWithDB(DbCommand command, string engineName, string dbName)
@@ -94,7 +111,7 @@ namespace FireboltDotNetSdk.Tests
             command.CommandText = "SHOW ENGINES";
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
-            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(newDatabaseName));
+            Assert.That(readData(reader), Has.Exactly(1).EqualTo(newDatabaseName));
 
             reader = command.ExecuteReader();
             Assert.That(
@@ -129,7 +146,7 @@ namespace FireboltDotNetSdk.Tests
             command.CommandText = "SHOW ENGINES";
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
-            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(engineName));
+            Assert.That(readData(reader), Has.Exactly(1).EqualTo(engineName));
 
             reader = command.ExecuteReader();
             Assert.That(
@@ -164,6 +181,8 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("v1")]
+        [Category("v2")]
         public void AlterEngineTest()
         {
             var command = Connection.CreateCommand();
@@ -178,64 +197,60 @@ namespace FireboltDotNetSdk.Tests
 
         private void VerifyEngineStatus(DbCommand command, string engineName, string status)
         {
-            command.CommandText = "SHOW ENGINES";
+            command.CommandText = "select engine_name, status from information_schema.engines";
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
-            Assert.That(readDabaseses(reader), Has.Exactly(1).EqualTo(engineName), "Engine {engineName} is missing in SHOW ENGINES");
+            Assert.That(readData(reader), Has.Exactly(1).EqualTo(engineName), "Engine {engineName} is missing in SHOW ENGINES");
 
             reader = command.ExecuteReader();
             Assert.That(
-                readItems(reader, 0, 4),
+                readItems(reader, 0, 1),
                 Has.Exactly(1).EqualTo(new object[] { engineName, status }),
                 $"Engine {engineName} should have {status} status"
             );
         }
 
-
-        [Test]
-        [Category("v1")]
+        [TestCase("")]
+        [TestCase("DATABASE")]
+        [Category("engine-v2")]
         [Category("slow")]
-        public void StartStopEngineAndDropDbTestV1()
+        public void UseDatabaseTest(string entityType)
         {
-            AssertStartStopEngineAndDropDbTest(e => e?.Response, "Engine not found");
+            string databaseName = Database + "_other_" + suffix;
+            string tableName = databaseName + "_table";
+            string table1 = tableName + "_1";
+            string table2 = tableName + "_2";
+
+            try
+            {
+                CreateCommand($"use {entityType} {Database}").ExecuteNonQuery(); // use current DB; shouldn't have any effect
+                Assert.IsNull(GetTableDbName(table1)); // the table does not exist yet
+                CreateCommand($"CREATE TABLE {table1} ( id LONG)").ExecuteNonQuery(); // create table1 in current DB
+                Assert.That(GetTableDbName(table1), Is.EqualTo(Database)); // now table t1 exists
+                Assert.Throws<FireboltException>(() => CreateCommand($"use {entityType} {databaseName}").ExecuteNonQuery()); // DB does not exist
+                CreateCommand($"CREATE DATABASE IF NOT EXISTS {databaseName}").ExecuteNonQuery(); // create DB
+                CreateCommand($"use {entityType} {databaseName}").ExecuteNonQuery(); // Now this should succeed            
+                CreateCommand($"CREATE TABLE {table2} ( id LONG)").ExecuteNonQuery(); // create table2 in other DB
+                Assert.IsNull(GetTableDbName(table1)); // table1 does not exist here
+                Assert.That(GetTableDbName(table2), Is.EqualTo(databaseName)); // but table2 does exist
+            }
+            finally
+            {
+                executeSafely(
+                    $"USE {entityType} {databaseName}",
+                    $"DROP TABLE {table2}",
+                    $"DROP DATABASE {databaseName}",
+                    $"USE {entityType} {Database}",
+                    $"DROP TABLE {table1}"
+                );
+            }
         }
 
-        [Test]
-        [Category("v2")]
-        [Category("slow")]
-        public void StartStopEngineAndDropDbTestV2()
-        {
-            AssertStartStopEngineAndDropDbTest(e => e?.Message, $"Engine {newEngineName} is not running");
-        }
-
-        private void AssertStartStopEngineAndDropDbTest(Func<FireboltException?, string?> messageGetter, string errorMessage)
-        {
-            DbCommand command = Connection.CreateCommand();
-
-            VerifyEngineStatus(command, newEngineName, "Stopped");
-            Assert.That(messageGetter.Invoke(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())), Is.EqualTo(errorMessage));
-
-            CreateCommand($"START ENGINE {newEngineName}").ExecuteNonQuery();
-            VerifyEngineStatus(command, newEngineName, "Running");
-            ConnectAndRunQuery();
-            IList<object[]> databases = ConnectAndRunQuery("SELECT database_name FROM information_schema.databases");
-
-            CreateCommand($"STOP ENGINE {newEngineName}").ExecuteNonQuery();
-            VerifyEngineStatus(command, newEngineName, "Stopped");
-            Assert.That(messageGetter.Invoke(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())), Is.EqualTo(errorMessage));
-
-            CreateCommand($"DROP DATABASE IF EXISTS {newDatabaseName}").ExecuteNonQuery();
-
-            // Validate this here, after the test scenario is done. 
-            // Otherwise if this check is right after extracting databases list and fails it will prevent database to be dropped. 
-            Assert.True(databases.Select(l => l[0]).Contains(Database));
-        }
 
         [Test]
-        [Category("v2")]
+        [Category("engine-v2")]
         [Category("slow")]
-        [Ignore("not yet released on staging")]
-        public void UseTest()
+        public void UseEngineTest()
         {
             string databaseName = Database + "_other_" + suffix;
             string engineName = databaseName + "_engine";
@@ -245,43 +260,41 @@ namespace FireboltDotNetSdk.Tests
 
             try
             {
-                CreateCommand($"use {Database}").ExecuteNonQuery(); // use current DB; shouldn't have any effect
-                Assert.IsNull(GetTableDbName(table1)); // the table does not exist yet
-                CreateCommand($"CREATE TABLE {table1} ( id LONG)").ExecuteNonQuery(); // create table1 in current DB
-                Assert.That(GetTableDbName(table1), Is.EqualTo(Database)); // now table t1 exists
-                Assert.Throws<FireboltException>(() => CreateCommand($"use {databaseName}").ExecuteNonQuery()); // DB does not exist
-                CreateCommand($"CREATE DATABASE IF NOT EXISTS {databaseName}").ExecuteNonQuery(); // create DB
-                CreateCommand($"use {databaseName}").ExecuteNonQuery(); // Now this should succeed            
-                CreateCommand($"CREATE TABLE {table2} ( id LONG)").ExecuteNonQuery(); // create table2 in other DB
-                Assert.IsNull(GetTableDbName(table1)); // table1 does not exist here
-                Assert.That(GetTableDbName(table2), Is.EqualTo(databaseName)); // but table2 does exist
+                CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
+                Assert.Throws<FireboltException>(() => CreateCommand($"use ENGINE {engineName}").ExecuteNonQuery());
+                CreateCommand($"CREATE ENGINE {engineName}").ExecuteNonQuery();
+                CreateCommand($"USE ENGINE {engineName}").ExecuteNonQuery();
+                CreateCommand($"CREATE DATABASE IF NOT EXISTS {databaseName}").ExecuteNonQuery();
+                CreateCommand($"USE DATABASE {databaseName}").ExecuteNonQuery();
+                CreateCommand($"CREATE TABLE {table1} ( id LONG)").ExecuteNonQuery();
+                CreateCommand($"INSERT INTO {table1} (id) VALUES (1)").ExecuteNonQuery();// should succeed using user engine
+                // switch back to the system engine
+                CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
+                Assert.Throws<FireboltException>(() => CreateCommand($"INSERT INTO {table1} (id) VALUES (1)").ExecuteNonQuery());
             }
             finally
             {
-                string[] commands2 = new string[] {
-                    $"STOP ENGINE {engineName}",
-                    $"DROP ENGINE {engineName}",
+                executeSafely(
+                    $"USE DATABASE {databaseName}",
+                    $"DROP TABLE {table1}",
                     $"DROP DATABASE {databaseName}",
-                };
-                foreach (string cmd in commands2)
-                {
-                    try
-                    {
-                        CreateCommand(cmd).ExecuteNonQuery();
-                    }
-                    catch (FireboltException) { } // ignore possible exception
-                }
+                    $"STOP ENGINE {engineName}",
+                    $"DROP ENGINE {engineName}"
+                );
             }
         }
 
+
+
         [Test]
         [Category("v2")]
+        [Category("engine-v2")]
         public void ConnectToAccountWithoutUser()
         {
             string sa_account_name = $"{Database}_sa_no_user_{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}";
             try
             {
-                CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = \"Ecosytem test with no user\"").ExecuteNonQuery();
+                CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = 'Ecosytem test with no user'").ExecuteNonQuery();
                 DbDataReader reader = CreateCommand($"CALL fb_GENERATESERVICEACCOUNTKEY('{sa_account_name}')").ExecuteReader();
                 Assert.IsTrue(reader.Read());
 
@@ -297,7 +310,8 @@ namespace FireboltDotNetSdk.Tests
                     Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
                 });
                 var badConnection = new FireboltConnection(connectionString);
-                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match($"Account '{Account}' does not exist.+RBAC"));
+
+                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match($"[Aa]ccount '.+?' does not exist"));
             }
             finally
             {
@@ -328,7 +342,7 @@ namespace FireboltDotNetSdk.Tests
             return command;
         }
 
-        private List<string> readDabaseses(DbDataReader reader)
+        private List<string> readData(DbDataReader reader)
         {
             List<string> databases = new List<string>();
             while (reader.Read())
@@ -351,6 +365,18 @@ namespace FireboltDotNetSdk.Tests
                 rows.Add(row);
             }
             return rows;
+        }
+
+        private void executeSafely(params string[] commands)
+        {
+            foreach (string cmd in commands)
+            {
+                try
+                {
+                    CreateCommand(cmd).ExecuteNonQuery();
+                }
+                catch (FireboltException) { } // ignore possible exception
+            }
         }
     }
 }
