@@ -147,7 +147,6 @@ namespace FireboltDotNetSdk.Tests
             var cs = createCommand("select 1", response);
             string message = Assert.Throws<FireboltException>(() => cs.ExecuteReader()).Message;
             Assert.That(message, Does.Contain("Failed to execute a query"));
-            Assert.That(message, Does.Contain(response));
         }
 
         [TestCase("SET param=1")]

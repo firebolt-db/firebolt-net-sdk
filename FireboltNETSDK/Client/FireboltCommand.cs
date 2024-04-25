@@ -337,7 +337,7 @@ namespace FireboltDotNetSdk.Client
             }
             catch (JsonReaderException e)
             {
-                throw new FireboltException($"Failed to execute a query. Invalid response body format. Try again or contact support. {Response}", e);
+                throw new FireboltException($"Failed to execute a query. Invalid response body format. Try again or contact support.", e);
             }
         }
 
