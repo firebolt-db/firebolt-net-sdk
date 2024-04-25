@@ -140,6 +140,18 @@ namespace FireboltDotNetSdk.Tests
             Assert.False(reader.Read());
         }
 
+
+        [Test]
+        public void GetBadJsonDataTest()
+        {
+            string response = "not a json";
+            var cs = createCommand("select 1", response);
+            string message = Assert.Throws<FireboltException>(() => cs.ExecuteReader()).Message;
+            Assert.That(message, Does.Contain("Failed to execute a query"));
+            Assert.That(message, Does.Contain(response));
+        }
+
+
         [TestCase("SET param=1")]
         [TestCase("SET param=1,param=2")]
         public void ClearSetListTest(string commandText)

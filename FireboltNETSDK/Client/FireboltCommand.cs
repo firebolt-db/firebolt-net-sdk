@@ -330,8 +330,15 @@ namespace FireboltDotNetSdk.Client
         private QueryResult? GetOriginalJsonData(string? Response)
         {
             if (Response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
-            var prettyJson = JToken.Parse(Response).ToString(Formatting.Indented);
-            return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+            try
+            {
+                var prettyJson = JToken.Parse(Response).ToString(Formatting.Indented);
+                return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+            }
+            catch (JsonReaderException e)
+            {
+                throw new FireboltException($"Failed to execute a query. Invalid response body format. Try again or contact support. {Response}", e);
+            }
         }
 
         public void ClearSetList()
