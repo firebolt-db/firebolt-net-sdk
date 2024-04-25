@@ -140,7 +140,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.False(reader.Read());
         }
 
-
         [Test]
         public void GetBadJsonDataTest()
         {
@@ -150,7 +149,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(message, Does.Contain("Failed to execute a query"));
             Assert.That(message, Does.Contain(response));
         }
-
 
         [TestCase("SET param=1")]
         [TestCase("SET param=1,param=2")]
