@@ -28,6 +28,22 @@ on:
           - 'false'
 
   workflow_call:
+    inputs:
+      run-v1:
+        description: 'Run tests against Firebolt DB v1'
+        required: true
+        default: true
+        type: boolean
+      run-v2:
+        description: 'Run tests against Firebolt DB v2'
+        required: true
+        default: true
+        type: boolean
+      run-database-with-engine-v2:
+        description: 'Run tests against Firebolt DB v2 and Engine V2'
+        required: true
+        default: true
+        type: boolean
     secrets:
       # V1 secrets
       FIREBOLT_STG_USERNAME:

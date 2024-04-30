@@ -11,6 +11,10 @@ jobs:
   integration-tests:
     uses: ./.github/workflows/integration-tests.yml
     secrets: inherit
+    with:
+      run-v1: true
+      run-v2: true
+      run-database-with-engine-v2: true
 
   publish:
     runs-on: ubuntu-latest
