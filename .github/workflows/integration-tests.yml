@@ -58,14 +58,14 @@ on:
 
 jobs:
   integration-test-v1:
-    if: ${{ inputs.run-v1 == 'true' }}
+    if: ${{ (inputs.run-v1 == 'true') || (inputs.run-v1 == true) }}
     uses: ./.github/workflows/integration-tests-v1.yml
     secrets:
       FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
       FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
 
   integration-test-v2:
-    if: ${{ inputs.run-v2 == 'true' }}
+    if: ${{ (inputs.run-v2 == 'true') || (inputs.run-v2 == true) }}
     uses: ./.github/workflows/integration-tests-v2.yml
     with:
       account: ${{ vars.FIREBOLT_ACCOUNT_V1 }}
@@ -75,7 +75,7 @@ jobs:
       FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
   
   integration-test-engine-v2:
-    if: ${{ inputs.run-database-with-engine-v2 == 'true' }}
+    if: ${{ (inputs.run-database-with-engine-v2 == 'true') || (inputs.run-database-with-engine-v2 == 'true') }}
     uses: ./.github/workflows/integration-tests-v2.yml
     with:
       account: ${{ vars.FIREBOLT_ACCOUNT_V2 }}
