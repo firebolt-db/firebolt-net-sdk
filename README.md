@@ -16,11 +16,9 @@ Installing the Package
 ======================
 
 Here is a FireboltNetSDK [NuGet page](https://www.nuget.org/packages/FireboltNetSDK/).
-Currently  installed version is 1.1.0. The preferable way to update version is using release GitHub action, however this can be done manually as well using CLI. 
-Here is how the manual installation can be done. 
 - Install using **.NET CLI**
 ```{r, engine='bash', code_block_name}
-dotnet add package FireboltNetSDK --version 1.2.0
+dotnet add package FireboltNetSDK
 ```   
 - Install using **Visual Studio UI**
   - `Tools` > `NuGet Package Manager` > `Manage NuGet Packages for Solution` and search for `Firebolt`   
