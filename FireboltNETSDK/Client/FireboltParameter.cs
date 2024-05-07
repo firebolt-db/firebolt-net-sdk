@@ -161,6 +161,8 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public Encoding? StringEncoding { get; set; }
 
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentException">When attempting to make value of not nullable type nullable.</exception>
         public override bool IsNullable
         {
             get => _nullable;
@@ -174,12 +176,20 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <summary>
+        /// Gets the number of decimal places: 15 for <see cref="DbType.Decimal"/>, 0 otherwise.
+        /// </summary>
+        /// <exception cref="NotImplementedException">When set is called.</exception>
         public override byte Scale
         {
             get => (byte)(_dbType == DbType.Decimal ? DBL_DIG : 0);
             set => throw new NotImplementedException();
         }
+
+        /// <inheritdoc/>
         public override int Size { get => _size ?? 0; set => _size = value; }
+
+        /// <inheritdoc/>
         public override bool SourceColumnNullMapping { get => _sourceColumnNullable; set => _sourceColumnNullable = value; }
 
         /// <summary>

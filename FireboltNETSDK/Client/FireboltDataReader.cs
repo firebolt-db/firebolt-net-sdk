@@ -77,33 +77,44 @@ namespace FireboltDotNetSdk.Client
             _depth = depth;
         }
 
+        /// <inheritdoc/>
         public override object this[string name] { get => GetValue(GetOrdinal(name)); }
 
+        /// <inheritdoc/>
         public override object this[int ordinal] { get => GetValue(ordinal); }
 
+        /// <inheritdoc/>
         public override bool IsClosed { get => _closed; }
 
+        /// <inheritdoc/>
         public override bool HasRows { get => _queryResult.Data.Count > 0; }
 
+        /// <inheritdoc/>
         public override int FieldCount { get => _queryResult.Meta.Count; }
 
+        /// <inheritdoc/>
         public override int Depth { get => _depth; }
 
+        /// <inheritdoc/>
         public override int RecordsAffected { get => 0; }
 
+        /// <inheritdoc/>
         public override int VisibleFieldCount { get => FieldCount; }
 
+        /// <inheritdoc/>
         public override void Close()
         {
             _closed = true;
         }
 
+        /// <inheritdoc/>
         public override Task CloseAsync()
         {
             Close();
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc/>
         public override bool GetBoolean(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -122,6 +133,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         public override byte GetByte(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -139,6 +151,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
         {
             object value = GetValue(ordinal);
@@ -152,6 +165,7 @@ namespace FireboltDotNetSdk.Client
             return GetBuffer(bytes, dataOffset, buffer, bufferOffset, length);
         }
 
+        /// <inheritdoc/>
         public override char GetChar(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -169,6 +183,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
         {
             return GetBuffer(GetString(ordinal).ToCharArray(), dataOffset, buffer, bufferOffset, length);
@@ -185,11 +200,13 @@ namespace FireboltDotNetSdk.Client
             return limit;
         }
 
+        /// <inheritdoc/>
         public override string GetDataTypeName(int ordinal)
         {
             return _queryResult.Meta[ordinal].Type;
         }
 
+        /// <inheritdoc/>
         public override DateTime GetDateTime(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -202,6 +219,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         public override decimal GetDecimal(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -219,6 +237,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         public override double GetDouble(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -236,12 +255,14 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         //[EditorBrowsable(EditorBrowsableState.Never)]
         public override IEnumerator GetEnumerator()
         {
             return new DbEnumerator(this);
         }
 
+        /// <inheritdoc/>
         public override Type GetFieldType(int ordinal)
         {
             return GetTypeByName(GetDataTypeName(ordinal)) ?? throw new ArgumentNullException($"Cannot get type of column #{ordinal}");
@@ -297,6 +318,7 @@ namespace FireboltDotNetSdk.Client
             return type;
         }
 
+        /// <inheritdoc/>
         public override float GetFloat(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -314,6 +336,13 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <summary>
+        /// Gets the value of the specified column as a globally unique identifier (GUID).
+        /// Due to Firebolt does not support GUID as a base type this function works only if the value is string that can be parsed as GUID.
+        /// Otherwise <exception cref="InvalidCastException">InvalidCastException</exception> is thrown. 
+        /// </summary>
+        /// <exception cref="FormatException">If format is invalid</exception>
+        /// <exception cref="OverflowException">If format is invalid</exception>
         public override Guid GetGuid(int ordinal)
         {
             object value = GetValue(ordinal);
@@ -324,6 +353,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         public override short GetInt16(int ordinal)
         {
             object value = ThrowIfInfinityOrNaN(GetValue(ordinal), typeof(short));
@@ -341,6 +371,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <inheritdoc/>
         public override int GetInt32(int ordinal)
         {
             object value = ThrowIfInfinityOrNaN(GetValue(ordinal), typeof(int));
@@ -357,6 +388,8 @@ namespace FireboltDotNetSdk.Client
                 default: throw new InvalidCastException($"Cannot cast ({value.GetType()}){value} to int");
             }
         }
+
+        /// <inheritdoc/>
         public override long GetInt64(int ordinal)
         {
             object value = ThrowIfInfinityOrNaN(GetValue(ordinal), typeof(long));
@@ -383,36 +416,43 @@ namespace FireboltDotNetSdk.Client
             return value;
         }
 
+        /// <inheritdoc/>
         public override string GetName(int ordinal)
         {
             return _queryResult.Meta[ordinal].Name;
         }
 
+        /// <inheritdoc/>
         public override int GetOrdinal(string name)
         {
             return _queryResult?.Meta.FindIndex(m => m.Name == name) ?? throw new IndexOutOfRangeException($"Cannot find index for column {name}");
         }
 
+        /// <inheritdoc/>
         public override DataTable? GetSchemaTable()
         {
             return _fullTableName == null ? null : new DataTable(_fullTableName); // TODO split full table name that can contain schema_name.table_name (dot notation)
         }
 
+        /// <inheritdoc/>
         public override Task<DataTable?> GetSchemaTableAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult(GetSchemaTable());
         }
 
         public override string GetString(int ordinal)
+        /// <inheritdoc/>
         {
             return GetValue(ordinal).ToString() ?? throw new InvalidOperationException($"String representation of column ${ordinal} is null");
         }
 
+        /// <inheritdoc/>
         public override object GetValue(int ordinal)
         {
             return GetValueSafely(ordinal) ?? throw new InvalidOperationException($"Column ${ordinal} is null");
         }
 
+        /// <inheritdoc/>
         public override int GetValues(object[] values)
         {
             List<object?> row = _queryResult.Data[_currentRowIndex] ?? new List<object?>();
@@ -428,6 +468,7 @@ namespace FireboltDotNetSdk.Client
             return n;
         }
 
+        /// <inheritdoc/>
         public override bool IsDBNull(int ordinal)
         {
             return GetValueSafely(ordinal) == DBNull.Value;
@@ -453,11 +494,16 @@ namespace FireboltDotNetSdk.Client
             return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
         }
 
+        /// <summary>
+        /// Throws exception <exception cref="FireboltException">FireboltException</exception> because batch of read operations is not supported.
+        /// </summary>
+        /// <exception cref="FireboltException"></exception>
         public override bool NextResult()
         {
             throw new FireboltException("Batch operations are not supported");
         }
 
+        /// <inheritdoc/>
         public override bool Read()
         {
             int? max = (_queryResult?.Data?.Count ?? 0) - 1;

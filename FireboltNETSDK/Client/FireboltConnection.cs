@@ -22,9 +22,6 @@ using System.Runtime.CompilerServices;
 using FireboltDotNetSdk.Utils;
 using IsolationLevel = System.Data.IsolationLevel;
 using static FireboltDotNetSdk.Client.FireResponse;
-using static FireboltDotNetSdk.Client.FireboltCommand;
-using FireboltDotNetSdk.Exception;
-using System.Text;
 
 [assembly: InternalsVisibleTo("FireboltDotNetSdk.Tests")]
 [assembly: InternalsVisibleTo("FireboltDotNetSdk")]
@@ -137,6 +134,10 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The state of the connection.</returns>
         public override ConnectionState State => _connectionState.State;
 
+        /// <summary>
+        /// Gets database version.
+        /// </summary>
+        /// <returns>The version of the database.</returns>
         public override string ServerVersion
         {
             get
@@ -149,8 +150,16 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
+        /// <summary>
+        /// Gets the name of the database to which to connect.
+        /// </summary>
+        /// <returns>The name of the database to which to connect.</returns>
         public override string DataSource => _database;
 
+        /// <summary>
+        /// Connection string that holds all connection parameters as a semicolon separated key-value pairs.
+        /// </summary>
+        /// <returns>The connection staring</returns>
         [System.Diagnostics.CodeAnalysis.AllowNull]
         public override string ConnectionString
         {
@@ -370,6 +379,10 @@ namespace FireboltDotNetSdk.Client
             OpenAsync().GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// Simulates starting transaction. Due to transactions are not supported this method has not effect. 
+        /// </summary>
+        /// <returns>Simulated implementaion of <see cref="DbTransaction"/>.</returns>
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
             return new FireboltTransaction(this);

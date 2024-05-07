@@ -34,8 +34,16 @@ namespace FireboltDotNetSdk.Client
             _dbConnection = connection;
         }
 
+        /// <summary>
+        /// Isolation level of the transaction. Due to transaction are not supported and this implementation is simulation the return value is <see cref="IsolationLevel.Unspecified"/>
+        /// </summary>
+        /// <returns>The isolation level for this transaction: <see cref="IsolationLevel.Unspecified"/>.</returns>
         public override IsolationLevel IsolationLevel { get => IsolationLevel.Unspecified; }
 
+        /// <summary>
+        /// Gets DBConnection used for creation of current instance.
+        /// </summary>
+        /// <returns>Currend DBConnection.</returns>
         protected override DbConnection? DbConnection { get => _dbConnection; }
 
         /// <summary>

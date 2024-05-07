@@ -185,6 +185,10 @@ namespace FireboltDotNetSdk.Client
             Version = BuildSettings().Principal.Contains("@") ? 1 : 2;
         }
 
+        /// <summary>
+        /// Generates connection string from given parameters.
+        /// </summary>
+        /// <returns>The connection string</returns>
         public string ToConnectionString()
         {
             ICollection<string> x = (ICollection<string>)Keys;
