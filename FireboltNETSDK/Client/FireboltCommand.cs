@@ -232,9 +232,9 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Get query with ready parse parameters<b>null</b>.
+        /// Get query with ready parse parameters
         /// </summary>
-        /// <returns><b>null</b></returns>
+        /// <returns>Query with parameters ready to run.</returns>
         private string GetParamQuery(string commandText)
         {
             try
@@ -324,9 +324,9 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Gets original data in JSON format for further manipulation<b>null</b>.
+        /// Gets original data in JSON format for further manipulation.
         /// </summary>
-        /// <returns><b>null</b></returns>
+        /// <returns>The data in JSON format</returns>
         private QueryResult? GetOriginalJsonData(string? Response)
         {
             if (Response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
@@ -359,27 +359,46 @@ namespace FireboltDotNetSdk.Client
             set => throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether the command object should be visible in a customized interface control.
+        /// </summary>
         public override bool DesignTimeVisible
         {
             get => _designTimeVisible;
             set => _designTimeVisible = value;
         }
 
+        /// <summary>
+        /// Executes the command that should retrieve data against the connection
+        /// </summary>
+        /// <param name="behavior"><see cref="CommandBehavior"/>ignored by the implementation</param>
+        /// <returns>Implementation of <see cref="DbDataReader"/></returns>
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             return CreateDbDataReader(Execute(StrictCommandText));
         }
 
+        /// <summary>
+        /// Creates DB parameter that can be used for query parameterization.
+        /// </summary>
+        /// <returns>Implementation of <see cref="DbParameterDbDataReader"/></returns>
         protected override DbParameter CreateDbParameter()
         {
             return new FireboltParameter();
         }
 
+        /// <summary>
+        /// Executes the command that does not retrieve data against the connection
+        /// </summary>
         public override int ExecuteNonQuery()
         {
             return ExecuteNonQueryAsync().GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// Executes the query and returns the first column of the first row.
+        /// </summary>
+        /// <returns>The first column of the first row in the result set.</returns>
         public override object? ExecuteScalar()
         {
             using (DbDataReader reader = ExecuteReader())
@@ -401,11 +420,17 @@ namespace FireboltDotNetSdk.Client
             return null;
         }
 
+        /// <summary>
+        /// Creates prepared (or compiled) version of command. Right now does nothing.
+        /// </summary>
         public override void Prepare()
         {
             // Empty implementation. Nothing to do here so far.
         }
 
+        /// <summary>
+        /// Asynchronous version of ExecuteNonQuery()
+        /// </summary>
         public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
             await ExecuteCommandAsync(StrictCommandText, cancellationToken);
