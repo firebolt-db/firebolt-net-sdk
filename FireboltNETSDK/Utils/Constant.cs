@@ -20,7 +20,7 @@ namespace FireboltDotNetSdk.Utils
 {
     static class Constant
     {
-        public static string DEFAULT_ENV = "api";
+        public static string DEFAULT_ENV = "app";
         public static string DEFAULT_ENDPOINT = "https://api.app.firebolt.io";
 
         public static string AUTH_USERNAME_PASSWORD_URL = "/auth/v1/login";
