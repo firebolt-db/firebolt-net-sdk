@@ -471,7 +471,15 @@ namespace FireboltDotNetSdk.Tests
             var connString = $"{SYSTEM_CONNECTION_STRING};engine=InexistantEngine";
             using var conn = new FireboltConnection(connString);
             FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
-            Assert.That(exception!.Message, Does.Match("Engine.+InexistantEngine.+not"));
+            Assert.That(exception!.Message,
+                Does.Match(
+                    "Engine.+InexistantEngine.+not"
+                ).Or.Match(
+                    // V2 engines return 404, for which we don't report the reponse body but only the status code
+                    // This will be fixed in FIR-32894
+                    ".+unexpected status code.+"
+                )
+            );
         }
 
         [Test]
