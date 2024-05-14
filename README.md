@@ -18,7 +18,7 @@ Installing the Package
 Here is a FireboltNetSDK [NuGet page](https://www.nuget.org/packages/FireboltNetSDK/).
 - Install using **.NET CLI**
 ```{r, engine='bash', code_block_name}
-dotnet add package FireboltNetSDK --version 0.*
+dotnet add package FireboltNetSDK
 ```   
 - Install using **Visual Studio UI**
   - `Tools` > `NuGet Package Manager` > `Manage NuGet Packages for Solution` and search for `Firebolt`   
@@ -51,23 +51,8 @@ string account = "my_firebolt_account";
 // Construct a connection string using defined parameters
 string conn_string = $"username={username};password={password};account={account};database={database};engine={engine_name}";        
 ```
-#### Creating a connection string for service account authentication
 
-```cs
-// Username and password, that you want to use to connect
-string client_id = "my_client_id";
-string client_secret = "my_client_secret";
-// Name of database and engine to connect to
-string database = "my_database_name";
-string engine_name = "my_engine_name";
-// Name of your Firebolt account (Optional)
-string account = "my_firebolt_account";
-
-// Construct a connection string using defined parameters
-string conn_string = $"username={client_id};password={client_secret};account={account};database={database};engine={engine_name}";        
-```
-
-#### Creating and closing a connection
+#### Opening and closing a connection
 
 ```cs
 using FireboltDotNetSdk.Client;
@@ -105,7 +90,7 @@ foreach (var row in resp.Data) {
 }
 ```
 
-#### Execute command with SET parameter
+#### Execute a command with SET parameter
 
 ```cs
 var cursor = conn.CreateCursor();
