@@ -377,6 +377,8 @@ namespace FireboltDotNetSdk.Tests
             var client = new FireboltClient2(cs, "wrong", "wrong", "", "test", "account", httpClientMock.Object);
             cs.Client = client;
             Throws<HttpRequestException>(() => cs.Open());
+            // Restore client since connection.Close() is called on error
+            cs.Client = client;
             ThrowsAsync<HttpRequestException>(async () => await cs.OpenAsync());
         }
 
