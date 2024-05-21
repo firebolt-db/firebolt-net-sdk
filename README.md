@@ -24,13 +24,13 @@ dotnet add package FireboltNetSDK
   - `Tools` > `NuGet Package Manager` > `Manage NuGet Packages for Solution` and search for `Firebolt`   
 - Install using **Package Manager Console**:
 ```{r, engine='bash', code_block_name}
-PM> Install-Package FireboltNetSDK -Version 0.*
+PM> Install-Package FireboltNetSDK
 ```
 
 Examples
 ======================
 
-The following examples demonstrate how to connect and interact with Firebolt database using this driver:
+Following examples demonstrate how to connect and interact with Firebolt database using this driver:
 
 ###### Creating a connection string
 
@@ -48,7 +48,7 @@ string engine = "my_engine_name";
 string conn_string = $"account={account};clientid={clientId};clientsecret={clientSecret};database={database};engine={engine}";
 ```
 
-###### Creating and closing a connection
+###### Opening and closing a connection
 
 ```cs
 using FireboltDotNetSdk.Client;
@@ -80,7 +80,7 @@ conn.Close();
 ```
 
 
-###### Executing a SQL command that returns result
+###### Executing a SQL command that returns a result
 
 ```cs
 // First you would need to create a command
@@ -113,7 +113,7 @@ while (reader.Read())
 }
 ```
 
-Execute command with SET parameter
+###### Executing a command with SET parameter
 
 ```cs
 var tz = conn.CreateCommand();
