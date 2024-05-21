@@ -8,16 +8,15 @@ using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk.Utils
 {
-    public static class TokenSecureStorage
+    public class TokenSecureStorage : TokenStorage
     {
         private static readonly string APPNAME = "firebolt";
 
-        private static string SHA256HexHashString(string StringIn)
+        private string SHA256HexHashString(string StringIn)
         {
             using (var sha256 = SHA256.Create())
             {
-                return Convert.ToHexString(
-            sha256.ComputeHash(Encoding.UTF8.GetBytes(StringIn))).Substring(0, 32).ToLower();
+                return Convert.ToHexString(sha256.ComputeHash(Encoding.UTF8.GetBytes(StringIn))).Substring(0, 32).ToLower();
             }
         }
 
@@ -25,7 +24,7 @@ namespace FireboltDotNetSdk.Utils
         /// Get OS-specific user cache directory path for Firebolt
         /// </summary>
         /// <returns>User cache directory path</returns>
-        public static string GetCacheDir()
+        private string GetCacheDir()
         {
             var userLocalDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             return Path.Join(userLocalDir, APPNAME);
@@ -35,7 +34,7 @@ namespace FireboltDotNetSdk.Utils
         /// Generate cache file name based on user credentials
         /// </summary>
         /// <returns>File name</returns>
-        public static string GenerateFileName(string username, string password)
+        private string GenerateFileName(string username, string password)
         {
             var usernameBytes = SHA256HexHashString(username);
             var passwordBytes = SHA256HexHashString(password);
@@ -46,7 +45,7 @@ namespace FireboltDotNetSdk.Utils
         /// Get token data from cache if any
         /// </summary>
         /// <returns>Token data</returns>
-        public static async Task<CachedJSONData?> GetCachedToken(string username, string password)
+        public async Task<LoginResponse?> GetCachedToken(string username, string password)
         {
             var cacheFilePath = Path.Join(GetCacheDir(), GenerateFileName(username, password));
             try
@@ -67,7 +66,8 @@ namespace FireboltDotNetSdk.Utils
                     // Token has expired, returning null
                     return null;
                 }
-                return data;
+
+                return new LoginResponse(access_token: data.token, expires_in: data.expiration.ToString(), token_type: "");
             }
             catch (System.Exception ex)
             {
@@ -78,7 +78,7 @@ namespace FireboltDotNetSdk.Utils
         /// <summary>
         /// Encrypt token with user credentials, cache it into file with expiration
         /// </summary>
-        public static async Task CacheToken(LoginResponse tokenData, string username, string password)
+        public async Task CacheToken(LoginResponse tokenData, string username, string password)
         {
             try
             {
@@ -110,7 +110,7 @@ namespace FireboltDotNetSdk.Utils
         /// Read JSON data from provided file
         /// </summary>
         /// <returns>Deserialized JSON</returns>
-        private static async Task<CachedJSONData?> readDataJSONAsync(string path)
+        private async Task<CachedJSONData?> readDataJSONAsync(string path)
         {
             if (!File.Exists(path)) return null;
 

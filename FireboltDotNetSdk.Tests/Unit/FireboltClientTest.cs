@@ -5,6 +5,7 @@ using FireboltDotNetSdk.Exception;
 using Moq;
 using static Newtonsoft.Json.JsonConvert;
 using static FireboltDotNetSdk.Client.FireResponse;
+using FireboltDotNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -124,19 +125,26 @@ namespace FireboltDotNetSdk.Tests
             Assert.IsTrue(exception!.Message.Contains("The operation is unauthorized"));
         }
 
-        [Test]
-        public async Task SuccessfulLoginWithCachedToken()
+        [TestCase(connectionString, true)]
+        [TestCase(connectionString + ";TokenStorage=None", false)]
+        [TestCase(connectionString + ";TokenStorage=Memory", true)]
+        [TestCase(connectionString + ";TokenStorage=File", true)]
+        public async Task SuccessfulLoginWithCachedToken(string cs, bool cache)
         {
+            // if token is cached the second connection will use the same token and the token is retrived only onece; otherwise the token is retrieved 2 times. 
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            var connection = new FireboltConnection(connectionString);
+            var connection = new FireboltConnection(cs);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
-            LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
-            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK));
+            LoginResponse loginResponse1 = new FireResponse.LoginResponse("access_token1", "3600", "Bearer");
+            LoginResponse loginResponse2 = new FireResponse.LoginResponse("access_token2", "3600", "Bearer");
+            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GetResponseMessage(loginResponse1, HttpStatusCode.OK))
+            .ReturnsAsync(GetResponseMessage(loginResponse2, HttpStatusCode.OK));
             string token1 = await client.EstablishConnection();
-            Assert.That(token1, Is.EqualTo("access_token"));
+            Assert.That(token1, Is.EqualTo("access_token1"));
             string token2 = await client.EstablishConnection(); // next time the token is taken from cache
-            Assert.That(token2, Is.EqualTo("access_token"));
-            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
+            Assert.That(token2, Is.EqualTo(cache ? "access_token1" : "access_token2"));
+            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(cache ? 1 : 2));
         }
 
         [Test]

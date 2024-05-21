@@ -92,6 +92,11 @@ namespace FireboltDotNetSdk.Client
             get => _connectionState.Settings?.Account ?? string.Empty;
         }
 
+        internal TokenStorageType TokenStorageType
+        {
+            get => _connectionState.Settings?.TokenStorageType ?? TokenStorageType.Memory;
+        }
+
         internal string? EngineName
         {
             get;
