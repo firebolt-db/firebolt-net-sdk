@@ -50,6 +50,7 @@ public abstract class FireboltClient
     private readonly string HEADER_RESET_SESSION = "Firebolt-Reset-Session";
 
     private IDictionary<string, string> queryParameters = new Dictionary<string, string>();
+    internal readonly TokenStorage _tokenStorage;
 
     public FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpMessageInvoker httpClient)
     {
@@ -61,6 +62,7 @@ public abstract class FireboltClient
         _secret = secret;
         _env = env ?? "app";
         _protocolVersion = protocolVersion;
+        _tokenStorage = TokenStorage.create(connection.TokenStorageType);
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
@@ -424,18 +426,11 @@ public abstract class FireboltClient
 
     public async Task<string> EstablishConnection(bool forceTokenRefresh = false)
     {
-        LoginResponse loginResponse;
-        var storedToken = forceTokenRefresh ? null : await TokenSecureStorage.GetCachedToken(_id, _secret);
-        if (storedToken != null)
-        {
-            loginResponse = new LoginResponse(access_token: storedToken.token,
-                expires_in: storedToken.expiration.ToString(),
-                token_type: "");
-        }
-        else
+        LoginResponse? loginResponse = forceTokenRefresh ? null : await _tokenStorage.GetCachedToken(_id, _secret);
+        if (loginResponse == null)
         {
             loginResponse = await Login(_id, _secret, _env);
-            await TokenSecureStorage.CacheToken(loginResponse, _id, _secret);
+            await _tokenStorage.CacheToken(loginResponse, _id, _secret);
         }
         _token = loginResponse.Access_token;
         return _token;

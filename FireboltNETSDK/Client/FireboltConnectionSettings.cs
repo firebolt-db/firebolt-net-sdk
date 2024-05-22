@@ -59,6 +59,7 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public string? Env { get; }
         public string? ConnectionString { get; }
+        public TokenStorageType TokenStorageType { get; }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
@@ -70,6 +71,7 @@ namespace FireboltDotNetSdk.Client
             Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
             (Endpoint, Env) = ResolveEndpointAndEnv(builder);
+            TokenStorageType = builder.TokenStorage ?? TokenStorageType.Memory;
         }
 
         static string? ExtractEndpointEnv(string endpoint)

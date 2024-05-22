@@ -18,6 +18,7 @@
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using FireboltDotNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -115,6 +116,17 @@ namespace FireboltDotNetSdk.Client
             set => this[nameof(Engine)] = value;
         }
 
+        public TokenStorageType? TokenStorage
+        {
+            get
+            {
+                string? s = GetString(nameof(TokenStorage));
+                return s == null ? null : Enum.Parse<TokenStorageType>(s);
+            }
+            set => this[nameof(TokenStorage)] = value;
+        }
+
+
         public int Version
         {
             get;
@@ -134,6 +146,7 @@ namespace FireboltDotNetSdk.Client
                 nameof(Account),
                 nameof(Engine),
                 nameof(Env),
+                nameof(TokenStorage),
             };
         }
 

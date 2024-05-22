@@ -23,8 +23,8 @@ namespace FireboltDotNetSdk.Tests
         public MockClient(string? response) : base(connection, "id", "secret", "", null, null, httpClientMock.Object)
         {
             _response = response;
-            TokenSecureStorage.CacheToken(new LoginResponse("token", "60", "type"), "id", "secret").Wait();
-            EstablishConnection().Wait();
+            _tokenStorage.CacheToken(new LoginResponse("token", "60", "type"), "id", "secret").Wait();
+            EstablishConnection();
         }
 
         override public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
