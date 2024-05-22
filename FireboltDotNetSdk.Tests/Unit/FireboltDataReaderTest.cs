@@ -122,11 +122,11 @@ namespace FireboltDotNetSdk.Tests
         public void MultipleResults()
         {
             DbDataReader reader = new FireboltDataReader(null, new QueryResult());
-            Assert.Throws<FireboltException>(() => reader.NextResult());
-            Assert.ThrowsAsync<FireboltException>(() => reader.NextResultAsync());
-            Assert.ThrowsAsync<FireboltException>(() => reader.NextResultAsync(CancellationToken.None));
+            Assert.That(reader.NextResult(), Is.EqualTo(false));
+            Assert.That(reader.NextResultAsync().GetAwaiter().GetResult(), Is.EqualTo(false));
+            Assert.That(reader.NextResultAsync(CancellationToken.None).GetAwaiter().GetResult(), Is.EqualTo(false));
+            Assert.That(reader.NextResultAsync(new CancellationToken(false)).GetAwaiter().GetResult(), Is.EqualTo(false));
             Assert.NotNull(reader.NextResultAsync(new CancellationToken(true)));
-            Assert.ThrowsAsync<FireboltException>(() => reader.NextResultAsync(new CancellationToken(false)));
         }
 
         [Test]
