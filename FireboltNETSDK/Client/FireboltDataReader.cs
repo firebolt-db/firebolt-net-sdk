@@ -128,7 +128,7 @@ namespace FireboltDotNetSdk.Client
                 case short s: return s != 0;
                 case int i: return i != 0;
                 case long l: return l != 0;
-                case string s: return bool.Parse(s);
+                case string s: return TypesConverter.ParseBoolean(s);
                 default: throw new InvalidCastException($"Cannot cast ({value.GetType()}){value} to boolean");
             }
         }

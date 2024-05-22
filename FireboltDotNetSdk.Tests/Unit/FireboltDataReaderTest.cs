@@ -156,10 +156,11 @@ namespace FireboltDotNetSdk.Tests
                     new Meta() { Name = "real_number", Type = "text" },
                     new Meta() { Name = "int_number", Type = "text" },
                     new Meta() { Name = "bool_string", Type = "text" },
+                    new Meta() { Name = "num_bool_string", Type = "text" },
                 },
                 Data = new List<List<object?>>()
                 {
-                    new List<object?>() { byteValue, shortValue, intValue, longValue, floatValue, 3.1415926, true, "2.71828", "123", "true" }
+                    new List<object?>() { byteValue, shortValue, intValue, longValue, floatValue, 3.1415926, true, "2.71828", "123", "true", "0" }
                 }
             };
 
@@ -243,6 +244,13 @@ namespace FireboltDotNetSdk.Tests
 
             Assert.That(reader.GetBoolean(9), Is.EqualTo(true));
             Assert.That(reader.GetChar(9), Is.EqualTo('t'));
+
+            Assert.That(reader.GetBoolean(10), Is.EqualTo(false));
+            Assert.That(reader.GetChar(10), Is.EqualTo('0'));
+            Assert.That(reader.GetByte(10), Is.EqualTo(0));
+            Assert.That(reader.GetInt16(10), Is.EqualTo(0));
+            Assert.That(reader.GetInt32(10), Is.EqualTo(0));
+            Assert.That(reader.GetInt64(10), Is.EqualTo(0));
 
             Assert.That(reader.Read(), Is.EqualTo(false));
 
