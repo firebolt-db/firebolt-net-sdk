@@ -500,7 +500,7 @@ namespace FireboltDotNetSdk.Client
         /// <exception cref="FireboltException"></exception>
         public override bool NextResult()
         {
-            throw new FireboltException("Batch operations are not supported");
+            return false;
         }
 
         /// <inheritdoc/>
