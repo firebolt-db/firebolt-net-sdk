@@ -10,7 +10,7 @@ using static System.Environment;
 namespace FireboltDotNetSdk.Tests
 {
     [SetUpFixture]
-    [Category("Integration")]
+    [Category("IntegrationSetup")]
     internal class IntegrationSetUp //: IntegrationTest
     {
         private string name = "integration_testing__" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
