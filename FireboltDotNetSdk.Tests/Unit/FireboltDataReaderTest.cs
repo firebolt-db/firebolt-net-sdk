@@ -635,5 +635,34 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.Read(), Is.EqualTo(false));
         }
 
+        [Test]
+        public void DataTableCompatibility()
+        {
+            QueryResult result = new QueryResult
+            {
+                Rows = 1,
+                Meta = new List<Meta>()
+                {
+                    new Meta() { Name = "guid", Type = "text" },
+                    new Meta() { Name = "text", Type = "text" },
+                    new Meta() { Name = "i", Type = "int" },
+                },
+                Data = new List<List<object?>>()
+                {
+                    new List<object?>() { "6B29FC40-CA47-1067-B31D-00DD010662DA", "not guid", 123 }
+                }
+            };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+
+            DataTable dataTable = new DataTable();
+            dataTable.Load(reader);
+
+            Assert.That(dataTable.Rows.Count, Is.EqualTo(1));
+            Assert.That(dataTable.Rows[0]["guid"], Is.EqualTo("6B29FC40-CA47-1067-B31D-00DD010662DA"));
+            Assert.That(dataTable.Rows[0]["text"], Is.EqualTo("not guid"));
+            Assert.That(dataTable.Rows[0]["i"], Is.EqualTo(123));
+        }
+
     }
 }
