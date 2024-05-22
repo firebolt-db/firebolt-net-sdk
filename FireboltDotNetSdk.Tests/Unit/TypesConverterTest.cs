@@ -9,6 +9,8 @@ namespace FireboltDotNetSdk.Tests;
 
 public class TypesConverterTest
 {
+    private const string WRONG_NUMERIC_FORMAT_ERROR_MESSAGE = "Input string was not in a correct format.";
+
     [TestCase("string", "Hello", "Hello")]
     [TestCase("string", null, null)]
     [TestCase("text", "Hello", "Hello")]
@@ -46,6 +48,10 @@ public class TypesConverterTest
     [TestCase("double", "-inf", double.NegativeInfinity)]
     [TestCase("double", "nan", double.NaN)]
     [TestCase("double", "-nan", double.NaN)]
+    [TestCase("boolean", "true", true)]
+    [TestCase("boolean", "false", false)]
+    [TestCase("boolean", "1", true)]
+    [TestCase("boolean", "0", false)]
     public void ConvertProvidedValues(string columnTypeName, string value, object expectedValue)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
@@ -53,18 +59,27 @@ public class TypesConverterTest
         Assert.That(expectedValue, Is.EqualTo(result));
     }
 
-    [TestCase("int", "+inf")]
-    [TestCase("int", "-inf")]
-    [TestCase("int", "inf")]
-    [TestCase("long", "+inf")]
-    [TestCase("long", "-inf")]
-    [TestCase("long", "inf")]
-    public void FailingConvertProvidedValues(string columnTypeName, string value)
+    [TestCase("int", "+inf", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("int", "-inf", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("int", "inf", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("long", "+inf", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("long", "-inf", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("long", "inf", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("int", "hello", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("int", "bye", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("int", "not a number", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("long", "some text", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("long", "", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("long", "not empty text", WRONG_NUMERIC_FORMAT_ERROR_MESSAGE)]
+    [TestCase("boolean", "2", "String '2' was not recognized as a valid Boolean.")]
+    [TestCase("boolean", "t", "String 't' was not recognized as a valid Boolean.")]
+    [TestCase("boolean", "yes", "String 'yes' was not recognized as a valid Boolean.")]
+    public void FailingConvertProvidedValues(string columnTypeName, string value, string expectedErrorMessage)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
         FormatException? e = Assert.Throws<FormatException>(() => TypesConverter.ConvertToCSharpVal(value, columnType));
         string visualTypeName = char.ToUpper(columnTypeName[0]) + columnTypeName.Substring(1);
-        Assert.That(e?.Message, Is.EqualTo($"Input string was not in a correct format."));
+        Assert.That(e?.Message, Is.EqualTo(expectedErrorMessage));
     }
 
     [Test]

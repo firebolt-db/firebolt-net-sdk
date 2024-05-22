@@ -38,6 +38,17 @@ namespace FireboltDoNetSdk.Utils
         {
             double.PositiveInfinity, double.NegativeInfinity, float.PositiveInfinity, float.NegativeInfinity
         };
+        // when ParseBoolean is called from ConvertToCSharpVal that in turn invoked from FireboltDataReader.GetValueSafely() that calls ToString()
+        // to create string value representation. In case of boolean ToString() performs capitalization,
+        // so true becomes string True and false becomes False. However when ParseBoolean is invoked directly from GetBoolean() 
+        // the value may be true (lower case). This is the reason to use case insensitive comparison. 
+        private static IDictionary<string, bool> booleanValues = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "true", true },
+            { "false", false },
+            { "1", true },
+            { "0", false },
+        };
 
         public static object? ConvertToCSharpVal(string? val, ColumnType columnType)
         {
@@ -68,7 +79,7 @@ namespace FireboltDoNetSdk.Utils
                 case FireboltDataType.Float:
                     return floatInfinity.ContainsKey(str) ? floatInfinity[str] : Convert.ToSingle(str.Trim('"'), CultureInfo.InvariantCulture);
                 case FireboltDataType.Boolean:
-                    return bool.Parse(str);
+                    return ParseBoolean(str);
                 case FireboltDataType.Array:
                     return ArrayHelper.TransformToSqlArray(str, columnType);
                 case FireboltDataType.ByteA:
@@ -78,6 +89,12 @@ namespace FireboltDoNetSdk.Utils
                 default:
                     throw new FireboltException("Invalid destination type: " + columnType.Type);
             }
+        }
+
+        public static bool ParseBoolean(string str)
+        {
+            bool b;
+            return booleanValues.TryGetValue(str, out b) ? b : throw new FormatException($"String '{str}' was not recognized as a valid Boolean.");
         }
 
         public static DateTime ParseDateTime(string str)
