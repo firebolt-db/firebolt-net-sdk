@@ -19,6 +19,7 @@
 
 using System.Net;
 using System.Data.Common;
+using System.Collections.Concurrent;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Client;
 using static FireboltDotNetSdk.Client.FireRequest;
@@ -31,6 +32,7 @@ public class FireboltClient2 : FireboltClient
     private const string PROTOCOL_VERSION = "2.1";
     private ISet<string> engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
     private readonly string _account;
+    private static IDictionary<string, string> systemEngineUrlCache = new ConcurrentDictionary<string, string>();
     public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, "2.0", httpClient)
     {
         _account = account;
@@ -104,11 +106,18 @@ public class FireboltClient2 : FireboltClient
     public override async Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken)
     {
         await EstablishConnection();
-        // Connecting to system engine by default
-        var result = await GetSystemEngineUrl(_account);
-        if (result.engineUrl != null)
+        string? systemEngineUrl;
+        systemEngineUrlCache.TryGetValue(_account, out systemEngineUrl);
+        if (systemEngineUrl == null)
         {
-            string[] urlParts = result.engineUrl.Split('?');
+            // Connecting to system engine by default
+            var result = await GetSystemEngineUrl(_account);
+            systemEngineUrl = result.engineUrl;
+        }
+        if (systemEngineUrl != null)
+        {
+            systemEngineUrlCache[_account] = systemEngineUrl;
+            string[] urlParts = systemEngineUrl.Split('?');
             _connection.EngineUrl = urlParts[0];
             string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
             if (urlParts.Length > 1)

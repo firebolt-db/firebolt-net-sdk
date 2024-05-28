@@ -19,6 +19,8 @@ using System.Data;
 using System.Data.Common;
 using System.Transactions;
 using System.Runtime.CompilerServices;
+using System.Collections.Concurrent;
+using static System.Environment;
 using FireboltDotNetSdk.Utils;
 using IsolationLevel = System.Data.IsolationLevel;
 using static FireboltDotNetSdk.Client.FireResponse;
@@ -52,6 +54,7 @@ namespace FireboltDotNetSdk.Client
         private FireboltClient? _fireboltClient;
         public readonly HashSet<string> SetParamList = new();
         private int _infraVersion = 0;
+        private static IDictionary<string, GetAccountIdByNameResponse> accountCache = new ConcurrentDictionary<string, GetAccountIdByNameResponse>();
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -114,7 +117,12 @@ namespace FireboltDotNetSdk.Client
             {
                 if (_accountId == null && Account != null && _isSystem)
                 {
-                    GetAccountIdByNameResponse account = Client.GetAccountIdByNameAsync(Account, CancellationToken.None).GetAwaiter().GetResult();
+                    GetAccountIdByNameResponse? account = accountCache.ContainsKey(Account) ? accountCache[Account] : null;
+                    if (account == null)
+                    {
+                        account = Client.GetAccountIdByNameAsync(Account, CancellationToken.None).GetAwaiter().GetResult();
+                        accountCache[Account] = account;
+                    }
                     _accountId = account.id;
                     _infraVersion = account.infraVersion;
                 }
