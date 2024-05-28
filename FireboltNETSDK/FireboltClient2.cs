@@ -192,9 +192,9 @@ public class FireboltClient2 : FireboltClient
     {
         if (!string.IsNullOrEmpty(database))
         {
-            Execute("USE DATABASE " + database);
+            Execute($"USE DATABASE \"{database}\"");
         }
-        Execute("USE ENGINE " + engineName);
+        Execute($"USE ENGINE \"{engineName}\"");
         return new ConnectionResponse(_connection.EngineUrl, database ?? string.Empty, false);
     }
 
