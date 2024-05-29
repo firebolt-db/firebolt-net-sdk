@@ -118,11 +118,12 @@ namespace FireboltDotNetSdk.Client
             {
                 if (_accountId == null && Account != null && _isSystem)
                 {
-                    GetAccountIdByNameResponse? account = accountCache.ContainsKey(Account) ? accountCache[Account] : null;
+                    string cacheKey = $"{Env}.{Account}";
+                    GetAccountIdByNameResponse? account = accountCache.ContainsKey(cacheKey) ? accountCache[cacheKey] : null;
                     if (account == null)
                     {
                         account = Client.GetAccountIdByNameAsync(Account, CancellationToken.None).GetAwaiter().GetResult();
-                        accountCache[Account] = account;
+                        accountCache[cacheKey] = account;
                     }
                     _accountId = account.id;
                     _infraVersion = account.infraVersion;

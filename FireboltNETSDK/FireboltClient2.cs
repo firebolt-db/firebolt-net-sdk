@@ -106,8 +106,9 @@ public class FireboltClient2 : FireboltClient
     public override async Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken)
     {
         await EstablishConnection();
+        string cacheKey = $"{_env}.{_account}";
         string? systemEngineUrl;
-        systemEngineUrlCache.TryGetValue(_account, out systemEngineUrl);
+        systemEngineUrlCache.TryGetValue(cacheKey, out systemEngineUrl);
         if (systemEngineUrl == null)
         {
             // Connecting to system engine by default
@@ -116,7 +117,7 @@ public class FireboltClient2 : FireboltClient
         }
         if (systemEngineUrl != null)
         {
-            systemEngineUrlCache[_account] = systemEngineUrl;
+            systemEngineUrlCache[cacheKey] = systemEngineUrl;
             string[] urlParts = systemEngineUrl.Split('?');
             _connection.EngineUrl = urlParts[0];
             string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
