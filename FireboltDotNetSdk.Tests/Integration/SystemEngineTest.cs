@@ -407,6 +407,7 @@ namespace FireboltDotNetSdk.Tests
                     Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
                 });
                 var badConnection = new FireboltConnection(connectionString);
+                badConnection.Cleanup();
 
                 Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match($"[Aa]ccount '.+?' does not exist"));
             }

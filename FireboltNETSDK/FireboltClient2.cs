@@ -241,4 +241,10 @@ public class FireboltClient2 : FireboltClient
         command.CommandText = sql;
         return command;
     }
+
+    public override void Cleanup()
+    {
+        systemEngineUrlCache.Clear();
+    }
+
 }

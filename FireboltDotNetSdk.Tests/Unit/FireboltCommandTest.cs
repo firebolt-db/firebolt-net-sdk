@@ -54,6 +54,11 @@ namespace FireboltDotNetSdk.Tests
         {
             throw new NotImplementedException();
         }
+
+        public override void Cleanup()
+        {
+            // empty implementation
+        }
     }
 
     [TestFixture]

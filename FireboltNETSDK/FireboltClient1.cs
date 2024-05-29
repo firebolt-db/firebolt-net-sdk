@@ -135,4 +135,9 @@ public class FireboltClient1 : FireboltClient
         string url = $"https://{_endpoint}/iam/v2/accounts:getIdByName?accountName={accountName}";
         return await GetJsonResponseAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, null, requiresAuth: true, cancellationToken);
     }
+
+    public override void Cleanup()
+    {
+        // empty implementation: no cache here
+    }
 }

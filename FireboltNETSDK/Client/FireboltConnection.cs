@@ -32,7 +32,7 @@ namespace FireboltDotNetSdk.Client
     /// <summary>
     /// Represents a connection to a Firebolt database. This class cannot be inherited.
     /// </summary>
-    public class FireboltConnection : DbConnection
+    public class FireboltConnection : DbConnection, CacheListener
     {
         internal readonly static string SYSTEM_ENGINE = "system";
         private FireboltConnectionState _connectionState;
@@ -55,6 +55,7 @@ namespace FireboltDotNetSdk.Client
         public readonly HashSet<string> SetParamList = new();
         private int _infraVersion = 0;
         private static IDictionary<string, GetAccountIdByNameResponse> accountCache = new ConcurrentDictionary<string, GetAccountIdByNameResponse>();
+        private ISet<CacheListener> listeners = new HashSet<CacheListener>();
 
         /// <summary>
         /// Gets the name of the database specified in the connection settings.
@@ -463,5 +464,18 @@ namespace FireboltDotNetSdk.Client
             _isSystem = EngineName == null || SYSTEM_ENGINE.Equals(EngineName);
         }
 
+        public void Cleanup()
+        {
+            accountCache.Clear();
+            foreach (CacheListener listener in listeners)
+            {
+                listener.Cleanup();
+            }
+        }
+
+        public void Register(CacheListener listener)
+        {
+            listeners.Add(listener);
+        }
     }
 }
