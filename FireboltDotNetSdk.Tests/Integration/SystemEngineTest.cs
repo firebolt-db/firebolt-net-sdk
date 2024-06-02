@@ -284,7 +284,104 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
+        [Test]
+        [Category("engine-v2")]
+        [Category("slow")]
+        public void UseEngineMixedCase()
+        {
+            string engineName = "DotNetMixedCaseTest" + suffix;
+            try
+            {
+                CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
+                CreateCommand($"CREATE ENGINE \"{engineName}\"").ExecuteNonQuery();
+                CreateCommand($"USE ENGINE \"{engineName}\"").ExecuteNonQuery();
+                Assert.Throws<FireboltException>(() => CreateCommand($"USE ENGINE {engineName}").ExecuteNonQuery());
+            }
+            finally
+            {
+                executeSafely(
+                    $"USE ENGINE SYSTEM",
+                    $"STOP ENGINE \"{engineName}\"",
+                    $"DROP ENGINE \"{engineName}\""
+                );
+            }
+        }
 
+        [Test]
+        [Category("engine-v2")]
+        [Category("slow")]
+        public void UseEngineMixedCaseToLowerCase()
+        {
+            string engineName = "DotNetToLowerCaseTest" + suffix;
+            try
+            {
+                CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
+                // engine name is lower cased because it is not quoted
+                CreateCommand($"CREATE ENGINE {engineName}").ExecuteNonQuery();
+                CreateCommand($"USE ENGINE {engineName}").ExecuteNonQuery();
+                // engine name remains mixed case and statement fails because engine name was not quoted when we created the engine
+                Assert.Throws<FireboltException>(() => CreateCommand($"USE ENGINE \"{engineName}\"").ExecuteNonQuery());
+            }
+            finally
+            {
+                executeSafely(
+                    $"USE ENGINE SYSTEM",
+                    $"STOP ENGINE {engineName}",
+                    $"DROP ENGINE {engineName}"
+                );
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        [Category("slow")]
+        public void ConnectToEngineMixedCase()
+        {
+            string engineName = "DotNetMixedCaseTest" + suffix;
+            string databaseName = engineName + "DB";
+            string tableName = databaseName + "_table";
+
+            try
+            {
+                CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
+                CreateCommand($"CREATE ENGINE \"{engineName}\"").ExecuteNonQuery();
+                CreateCommand($"CREATE DATABASE \"{databaseName}\"").ExecuteNonQuery();
+
+                // now try to connect to newerly created engine
+                string connectionString = ConnectionString(new Tuple<string, string?>[]
+                {
+                    Tuple.Create<string, string?>(nameof(Engine).ToLower(), engineName),
+                    Tuple.Create<string, string?>(nameof(Database).ToLower(), databaseName)
+                });
+                DbConnection connection = new FireboltConnection(connectionString);
+                connection.Open();
+
+                DbCommand command = connection.CreateCommand();
+                command.CommandText = "SELECT 1";
+                Assert.That(command.ExecuteScalar(), Is.EqualTo(1));
+
+                // Create table, insert row into it and and select data. This ensures we're 100% connected to the engine/db and not system engine
+                command.CommandText = $"CREATE TABLE {tableName} ( id LONG)";
+                command.ExecuteNonQuery();
+
+                command.CommandText = $"INSERT INTO {tableName} (id) VALUES (123)";
+                command.ExecuteNonQuery();
+
+                command.CommandText = $"SELECT id from {tableName} where id=123";
+                Assert.That(command.ExecuteScalar(), Is.EqualTo(123));
+
+                connection.Close();
+            }
+            finally
+            {
+                executeSafely(
+                    $"DROP TABLE \"{tableName}\"",
+                    $"STOP ENGINE \"{engineName}\"",
+                    $"DROP ENGINE \"{engineName}\"",
+                    $"DROP DATABASE \"{databaseName}\""
+                );
+            }
+        }
 
         [Test]
         [Category("v2")]
