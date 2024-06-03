@@ -162,6 +162,15 @@ namespace FireboltDotNetSdk.Client
         public override string DataSource => _database;
 
         /// <summary>
+        /// Gets provider factory
+        /// </summary>
+        /// <returns>The implementation of  DbProviderFactory that can be used for creation of the other Firebolt related entities</returns>
+        protected override DbProviderFactory DbProviderFactory
+        {
+            get => FireboltClientFactory.Instance;
+        }
+
+        /// <summary>
         /// Connection string that holds all connection parameters as a semicolon separated key-value pairs.
         /// </summary>
         /// <returns>The connection staring</returns>
@@ -208,6 +217,13 @@ namespace FireboltDotNetSdk.Client
                     Open();
                 }
             }
+        }
+
+        internal FireboltConnection()
+        {
+            _connectionState = new FireboltConnectionState(ConnectionState.Closed, new FireboltConnectionSettings(), 0);
+            _database = string.Empty;
+            _connectionString = string.Empty;
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using System.Data.Common;
+using System.Data;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -292,6 +293,19 @@ namespace FireboltDotNetSdk.Tests
                 command.CommandText = "SELECT 1";
                 command.ExecuteReader();
             });
+        }
+
+        [Test]
+        public void Factory()
+        {
+            DbProviderFactory factory = DbProviderFactories.GetFactory(new FireboltConnection(ConnectionString()))!;
+            DbConnection connection = factory!.CreateConnection()!;
+            connection.ConnectionString = ConnectionString();
+            connection.Open();
+            DbCommand command = factory.CreateCommand()!;
+            command.Connection = (FireboltConnection)connection;
+            assertSelect(command);
+            connection.Close();
         }
     }
 }
