@@ -1,4 +1,5 @@
 using System.Text;
+using System.Data;
 using System.Data.Common;
 using System.Collections;
 using FireboltDotNetSdk.Client;
@@ -381,6 +382,33 @@ namespace FireboltDotNetSdk.Tests
                 tableNames.Add(name);
                 long length = reader.GetInt64(1);
                 Assert.That(length, Is.EqualTo(name.Length));
+            }
+            List<string> expectedTables = new List<string>() { "databases", "engines", "tables", "views", "columns", "accounts", "users" };
+            expectedTables.ForEach(table => Assert.That(tableNames.Contains(table), Is.EqualTo(true)));
+        }
+
+        [Test]
+        [Category("general")]
+        public void AdapterSanityTest()
+        {
+            DbDataAdapter adapter = new FireboltDataAdapter("SELECT table_name, length(table_name) from information_schema.tables", USER_CONNECTION_STRING);
+            DataTable table = new();
+            adapter.Fill(table);
+            List<string> tableNames = new List<string>();
+            foreach (DataRow row in table.Rows)
+            {
+                string? name = null;
+                int? length = null;
+                foreach (DataColumn column in table.Columns)
+                {
+                    switch (column.Ordinal)
+                    {
+                        case 0: name = (string)row[column]; break;
+                        case 1: length = (int)row[column]; break;
+                    }
+                }
+                tableNames.Add(name!);
+                Assert.That(name!.Length, Is.EqualTo(length!));
             }
             List<string> expectedTables = new List<string>() { "databases", "engines", "tables", "views", "columns", "accounts", "users" };
             expectedTables.ForEach(table => Assert.That(tableNames.Contains(table), Is.EqualTo(true)));
