@@ -47,7 +47,7 @@ namespace FireboltDotNetSdk.Tests
 
         override public Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(new ConnectionResponse("http://engine", "database", true)); // needed only for tests of DbDataAdapter
         }
 
         protected override Task<LoginResponse> Login(string id, string secret, string env)
@@ -418,13 +418,34 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void SelectWithAdapter()
+        {
+            string query = "SELECT 1";
+            string response = "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"name\": \"x\",\"type\": \"int\"}], \"data\":[[1]],\"rows\": 1}";
+            DbDataAdapter adapter = new FireboltDataAdapter(createCommand(query, response));
+            DataTable table = new();
+            adapter.Fill(table);
+
+            Assert.That(table.Rows.Count, Is.EqualTo(1));
+            Assert.That(table.Columns.Count, Is.EqualTo(1));
+
+            foreach (DataRow row in table.Rows)
+            {
+                foreach (DataColumn column in table.Columns)
+                {
+                    Assert.That(row[column], Is.EqualTo(1));
+                }
+            }
+        }
+
+        [Test]
         public void Prepare()
         {
             DbCommand command = new FireboltCommand();
             Assert.DoesNotThrow(() => command.Prepare()); // just should pass
         }
 
-        private DbCommand createCommand(string? query, string? response)
+        private FireboltCommand createCommand(string? query, string? response)
         {
             return new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" }, query, new FireboltParameterCollection());
         }
