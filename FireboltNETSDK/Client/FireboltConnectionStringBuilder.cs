@@ -150,6 +150,10 @@ namespace FireboltDotNetSdk.Client
             };
         }
 
+        internal FireboltConnectionStringBuilder()
+        {
+        }
+
         /// <summary>
         /// Initializes a new instance of <see cref="FireBoltConnectionStringBuilder"/> with the settings specified in the connection string.
         /// </summary>

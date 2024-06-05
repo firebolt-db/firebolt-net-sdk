@@ -457,6 +457,16 @@ namespace FireboltDotNetSdk.Tests
             Assert.DoesNotThrow(() => command.Prepare()); // just should pass
         }
 
+        [Test]
+        public void SetAndGetConnection()
+        {
+            DbCommand command = new FireboltCommand();
+            Assert.Null(command.Connection);
+            FireboltConnection connection = createConnection(null);
+            command.Connection = connection;
+            Assert.That(command.Connection, Is.SameAs(connection));
+        }
+
         private FireboltCommand createCommand(string? query, string? response)
         {
             return new FireboltCommand(createConnection(response), query, new FireboltParameterCollection());

@@ -35,6 +35,61 @@ namespace FireboltDotNetSdk.Tests
                 _openedWithConnectionString = null;
                 _closedWithConnectionString = null;
             }
+
+            public DbProviderFactory GetDbProviderFactory()
+            {
+                return base.DbProviderFactory;
+            }
+
+        }
+
+        [Test]
+        public void ConnectionAccountId()
+        {
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname";
+            var cs = new FireboltConnection(connectionString);
+            cs.AccountId = "a123";
+            Assert.That(cs.AccountId, Is.EqualTo("a123"));
+            Assert.That(cs.InfraVersion, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ConnectionInfraVersion()
+        {
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname";
+            var cs = new MockFireboltConnection(connectionString);
+            Assert.Null(cs.AccountId); // retrieving account ID initializes the InfraVersion that is 1 by default
+            Assert.That(cs.InfraVersion, Is.EqualTo(1));
+            // now let's change the InfraVersion
+            cs.InfraVersion = 5;
+            Assert.That(cs.InfraVersion, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void ConnectionDbProviderFactory()
+        {
+            const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname";
+            var cs = new MockFireboltConnection(connectionString);
+            Assert.That(cs.GetDbProviderFactory().GetType(), Is.EqualTo(typeof(FireboltClientFactory)));
+        }
+
+        [Test]
+        public void UpdateConnectionSettings()
+        {
+            var cs = new FireboltConnection("database=db1;clientid=id;clientsecret=secret;account=a1;engine=e1");
+            Multiple(() =>
+            {
+                That(cs.Database, Is.EqualTo("db1"));
+                That(cs.DataSource, Is.EqualTo("db1"));
+                That(cs.EngineName, Is.EqualTo("e1"));
+            });
+            cs.UpdateConnectionSettings(new FireboltConnectionStringBuilder("database=db2;username=usr;password=pwd;account=a2;engine=e2"), CancellationToken.None);
+            Multiple(() =>
+            {
+                That(cs.Database, Is.EqualTo("db2"));
+                That(cs.DataSource, Is.EqualTo("db2"));
+                That(cs.EngineName, Is.EqualTo("e2"));
+            });
         }
 
         [Test]

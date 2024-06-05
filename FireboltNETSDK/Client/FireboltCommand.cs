@@ -105,7 +105,7 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets or sets the <see cref="FireboltConnection"/> used by this command.
         /// </summary>
-        private new FireboltConnection? Connection
+        public new FireboltConnection? Connection
         {
             get => _connection;
             set => _connection = value;

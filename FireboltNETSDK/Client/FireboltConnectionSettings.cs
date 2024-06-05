@@ -61,6 +61,13 @@ namespace FireboltDotNetSdk.Client
         public string? ConnectionString { get; }
         public TokenStorageType TokenStorageType { get; }
 
+        internal FireboltConnectionSettings()
+        {
+            Principal = string.Empty;
+            Secret = string.Empty;
+            TokenStorageType = TokenStorageType.Memory;
+        }
+
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
             ConnectionString = builder.ConnectionString;
