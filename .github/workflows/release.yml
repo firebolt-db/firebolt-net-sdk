@@ -13,7 +13,6 @@ jobs:
     secrets: inherit
     with:
       run-v1: true
-      run-v2: true
       run-database-with-engine-v2: true
 
   publish:

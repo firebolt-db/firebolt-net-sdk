@@ -404,7 +404,7 @@ namespace FireboltDotNetSdk.Tests
                     switch (column.Ordinal)
                     {
                         case 0: name = (string)row[column]; break;
-                        case 1: length = (int)row[column]; break;
+                        case 1: length = Convert.ToInt32(row[column]); break;
                     }
                 }
                 tableNames.Add(name!);
@@ -724,7 +724,6 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v1")]
-        [Category("v2")]
         public void CreateDropFillTableWithArraysOfDifferentTypes()
         {
             CreateDropFillTableWithArrays(
@@ -734,6 +733,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("v2")]
         [Category("engine-v2")]
         public void CreateDropFillTableWithArraysOfDifferentTypesV2()
         {
