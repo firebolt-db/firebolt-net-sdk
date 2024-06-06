@@ -54,6 +54,11 @@ namespace FireboltDotNetSdk.Tests
         {
             throw new NotImplementedException();
         }
+
+        internal override void CleanupCache()
+        {
+            // empty implementation
+        }
     }
 
     [TestFixture]

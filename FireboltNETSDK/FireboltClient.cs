@@ -437,4 +437,6 @@ public abstract class FireboltClient
     }
 
     public abstract Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken);
+
+    internal abstract void CleanupCache();
 }
