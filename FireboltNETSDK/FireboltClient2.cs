@@ -1,6 +1,6 @@
 #region License Apache 2.0
 
-/* Copyright 2022 
+/* Copyright 2022
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,9 +109,9 @@ public class FireboltClient2 : FireboltClient
         string cacheKey = $"{_env}.{_account}";
         string? systemEngineUrl;
         systemEngineUrlCache.TryGetValue(cacheKey, out systemEngineUrl);
+        // Connecting to system engine by default
         if (systemEngineUrl == null)
         {
-            // Connecting to system engine by default
             var result = await GetSystemEngineUrl(_account);
             systemEngineUrl = result.engineUrl;
         }
@@ -169,10 +169,10 @@ public class FireboltClient2 : FireboltClient
         {
             throw new FireboltException($"Database {database} does not exist or current user does not have access to it!");
         }
-        var query = @$"SELECT engs.url, engs.attached_to, dbs.database_name, status 
-                    FROM information_schema.engines as engs 
+        var query = @$"SELECT engs.url, engs.attached_to, dbs.database_name, status
+                    FROM information_schema.engines as engs
                     LEFT JOIN information_schema.databases as dbs
-                    ON engs.attached_to = dbs.database_name 
+                    ON engs.attached_to = dbs.database_name
                     WHERE engs.engine_name = @EngineName";
         DbDataReader reader = Query(query, "@EngineName", engineName);
         if (!reader.Read())
