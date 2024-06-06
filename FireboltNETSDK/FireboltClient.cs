@@ -28,7 +28,7 @@ using static FireboltDotNetSdk.Client.FireResponse;
 
 namespace FireboltDotNetSdk;
 
-public abstract class FireboltClient : CacheListener
+public abstract class FireboltClient
 {
 
     private readonly Lazy<JsonSerializerSettings> _settings;
@@ -63,7 +63,6 @@ public abstract class FireboltClient : CacheListener
         _env = env ?? "app";
         _protocolVersion = protocolVersion;
         _tokenStorage = TokenStorage.create(connection.TokenStorageType);
-        connection.Register(this);
     }
 
     private JsonSerializerSettings JsonSerializerSettings => _settings.Value;
@@ -439,5 +438,5 @@ public abstract class FireboltClient : CacheListener
 
     public abstract Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken);
 
-    public abstract void Cleanup();
+    internal abstract void CleanupCache();
 }

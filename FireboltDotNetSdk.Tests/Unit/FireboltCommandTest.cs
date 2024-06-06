@@ -55,7 +55,7 @@ namespace FireboltDotNetSdk.Tests
             throw new NotImplementedException();
         }
 
-        public override void Cleanup()
+        internal override void CleanupCache()
         {
             // empty implementation
         }

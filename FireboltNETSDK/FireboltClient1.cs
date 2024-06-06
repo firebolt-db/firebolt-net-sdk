@@ -136,7 +136,7 @@ public class FireboltClient1 : FireboltClient
         return await GetJsonResponseAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, null, requiresAuth: true, cancellationToken);
     }
 
-    public override void Cleanup()
+    internal override void CleanupCache()
     {
         // empty implementation: no cache here
     }

@@ -243,7 +243,7 @@ public class FireboltClient2 : FireboltClient
         return command;
     }
 
-    public override void Cleanup()
+    internal override void CleanupCache()
     {
         systemEngineUrlCache.Clear();
     }
