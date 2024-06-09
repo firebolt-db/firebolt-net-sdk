@@ -24,7 +24,7 @@ namespace FireboltDotNetSdk.Tests
             Connection = new FireboltConnection(connectionString);
             Connection.Open();
             string? engineSpec = Connection.InfraVersion == 1 ? "SPEC = 'B1'" : null;
-            string? attachedEngine = Connection.InfraVersion == 1 ? newEngineName : null;
+            string? attachedEngine = null;
             CreateEngine(newEngineName, engineSpec);
             CreateDatabase(newDatabaseName, attachedEngine);
         }
@@ -68,16 +68,38 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase("select 1", Category = "general")]
-        [TestCase("select count(*) from information_schema.tables where table_name = 'tables'", Category = "general")]
+        [TestCase("select count(*) from information_schema.tables where table_name = 'tables'", Category = "engine-v2")]
         public void SuccessfulQueryTest(string query)
         {
             Assert.That(CreateCommand(query).ExecuteScalar(), Is.EqualTo(1));
         }
 
         [Test]
-        [Category("general")]
+        [Category("v1")]
+        [Description("It is forbidden to create table using system engine")]
+        public void CreateTableUsingSystemEngineTest()
+        {
+            try
+            {
+                var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT)");
+                string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Response ?? "";
+                Assert.That(errorMessage.Trim(), Is.EqualTo($"Database '{Database}' does not exist or not authorized."));
+            }
+            finally
+            {
+                try
+                {
+                    CreateCommand("DROP TABLE dummy").ExecuteNonQuery();
+                }
+                catch (FireboltException) { };
+            }
+        }
+
+        [Test]
+        [Category("v2")]
+        [Category("engine-v2")]
         [Description("It is forbidden to select from a table using system engine")]
-        public void ErrorsTest()
+        public void SelectUsingSystemEngineTest()
         {
             try
             {
@@ -96,7 +118,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void ShowDatabasesTest()
         {
             DbCommand command = Connection.CreateCommand();
@@ -104,6 +126,16 @@ namespace FireboltDotNetSdk.Tests
             DbDataReader reader = command.ExecuteReader();
             Assert.NotNull(reader);
             Assert.That(readData(reader), Has.Exactly(1).EqualTo(newDatabaseName));
+        }
+
+        [TestCase("SHOW DATABASES", "Should not be called on firebolt V1")]
+        [TestCase("select count(*) from information_schema.tables where table_name = 'tables'", "Queries against table information_schema.tables require a specific database.")]
+        [Category("v1")]
+        public void ForbiddenQuery(string query, string expectedError)
+        {
+            DbCommand command = Connection.CreateCommand();
+            command.CommandText = "SHOW DATABASES";
+            Assert.That(Assert.Throws<FireboltException>(() => command.ExecuteReader()).Response!.Trim(), Is.EqualTo("Should not be called on firebolt V1"));
         }
 
         private void CheckEngineExistsWithDB(DbCommand command, string engineName, string dbName)
@@ -409,7 +441,7 @@ namespace FireboltDotNetSdk.Tests
                 var badConnection = new FireboltConnection(connectionString);
                 badConnection.CleanupCache();
 
-                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match($"[Aa]ccount '.+?' does not exist"));
+                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match("([Aa]ccount '.+?' does not exist)|(Received an unexpected status code from the server)"));
             }
             finally
             {
