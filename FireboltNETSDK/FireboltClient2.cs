@@ -33,6 +33,8 @@ public class FireboltClient2 : FireboltClient
     private ISet<string> engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
     private readonly string _account;
     private static IDictionary<string, string> systemEngineUrlCache = new ConcurrentDictionary<string, string>();
+    private static string DB_QUERY = "SELECT * FROM information_schema.{0}s WHERE {0}_name=@Name";
+
     public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, "2.0", httpClient)
     {
         _account = account;
@@ -164,17 +166,18 @@ public class FireboltClient2 : FireboltClient
             // If no db provided - try to fetch it
             database = GetEngineDatabase(engineName) ?? throw new FireboltException($"Engine {engineName} is attached to a database current user can not access");
         }
-        var hasAccess = IsDatabaseAccessible(database);
+        string dbTerm = GetDatabaseTable();
+        var hasAccess = IsDatabaseAccessible(dbTerm, database);
         if (!hasAccess)
         {
             throw new FireboltException($"Database {database} does not exist or current user does not have access to it!");
         }
-        var query = @$"SELECT engs.url, engs.attached_to, dbs.database_name, status
+        var query = @$"SELECT engs.url, engs.attached_to, dbs.{0}_name, status
                     FROM information_schema.engines as engs
-                    LEFT JOIN information_schema.databases as dbs
-                    ON engs.attached_to = dbs.database_name
+                    LEFT JOIN information_schema.{0}s as dbs
+                    ON engs.attached_to = dbs.{0}_name
                     WHERE engs.engine_name = @EngineName";
-        DbDataReader reader = Query(query, "@EngineName", engineName);
+        DbDataReader reader = Query(string.Format(query, dbTerm), "@EngineName", engineName);
         if (!reader.Read())
         {
             throw new FireboltException($"Engine {engineName} not found.");
@@ -214,14 +217,14 @@ public class FireboltClient2 : FireboltClient
         return reader.Read() ? reader.GetString(0) : null;
     }
 
-    private bool IsDatabaseAccessible(string database)
+    private string GetDatabaseTable()
     {
-        string query = "SELECT * FROM information_schema.{0}s WHERE {0}_name=@Name";
-        if (Query(string.Format(query, "database"), "@Name", database).Read())
-        {
-            return true;
-        }
-        return Query(string.Format(query, "table"), "@Name", "catalogs").Read() && Query(string.Format(query, "catalog"), "@Name", database).Read();
+        return Query(string.Format(DB_QUERY, "table"), "@Name", "catalogs").Read() ? "catalog" : "database";
+    }
+
+    private bool IsDatabaseAccessible(string table, string database)
+    {
+        return Query(string.Format(DB_QUERY, table), "@Name", database).Read();
     }
 
     private DbDataReader Query(string query, string paramName, string paramValue)
