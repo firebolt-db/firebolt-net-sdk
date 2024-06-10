@@ -383,8 +383,7 @@ namespace FireboltDotNetSdk.Tests
                 long length = reader.GetInt64(1);
                 Assert.That(length, Is.EqualTo(name.Length));
             }
-            List<string> expectedTables = new List<string>() { "databases", "engines", "tables", "views", "columns", "accounts", "users" };
-            expectedTables.ForEach(table => Assert.That(tableNames.Contains(table), Is.EqualTo(true)));
+            AssertSystemTables(tableNames);
         }
 
         [Test]
@@ -410,8 +409,14 @@ namespace FireboltDotNetSdk.Tests
                 tableNames.Add(name!);
                 Assert.That(name!.Length, Is.EqualTo(length!));
             }
-            List<string> expectedTables = new List<string>() { "databases", "engines", "tables", "views", "columns", "accounts", "users" };
-            expectedTables.ForEach(table => Assert.That(tableNames.Contains(table), Is.EqualTo(true)));
+            AssertSystemTables(tableNames);
+        }
+
+        private void AssertSystemTables(List<string> tableNames)
+        {
+            List<string> expectedTables = new List<string>() { "engines", "tables", "views", "columns", "accounts", "users" };
+            string missingTables = string.Join(",", expectedTables.Where(table => !tableNames.Contains(table)));
+            Assert.True(missingTables.Length == 0, $"The following expected tables are missing: {missingTables}");
         }
 
         [Test]
