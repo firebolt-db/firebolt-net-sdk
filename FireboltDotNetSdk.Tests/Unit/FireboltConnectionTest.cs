@@ -5,7 +5,9 @@ using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Moq;
+using Org.BouncyCastle.Utilities;
 using static NUnit.Framework.Assert;
+using Times = Moq.Times;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -525,17 +527,25 @@ namespace FireboltDotNetSdk.Tests
             string engineUrlMeta = "\"meta\":[{\"name\": \"url\", \"type\": \"string\"}, {\"name\": \"attached_to\", \"type\": \"string\"}, {\"name\": \"uint8\", \"type\": \"string\"}, {\"name\": \"database_name\", \"type\": \"string\"}, {\"name\": \"status\"}]";
             string engineUrlData = $"\"data\":[[\"{engineUrl}\", \"db\", \"diesel\", \"{engineStatus}\"]]";
 
+            string databaseNameResponse = "{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"t\", \"name\": \"database_name\"}],\"data\":[[\"db\"]]}";
+
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"text\", \"name\": \"attached_to\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // get Engine DB
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"t\", \"name\": \"table_name\"}],\"data\":[" + catalogs + "]}", HttpStatusCode.OK)) // check whether catalogs table exists
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"t\", \"name\": \"database_name\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // check whether the DB is accessible
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"3\"}," + engineUrlMeta + ", " + engineUrlData + "}", HttpStatusCode.OK)) // get engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"string\"}, {\"name\": \"version()\"}],\"data\":[[\"1.2.3\"]]}", HttpStatusCode.OK)) // get version
             ;
+            bool catalogsCalled = false;
+            bool databasesCalled = false;
+            httpClientMock.Setup(p => p.SendAsync(It.Is<HttpRequestMessage>(req => isTableTypeCalled(req, "catalog", ref catalogsCalled)), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FireboltClientTest.GetResponseMessage(databaseNameResponse, HttpStatusCode.OK)); // check whether the DB is accessible (Catalogs version)
+            httpClientMock.Setup(p => p.SendAsync(It.Is<HttpRequestMessage>(req => isTableTypeCalled(req, "database", ref databasesCalled)), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FireboltClientTest.GetResponseMessage(databaseNameResponse, HttpStatusCode.OK)); // check whether the DB is accessible (Databases version)
+
             cs.Client = client;
             cs.CleanupCache();
             client.CleanupCache();
@@ -543,6 +553,23 @@ namespace FireboltDotNetSdk.Tests
             That(cs.ServerVersion, Is.EqualTo("1.2.3"));
             That(cs.EngineUrl, Is.EqualTo(expectedEngineUrl));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(9));
+            That(catalogsCalled, Is.EqualTo(catalogs.Length > 0));
+            That(databasesCalled, Is.EqualTo(catalogs.Length == 0));
+        }
+        private bool isTableTypeCalled(HttpRequestMessage req, string type, ref bool called)
+        {
+            if (req.Content == null)
+            {
+                return false;
+            }
+            string reqContent = req.Content.ReadAsStringAsync().Result;
+            
+            bool databasesCalled = reqContent.Contains(type + "s") && reqContent.Contains(type + "_name=");
+            if (databasesCalled)
+            {
+                called = true;
+            }
+            return databasesCalled;
         }
 
         [Test]
