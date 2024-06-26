@@ -553,9 +553,11 @@ namespace FireboltDotNetSdk.Tests
             That(cs.ServerVersion, Is.EqualTo("1.2.3"));
             That(cs.EngineUrl, Is.EqualTo(expectedEngineUrl));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(9));
+            // if catalogs is empty the databases table is used; otherwise the catalogs table is used
             That(catalogsCalled, Is.EqualTo(catalogs.Length > 0));
             That(databasesCalled, Is.EqualTo(catalogs.Length == 0));
         }
+
         private bool isTableTypeCalled(HttpRequestMessage req, string type, ref bool called)
         {
             if (req.Content == null)
@@ -563,7 +565,6 @@ namespace FireboltDotNetSdk.Tests
                 return false;
             }
             string reqContent = req.Content.ReadAsStringAsync().Result;
-            
             bool databasesCalled = reqContent.Contains(type + "s") && reqContent.Contains(type + "_name=");
             if (databasesCalled)
             {
