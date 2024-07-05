@@ -358,8 +358,8 @@ namespace FireboltDotNetSdk.Tests
             {
                 executeSafely(
                     $"USE ENGINE SYSTEM",
-                    $"STOP ENGINE \"{engineName}\"",
-                    $"DROP ENGINE \"{engineName}\""
+                    $"STOP ENGINE {engineName}",
+                    $"DROP ENGINE {engineName}"
                 );
             }
         }
