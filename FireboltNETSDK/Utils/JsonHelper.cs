@@ -62,6 +62,11 @@ namespace FireboltDotNetSdk.Utils
         public long? ScannedBytesStorage { get; set; }
     }
 
+    public class JsonErrorQueryResult
+    {
+        [JsonProperty("errors", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StructuredError> Errors { get; set; } = null!;
+    }
 
     public class StructuredError
     {

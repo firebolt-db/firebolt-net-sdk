@@ -259,7 +259,7 @@ public abstract class FireboltClient
                 headers[item.Key] = item.Value;
 
             try {
-                var anyResponse = await ReadObjectResponseAsync<QueryResult>(response, headers, readResponseAsString: true, cancellationToken).ConfigureAwait(false);
+                var anyResponse = await ReadObjectResponseAsync<JsonErrorQueryResult>(response, headers, readResponseAsString: true, cancellationToken).ConfigureAwait(false);
                 if (anyResponse.Object?.Errors != null)
                 {
                     throw new FireboltStructuredException(anyResponse.Object.Errors);
