@@ -7,11 +7,7 @@ namespace FireboltNETSDK.Exception
     public class FireboltStructuredException : FireboltException
     {
 
-        // public FireboltStructuredException(string message) : base(ParseErrors(message))
-        // {
-        // }
-
-        public FireboltStructuredException(List<StructuredError> errors): base(ParseErrors(errors))
+        public FireboltStructuredException(List<StructuredError> errors) : base(ParseErrors(errors))
         {
         }
 

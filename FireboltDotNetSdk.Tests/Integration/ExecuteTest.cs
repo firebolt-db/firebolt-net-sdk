@@ -6,6 +6,7 @@ using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDoNetSdk.Utils;
 using NodaTime.Extensions;
+using FireboltNETSDK.Exception;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -746,6 +747,21 @@ namespace FireboltDotNetSdk.Tests
                 "long", new long[] { 1, 2 }, typeof(long[]),
                 "float", new double[][] { new double[] { 2.7, 3.14 } }, typeof(double[][]), // float is alias to double in engine V2
                 "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
+        }
+
+        [Test]
+        [Category("v2")]
+        [Category("engine-v2")]
+        public void ThrowsStructuredExceptionOnJSONErrorBody()
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            CreateCommand(conn, "SET advanced_mode=1").ExecuteNonQuery();
+            CreateCommand(conn, "SET enable_json_error_output_format=true").ExecuteNonQuery();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = "SELECT 'blue'::int";
+            FireboltException exception = Assert.Throws<FireboltStructuredException>(() => command.ExecuteReader());
+            Assert.That(exception.Message, Does.Contain("Cannot parse string 'blue' as integer"));
         }
 
         private void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)

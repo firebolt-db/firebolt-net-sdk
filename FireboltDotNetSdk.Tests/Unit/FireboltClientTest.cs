@@ -5,7 +5,7 @@ using FireboltDotNetSdk.Exception;
 using Moq;
 using static Newtonsoft.Json.JsonConvert;
 using static FireboltDotNetSdk.Client.FireResponse;
-using FireboltDotNetSdk.Utils;
+using FireboltNETSDK.Exception;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -99,6 +99,25 @@ namespace FireboltDotNetSdk.Tests
 
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(),
                  It.IsAny<CancellationToken>()), Times.Exactly(4));
+        }
+
+
+        [Test]
+        public void ExecuteQueryWithJSONErrorReturned()
+        {
+            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClientMock.Object);
+            LoginResponse loginResponse = new("access_token", "3600", "Bearer");
+
+            var jsonErrorMessage = "{\"errors\":[{\"code\":\"400\",\"name\":\"Bad Request\",\"severity\":\"Error\",\"source\":\"Firebolt\",\"description\":\"Invalid query\",\"resolution\":\"Check the query and try again\",\"helpLink\":\"https://firebolt.io/docs\"}]}";
+
+            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
+                .ReturnsAsync(GetResponseMessage(jsonErrorMessage, HttpStatusCode.OK)); // despite the error, the response is OK
+            var exception = Assert.ThrowsAsync<FireboltStructuredException>(() => client.ExecuteQueryAsync("endpoint_url", "DBName", "account", "SELECT 1", new HashSet<string>(), CancellationToken.None));
+            Assert.That(exception!.Message, Does.Contain("Error: Bad Request (400) - Firebolt, Invalid query, resolution: Check the query and try again"));
         }
 
         [Test]
