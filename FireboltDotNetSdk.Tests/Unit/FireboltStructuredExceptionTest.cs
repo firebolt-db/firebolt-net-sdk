@@ -82,5 +82,12 @@ namespace FireboltDotNetSdk.Tests
             string expected = "ERROR: MissingFieldsError (3001)\n";
             Assert.That(exception.Message, Is.EqualTo(expected));
         }
+
+        [Test]
+        public void ParseEmptyList_ShouldReturnEmptyString()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError>());
+            Assert.That(exception.Message, Is.EqualTo(""));
+        }
     }
 }
