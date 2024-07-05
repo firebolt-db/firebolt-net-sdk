@@ -229,10 +229,10 @@ namespace FireboltDotNetSdk.Tests
             var connection = new FireboltConnection("database=testdb.ib;clientid=testuser;clientsecret=test_pwd;account=accountname");
             FireboltClient2 client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
 
-            FireboltException? e = Assert.Throws<FireboltException>(() => client.GetSystemEngineUrl("my_account").GetAwaiter().GetResult());
+            FireboltException? e = (FireboltException?) Assert.Throws(Is.InstanceOf<FireboltException>(),() => client.GetSystemEngineUrl("my_account").GetAwaiter().GetResult());
             Assert.That(e?.Message, Does.StartWith($"Account 'my_account' does not exist"));
 
-            e = Assert.Throws<FireboltException>(() => client.GetAccountIdByNameAsync("your_account", CancellationToken.None).GetAwaiter().GetResult());
+            e = (FireboltException?) Assert.Throws(Is.InstanceOf<FireboltException>(),() => client.GetAccountIdByNameAsync("your_account", CancellationToken.None).GetAwaiter().GetResult());
             Assert.That(e?.Message, Does.StartWith($"Account 'your_account' does not exist"));
         }
 

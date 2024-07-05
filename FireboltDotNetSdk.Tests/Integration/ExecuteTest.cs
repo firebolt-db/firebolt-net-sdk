@@ -185,7 +185,7 @@ namespace FireboltDotNetSdk.Tests
         private void ExecuteTestInvalidCredentials(string connectionString)
         {
             using var conn = new FireboltConnection(connectionString);
-            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => conn.Open());
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
             Assert.That(exception.ToString(), Does.Contain("FireboltDotNetSdk.Exception.FireboltException: The operation is unauthorized\nStatus: 401"));
@@ -308,7 +308,8 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SET foo=bar";
-            FireboltException exception = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => command.ExecuteNonQuery());
+            Assert.NotNull(exception);
             Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
             Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
             conn.Close();
@@ -327,7 +328,8 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
 
             command.CommandText = "SET foo=bar";
-            FireboltException exception = Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => command.ExecuteNonQuery());
+            Assert.NotNull(exception);
             Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
             Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
             Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
@@ -438,7 +440,7 @@ namespace FireboltDotNetSdk.Tests
         private void ExecuteServiceAccountLoginWithInvalidCredentials(string connectionString)
         {
             using var conn = new FireboltConnection(connectionString);
-            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => conn.Open());
             Assert.NotNull(exception);
             Assert.IsTrue(exception!.Message.Contains("401"), $"Expected Unauthorized (401) error message but was {exception!.Message}");
         }
@@ -448,7 +450,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteServiceAccountLoginWithMissingSecret(string secretField)
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Engine), null), new Tuple<string, string?>(secretField, ""));
-            FireboltException? exception = Assert.Throws<FireboltException>(() => new FireboltConnection(connString));
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => new FireboltConnection(connString));
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Is.EqualTo("Configuration error: either Password or ClientSecret must be provided but not both"));
         }
@@ -504,7 +506,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString = $"{SYSTEM_CONNECTION_STRING};engine=InexistantEngine";
             using var conn = new FireboltConnection(connString);
-            FireboltException? exception = Assert.Throws<FireboltException>(() => conn.Open());
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => conn.Open());
             Assert.That(exception!.Message,
                 Does.Match(
                     "Engine.+InexistantEngine.+not"
@@ -544,8 +546,8 @@ namespace FireboltDotNetSdk.Tests
                 conn.Open();
                 DbCommand command = conn.CreateCommand();
                 command.CommandText = "wrong query";
-                Assert.Throws<FireboltException>(() => command.ExecuteReader());
-                Assert.Throws<FireboltException>(() => command.ExecuteNonQuery());
+                Assert.Throws(Is.InstanceOf<FireboltException>(),() => command.ExecuteReader());
+                Assert.Throws(Is.InstanceOf<FireboltException>(),() => command.ExecuteNonQuery());
             }
         }
 

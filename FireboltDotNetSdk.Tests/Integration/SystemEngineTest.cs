@@ -82,7 +82,7 @@ namespace FireboltDotNetSdk.Tests
             try
             {
                 var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT)");
-                string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Response ?? "";
+                string errorMessage = ((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => { command.ExecuteNonQuery(); }))?.Response ?? "";
                 Assert.That(errorMessage.Trim(), Is.EqualTo($"Database '{Database}' does not exist or not authorized."));
             }
             finally
@@ -104,7 +104,7 @@ namespace FireboltDotNetSdk.Tests
             try
             {
                 var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT); SELECT * FROM dummy");
-                string errorMessage = Assert.Throws<FireboltException>(() => { command.ExecuteNonQuery(); })?.Response ?? "";
+                string errorMessage = ((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => { command.ExecuteNonQuery(); }))?.Response ?? "";
                 Assert.True(new Regex("Run this (query|statement) on a user engine.").Match(errorMessage).Success);
             }
             finally
@@ -135,7 +135,7 @@ namespace FireboltDotNetSdk.Tests
         {
             DbCommand command = Connection.CreateCommand();
             command.CommandText = "SHOW DATABASES";
-            Assert.That(Assert.Throws<FireboltException>(() => command.ExecuteReader()).Response!.Trim(), Is.EqualTo("Should not be called on firebolt V1"));
+            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => command.ExecuteReader()))!.Response!.Trim(), Is.EqualTo("Should not be called on firebolt V1"));
         }
 
         private void CheckEngineExistsWithDB(DbCommand command, string engineName, string dbName)
@@ -160,17 +160,17 @@ namespace FireboltDotNetSdk.Tests
             var command = Connection.CreateCommand();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => ConnectAndRunQuery()))?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
 
             CreateCommand($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, "-");
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
+            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => ConnectAndRunQuery()))?.Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
 
             CreateCommand($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}").ExecuteNonQuery();
 
             CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(Assert.Throws<FireboltException>(() => ConnectAndRunQuery())?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
+            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => ConnectAndRunQuery()))?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
         }
 
         private void VerifyEngineSpec(DbCommand command, string engineName, string spec)
@@ -259,7 +259,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.IsNull(GetTableDbName(table1)); // the table does not exist yet
                 CreateCommand($"CREATE TABLE {table1} ( id LONG)").ExecuteNonQuery(); // create table1 in current DB
                 Assert.That(GetTableDbName(table1), Is.EqualTo(Database)); // now table t1 exists
-                Assert.Throws<FireboltException>(() => CreateCommand($"use {entityType} {databaseName}").ExecuteNonQuery()); // DB does not exist
+                Assert.Throws(Is.InstanceOf<FireboltException>(),() => CreateCommand($"use {entityType} {databaseName}").ExecuteNonQuery()); // DB does not exist
                 CreateCommand($"CREATE DATABASE IF NOT EXISTS {databaseName}").ExecuteNonQuery(); // create DB
                 CreateCommand($"use {entityType} {databaseName}").ExecuteNonQuery(); // Now this should succeed            
                 CreateCommand($"CREATE TABLE {table2} ( id LONG)").ExecuteNonQuery(); // create table2 in other DB
@@ -293,7 +293,7 @@ namespace FireboltDotNetSdk.Tests
             try
             {
                 CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
-                Assert.Throws<FireboltException>(() => CreateCommand($"use ENGINE {engineName}").ExecuteNonQuery());
+                Assert.Throws(Is.InstanceOf<FireboltException>(),() => CreateCommand($"use ENGINE {engineName}").ExecuteNonQuery());
                 CreateCommand($"CREATE ENGINE {engineName}").ExecuteNonQuery();
                 CreateCommand($"USE ENGINE {engineName}").ExecuteNonQuery();
                 CreateCommand($"CREATE DATABASE IF NOT EXISTS {databaseName}").ExecuteNonQuery();
@@ -302,7 +302,7 @@ namespace FireboltDotNetSdk.Tests
                 CreateCommand($"INSERT INTO {table1} (id) VALUES (1)").ExecuteNonQuery();// should succeed using user engine
                 // switch back to the system engine
                 CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
-                Assert.Throws<FireboltException>(() => CreateCommand($"INSERT INTO {table1} (id) VALUES (1)").ExecuteNonQuery());
+                Assert.Throws(Is.InstanceOf<FireboltException>(),() => CreateCommand($"INSERT INTO {table1} (id) VALUES (1)").ExecuteNonQuery());
             }
             finally
             {
@@ -327,7 +327,7 @@ namespace FireboltDotNetSdk.Tests
                 CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
                 CreateCommand($"CREATE ENGINE \"{engineName}\"").ExecuteNonQuery();
                 CreateCommand($"USE ENGINE \"{engineName}\"").ExecuteNonQuery();
-                Assert.Throws<FireboltException>(() => CreateCommand($"USE ENGINE {engineName}").ExecuteNonQuery());
+                Assert.Throws(Is.InstanceOf<FireboltException>(), () => CreateCommand($"USE ENGINE {engineName}").ExecuteNonQuery());
             }
             finally
             {
@@ -352,14 +352,14 @@ namespace FireboltDotNetSdk.Tests
                 CreateCommand($"CREATE ENGINE {engineName}").ExecuteNonQuery();
                 CreateCommand($"USE ENGINE {engineName}").ExecuteNonQuery();
                 // engine name remains mixed case and statement fails because engine name was not quoted when we created the engine
-                Assert.Throws<FireboltException>(() => CreateCommand($"USE ENGINE \"{engineName}\"").ExecuteNonQuery());
+                Assert.Throws(Is.InstanceOf<FireboltException>(),() => CreateCommand($"USE ENGINE \"{engineName}\"").ExecuteNonQuery());
             }
             finally
             {
                 executeSafely(
                     $"USE ENGINE SYSTEM",
-                    $"STOP ENGINE {engineName}",
-                    $"DROP ENGINE {engineName}"
+                    $"STOP ENGINE \"{engineName}\"",
+                    $"DROP ENGINE \"{engineName}\""
                 );
             }
         }
@@ -441,7 +441,7 @@ namespace FireboltDotNetSdk.Tests
                 var badConnection = new FireboltConnection(connectionString);
                 badConnection.CleanupCache();
 
-                Assert.That(Assert.Throws<FireboltException>(() => badConnection.Open())?.Message, Does.Match("([Aa]ccount '.+?' does not exist)|(Received an unexpected status code from the server)"));
+                Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => badConnection.Open()))?.Message, Does.Match("([Aa]ccount '.+?' does not exist)|(Received an unexpected status code from the server)"));
             }
             finally
             {
