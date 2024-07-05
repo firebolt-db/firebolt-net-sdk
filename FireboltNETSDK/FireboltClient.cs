@@ -258,10 +258,18 @@ public abstract class FireboltClient
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
 
-            var anyResponse = await ReadObjectResponseAsync<QueryResult>(response, headers, readResponseAsString: true, cancellationToken).ConfigureAwait(false);
-            if (anyResponse.Object?.Errors != null)
+            try {
+                var anyResponse = await ReadObjectResponseAsync<QueryResult>(response, headers, readResponseAsString: true, cancellationToken).ConfigureAwait(false);
+                if (anyResponse.Object?.Errors != null)
+                {
+                    throw new FireboltStructuredException(anyResponse.Object.Errors);
+                }
+            } catch (FireboltStructuredException exception)
             {
-                throw new FireboltStructuredException(anyResponse.Object.Errors);
+                throw exception;
+            } catch (System.Exception)
+            {
+                // Ignore any other parsing exceptions, we will handle them later.
             }
 
             if (response.IsSuccessStatusCode)
