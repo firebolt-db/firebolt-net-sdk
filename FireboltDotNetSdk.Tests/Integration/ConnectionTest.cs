@@ -54,7 +54,7 @@ namespace FireboltDotNetSdk.Tests
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
 
-            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() =>
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () =>
             {
                 connection.Open();
                 if (query != null)
@@ -87,7 +87,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Account), "non-existing-account-123"));
             DbConnection connection = new FireboltConnection(connString);
-            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(),() => connection.Open());
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => connection.Open());
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Does.Contain(errorMessage));
         }
@@ -100,7 +100,7 @@ namespace FireboltDotNetSdk.Tests
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
             connection.Open();
-            Assert.Throws(Is.InstanceOf<FireboltException>(),() => connection.ChangeDatabase("DOES_NOT_EXIST"));
+            Assert.Throws(Is.InstanceOf<FireboltException>(), () => connection.ChangeDatabase("DOES_NOT_EXIST"));
         }
 
         [Test]
@@ -111,7 +111,7 @@ namespace FireboltDotNetSdk.Tests
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
             connection.ChangeDatabase("DOES_NOT_EXIST"); // does not fail because connection is not open
-            Assert.Throws(Is.InstanceOf<FireboltException>(),() => connection.Open());
+            Assert.Throws(Is.InstanceOf<FireboltException>(), () => connection.Open());
         }
 
         [Test]
@@ -121,7 +121,7 @@ namespace FireboltDotNetSdk.Tests
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Database), "DOES_NOT_EXIST"));
             DbConnection connection = new FireboltConnection(connString);
             Assert.That(connection.ConnectionString, Is.EqualTo(connString));
-            Assert.Throws(Is.InstanceOf<FireboltException>(),() => connection.Open());
+            Assert.Throws(Is.InstanceOf<FireboltException>(), () => connection.Open());
             failingSelect(connection);
             connection.ChangeDatabase(Database);
             connection.Open();
@@ -287,7 +287,7 @@ namespace FireboltDotNetSdk.Tests
 
         private void failingSelect(DbConnection connection)
         {
-            Assert.Throws(Is.InstanceOf<FireboltException>(),() =>
+            Assert.Throws(Is.InstanceOf<FireboltException>(), () =>
             {
                 DbCommand command = connection.CreateCommand();
                 command.CommandText = "SELECT 1";

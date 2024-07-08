@@ -107,7 +107,7 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteSelectWhenConnectionIsMissingTest(string commandText)
         {
             var cs = new FireboltCommand { CommandText = commandText };
-            FireboltException? exception = (FireboltException?) Assert.Throws(Is.InstanceOf<FireboltException>(),() => cs.ExecuteReader());
+            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => cs.ExecuteReader());
             Assert.NotNull(exception);
             Assert.That(exception!.Message, Is.EqualTo("Unable to execute SQL as no connection was initialised. Create command using working connection"));
         }
@@ -150,7 +150,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string response = "not a json";
             var cs = createCommand("select 1", response);
-            string? message = ((FireboltException?) Assert.Throws(Is.InstanceOf<FireboltException>(),() => cs.ExecuteReader()))?.Message;
+            string? message = ((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => cs.ExecuteReader()))?.Message;
             Assert.That(message, Does.Contain("Failed to execute a query"));
         }
 
