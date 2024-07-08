@@ -25,6 +25,7 @@ using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using FireboltDotNetSdk.Client;
 using static FireboltDotNetSdk.Client.FireResponse;
+using FireboltNETSDK.Exception;
 
 namespace FireboltDotNetSdk;
 
@@ -256,6 +257,23 @@ public abstract class FireboltClient
             var headers = response.Headers.ToDictionary(h => h.Key, h => h.Value);
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
+
+            try
+            {
+                var anyResponse = await ReadObjectResponseAsync<JsonErrorQueryResult>(response, headers, readResponseAsString: true, cancellationToken).ConfigureAwait(false);
+                if (anyResponse.Object?.Errors != null)
+                {
+                    throw new FireboltStructuredException(anyResponse.Object.Errors);
+                }
+            }
+            catch (FireboltStructuredException exception)
+            {
+                throw exception;
+            }
+            catch (System.Exception)
+            {
+                // Ignore any other parsing exceptions, we will handle them later.
+            }
 
             if (response.IsSuccessStatusCode)
             {

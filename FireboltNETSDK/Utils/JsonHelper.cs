@@ -16,6 +16,9 @@ namespace FireboltDotNetSdk.Utils
         [JsonProperty("rows", NullValueHandling = NullValueHandling.Ignore)]
         public long? Rows { get; set; }
 
+        [JsonProperty("errors", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StructuredError> Errors { get; set; } = null!;
+
         [JsonProperty("statistics", NullValueHandling = NullValueHandling.Ignore)]
         public Statistics Statistics { get; set; } = null!;
     }
@@ -57,6 +60,31 @@ namespace FireboltDotNetSdk.Utils
 
         [JsonProperty("scanned_bytes_storage", NullValueHandling = NullValueHandling.Ignore)]
         public long? ScannedBytesStorage { get; set; }
+    }
+
+    public class JsonErrorQueryResult
+    {
+        [JsonProperty("errors", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StructuredError> Errors { get; set; } = null!;
+    }
+
+    public class StructuredError
+    {
+        public string? Code { get; set; }
+        public string? Name { get; set; }
+        public string? Severity { get; set; }
+        public string? Source { get; set; }
+        public string? Description { get; set; }
+        public string? Resolution { get; set; }
+        public string? HelpLink { get; set; }
+        public Location? Location { get; set; }
+    }
+
+    public class Location
+    {
+        public int? FailingLine { get; set; }
+        public int? StartOffset { get; set; }
+        public int? EndOffset { get; set; }
     }
 }
 
