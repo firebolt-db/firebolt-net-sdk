@@ -9,14 +9,6 @@ on:
       engine:
         description: 'Engine - a new one will be created if not provided'
         required: false
-      category:
-        description: 'Version of used engine (engine-v2 means v2, infra version 2.1)'
-        required: true
-        default: 'true'
-        type: choice
-        options:
-          - 'v2'
-          - 'engine-v2'
   workflow_call:
     inputs:
       database:
@@ -30,11 +22,7 @@ on:
         type: string
       account:
         description: 'Account'
-        required: true
-        type: string
-      category:
-        description: 'Run category'
-        required: true
+        required: false
         type: string
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN:
@@ -46,23 +34,19 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Set account engine v2
+      - name: Resolve account
         id: set-account
         run: |
           if ! [[ -z "${{ inputs.account }}" ]]; then
             echo "account=${{ inputs.account }}" >> $GITHUB_OUTPUT
             echo "account=${{ inputs.account }}"
-          elif [[ "${{ inputs.account }}" == "engine-v2" ]]; then
-            echo "account=${{ vars.FIREBOLT_ACCOUNT_V2 }}" >> $GITHUB_OUTPUT
-            echo "account=${{ vars.FIREBOLT_ACCOUNT_V2 }}"
           else
-            echo "account=${{ vars.FIREBOLT_ACCOUNT_V1 }}" >> $GITHUB_OUTPUT
-            echo "account=${{ vars.FIREBOLT_ACCOUNT_V1 }}"
+            echo "account=${{ vars.FIREBOLT_ACCOUNT }}" >> $GITHUB_OUTPUT
+            echo "account=${{ vars.FIREBOLT_ACCOUNT }}"
           fi
+
       - name: Check out code
         uses: actions/checkout@v2
-        with:
-          ref: ${{ inputs.branch }}
 
       - name: Set up .NET 6.0
         id: dotnet-setup
@@ -77,9 +61,6 @@ jobs:
       - name: Install dependencies
         run: |
           dotnet restore
-
-      - name: Keep environment name in the summary
-        run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
 
       - name: Setup database and engine
         if: ${{ inputs.database == '' }}
@@ -118,4 +99,4 @@ jobs:
           FIREBOLT_CLIENT_ID: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN  }}
           FIREBOLT_CLIENT_SECRET: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN  }}
         run: |
-          dotnet test --filter '(Category=Integration|Category=IntegrationSetup)&(Category=${{ inputs.category }}|Category=general)&Name!=ExecuteLongTest' -l "console;verbosity=normal"
+          dotnet test --filter '(Category=Integration|Category=IntegrationSetup)&(Category=engine-v2|Category=general)&Name!=ExecuteLongTest' -l "console;verbosity=normal"

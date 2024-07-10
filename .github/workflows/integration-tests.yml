@@ -1,36 +1,7 @@
 name: Integration tests
 on:
   workflow_dispatch:
-    inputs:
-      run-v1:
-        description: 'Run tests against Firebolt DB v1'
-        required: true
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
-      run-database-with-engine-v2:
-        description: 'Run tests against Firebolt DB v2 and Engine V2'
-        required: true
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
-
   workflow_call:
-    inputs:
-      run-v1:
-        description: 'Run tests against Firebolt DB v1'
-        required: true
-        default: true
-        type: boolean
-      run-database-with-engine-v2:
-        description: 'Run tests against Firebolt DB v2 and Engine V2'
-        required: true
-        default: true
-        type: boolean
     secrets:
       # V1 secrets
       FIREBOLT_STG_USERNAME:
@@ -45,18 +16,15 @@ on:
 
 jobs:
   integration-test-v1:
-    if: ${{ (inputs.run-v1 == 'true') || (inputs.run-v1 == true) }}
     uses: ./.github/workflows/integration-tests-v1.yml
     secrets:
       FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
       FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
 
-  integration-test-engine-v2:
-    if: ${{ (inputs.run-database-with-engine-v2 == 'true') || (inputs.run-database-with-engine-v2 == true) }}
+  integration-test-v2:
     uses: ./.github/workflows/integration-tests-v2.yml
     with:
       account: ${{ vars.FIREBOLT_ACCOUNT_V2 }}
-      category: engine-v2
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
       FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}      

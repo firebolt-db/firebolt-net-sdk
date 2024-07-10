@@ -33,8 +33,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-        with:
-          ref: ${{ inputs.branch }}
 
       - name: Set up .NET 6.0
         id: dotnet-setup
@@ -49,9 +47,6 @@ jobs:
       - name: Install dependencies
         run: |
           dotnet restore
-
-      - name: Keep environment name in the summary
-        run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
 
       - name: Setup database and engine
         if: ${{ inputs.database == '' }}
