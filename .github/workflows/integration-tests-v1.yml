@@ -3,21 +3,21 @@ on:
   workflow_dispatch:
     inputs:
       database:
-        description: 'Database - a new one will be created if not provided'
+        description: 'Database override'
         required: false
         default: ''
       engine:
-        description: 'Engine - a new one will be created if not provided'
+        description: 'Engine override'
         required: false
   workflow_call:
     inputs:
       database:
-        description: 'Database - a new one will be created if not provided'
+        description: 'Database override'
         required: false
         default: ''
         type: string
       engine:
-        description: 'Engine - a new one will be created if not provided'
+        description: 'Engine override'
         required: false
         type: string
         
