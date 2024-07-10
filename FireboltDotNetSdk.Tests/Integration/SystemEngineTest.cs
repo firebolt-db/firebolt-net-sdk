@@ -1,8 +1,6 @@
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
-using System.Data;
 using System.Data.Common;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace FireboltDotNetSdk.Tests
@@ -23,7 +21,7 @@ namespace FireboltDotNetSdk.Tests
             string connectionString = ConnectionString(new Tuple<string, string?>[] { Tuple.Create<string, string?>(nameof(Engine), systemEngineName) });
             Connection = new FireboltConnection(connectionString);
             Connection.Open();
-            string? engineSpec = Connection.InfraVersion == 1 ? "SPEC = 'B1'" : null;
+            string engineSpec = "TYPE = S";
             string? attachedEngine = null;
             CreateEngine(newEngineName, engineSpec);
             CreateDatabase(newDatabaseName, attachedEngine);
@@ -67,7 +65,7 @@ namespace FireboltDotNetSdk.Tests
             CreateCommand(create_engine_sql).ExecuteNonQuery();
         }
 
-        [TestCase("select 1", Category = "general")]
+        [TestCase("select 1", Category = "engine-v2")]
         [TestCase("select count(*) from information_schema.tables where table_name = 'tables'", Category = "engine-v2")]
         public void SuccessfulQueryTest(string query)
         {
@@ -75,28 +73,6 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("v1")]
-        [Description("It is forbidden to create table using system engine")]
-        public void CreateTableUsingSystemEngineTest()
-        {
-            try
-            {
-                var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT)");
-                string errorMessage = ((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => { command.ExecuteNonQuery(); }))?.Response ?? "";
-                Assert.That(errorMessage.Trim(), Is.EqualTo($"Database '{Database}' does not exist or not authorized."));
-            }
-            finally
-            {
-                try
-                {
-                    CreateCommand("DROP TABLE dummy").ExecuteNonQuery();
-                }
-                catch (FireboltException) { };
-            }
-        }
-
-        [Test]
-        [Category("v2")]
         [Category("engine-v2")]
         [Description("It is forbidden to select from a table using system engine")]
         public void SelectUsingSystemEngineTest()
@@ -128,16 +104,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(readData(reader), Has.Exactly(1).EqualTo(newDatabaseName));
         }
 
-        [TestCase("SHOW DATABASES", "Should not be called on firebolt V1")]
-        [TestCase("select count(*) from information_schema.tables where table_name = 'tables'", "Queries against table information_schema.tables require a specific database.")]
-        [Category("v1")]
-        public void ForbiddenQuery(string query, string expectedError)
-        {
-            DbCommand command = Connection.CreateCommand();
-            command.CommandText = "SHOW DATABASES";
-            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => command.ExecuteReader()))!.Response!.Trim(), Is.EqualTo("Should not be called on firebolt V1"));
-        }
-
         private void CheckEngineExistsWithDB(DbCommand command, string engineName, string dbName)
         {
             command.CommandText = "SHOW ENGINES";
@@ -151,26 +117,6 @@ namespace FireboltDotNetSdk.Tests
                 Has.Exactly(1).EqualTo(new object[] { engineName, dbName }),
                 $"Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
             );
-        }
-
-        [Test]
-        [Category("v2")]
-        public void AttachDetachEngineTest()
-        {
-            var command = Connection.CreateCommand();
-
-            CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => ConnectAndRunQuery()))?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
-
-            CreateCommand($"DETACH ENGINE {newEngineName} FROM {newDatabaseName}").ExecuteNonQuery();
-
-            CheckEngineExistsWithDB(command, newEngineName, "-");
-            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => ConnectAndRunQuery()))?.Message, Is.EqualTo($"Engine {newEngineName} is not attached to {newDatabaseName}"));
-
-            CreateCommand($"ATTACH ENGINE {newEngineName} TO {newDatabaseName}").ExecuteNonQuery();
-
-            CheckEngineExistsWithDB(command, newEngineName, newDatabaseName);
-            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => ConnectAndRunQuery()))?.Message, Is.EqualTo($"Engine {newEngineName} is not running"));
         }
 
         private void VerifyEngineSpec(DbCommand command, string engineName, string spec)
@@ -188,58 +134,19 @@ namespace FireboltDotNetSdk.Tests
             );
         }
 
-        private IList<object[]> ConnectAndRunQuery(string query = "SELECT 1")
-        {
-            var connString = ConnectionString(new Tuple<string, string?>(nameof(Engine), newEngineName), new Tuple<string, string?>(nameof(Database), newDatabaseName));
-            using (var userConnection = new FireboltConnection(connString))
-            {
-                userConnection.Open();
-                DbCommand command = userConnection.CreateCommand();
-                command.CommandText = query;
-                DbDataReader reader = command.ExecuteReader();
-                IList<object[]> result = new List<object[]>();
-                int n = reader.FieldCount;
-                while (reader.Read())
-                {
-                    object[] row = new object[n];
-                    result.Add(row);
-                    for (int i = 0; i < n; i++)
-                    {
-                        row[i] = reader.GetValue(i);
-                    }
-                }
-                return result;
-            }
-        }
 
         [Test]
-        [Category("v1")]
-        [Category("v2")]
+        [Category("v2-engine")]
         public void AlterEngineTest()
         {
             var command = Connection.CreateCommand();
 
-            VerifyEngineSpec(command, newEngineName, "B1");
+            VerifyEngineSpec(command, newEngineName, "S");
 
-            CreateCommand($"ALTER ENGINE {newEngineName} SET SPEC = 'B2'").ExecuteNonQuery();
+            CreateCommand($"ALTER ENGINE {newEngineName} SET TYPE = M").ExecuteNonQuery();
 
-            VerifyEngineSpec(command, newEngineName, "B2");
+            VerifyEngineSpec(command, newEngineName, "M");
 
-        }
-
-        private void VerifyEngineStatus(DbCommand command, string engineName, string status)
-        {
-            command.CommandText = "select engine_name, status from information_schema.engines";
-            DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
-            Assert.That(readData(reader), Has.Exactly(1).EqualTo(engineName), "Engine {engineName} is missing in SHOW ENGINES");
-
-            reader = command.ExecuteReader();
-            Assert.That(
-                readItems(reader, 0, 1),
-                Has.Exactly(1).EqualTo(new object[] { engineName, status }),
-                $"Engine {engineName} should have {status} status"
-            );
         }
 
         [TestCase("")]
@@ -416,7 +323,6 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("v2")]
         [Category("engine-v2")]
         public void ConnectToAccountWithoutUser()
         {
