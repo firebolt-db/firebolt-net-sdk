@@ -23,7 +23,7 @@ namespace FireboltDotNetSdk.Tests
             string connectionString = ConnectionString(new Tuple<string, string?>[] { Tuple.Create<string, string?>(nameof(Engine), systemEngineName) });
             Connection = new FireboltConnection(connectionString);
             Connection.Open();
-            string? engineSpec = Connection.InfraVersion == 1 ? "SPEC = 'B1'" : null;
+            string? engineSpec = null;
             string? attachedEngine = null;
             CreateEngine(newEngineName, engineSpec);
             CreateDatabase(newDatabaseName, attachedEngine);
