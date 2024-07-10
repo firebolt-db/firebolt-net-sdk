@@ -3,21 +3,21 @@ on:
   workflow_dispatch:
     inputs:
       database:
-        description: 'Database - a new one will be created if not provided'
+        description: 'Database override'
         required: false
         default: ''
       engine:
-        description: 'Engine - a new one will be created if not provided'
+        description: 'Engine override'
         required: false
   workflow_call:
     inputs:
       database:
-        description: 'Database - a new one will be created if not provided'
+        description: 'Database override'
         required: false
         default: ''
         type: string
       engine:
-        description: 'Engine - a new one will be created if not provided'
+        description: 'Engine override'
         required: false
         type: string
         
@@ -33,8 +33,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-        with:
-          ref: ${{ inputs.branch }}
 
       - name: Set up .NET 6.0
         id: dotnet-setup
@@ -49,9 +47,6 @@ jobs:
       - name: Install dependencies
         run: |
           dotnet restore
-
-      - name: Keep environment name in the summary
-        run: echo '### Ran integration tests against ${{ inputs.environment }} ' >> $GITHUB_STEP_SUMMARY
 
       - name: Setup database and engine
         if: ${{ inputs.database == '' }}
