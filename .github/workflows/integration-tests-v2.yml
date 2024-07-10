@@ -9,6 +9,10 @@ on:
       engine:
         description: 'Engine override'
         required: false
+      account:
+        description: 'Account override'
+        required: false
+        type: string
   workflow_call:
     inputs:
       database:

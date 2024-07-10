@@ -23,8 +23,6 @@ jobs:
 
   integration-test-v2:
     uses: ./.github/workflows/integration-tests-v2.yml
-    with:
-      account: ${{ vars.FIREBOLT_ACCOUNT }}
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
       FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}      
