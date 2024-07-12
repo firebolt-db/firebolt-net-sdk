@@ -41,11 +41,9 @@ jobs:
           dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
 
       - name: Install Coverage tool
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
         shell: powershell
         run: |
-          New-Item -Path .\.sonar\dotnet-coverage -ItemType Directory
-          dotnet tool update dotnet-coverage --tool-path .\.sonar\dotnet-coverage
+          dotnet tool install --global dotnet-coverage
 
       - name: Build and analyze
         env:
@@ -55,5 +53,5 @@ jobs:
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"firebolt-db_firebolt-net-sdk" /o:"firebolt-db" /d:sonar.token="${{ secrets.SONARCLOUD_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths="coverage.xml"
           dotnet build --no-incremental
-          .\.sonar\dotnet-coverage\dotnet-coverage collect 'dotnet test --filter "Category!=Integration"' -f xml -o "coverage.xml"
+          dotnet-coverage collect 'dotnet test --filter "Category!=Integration"' -f xml -o "coverage.xml"
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONARCLOUD_TOKEN }}"

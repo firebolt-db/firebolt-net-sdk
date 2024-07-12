@@ -32,10 +32,4 @@ jobs:
 
     - name: Run unit tests
       run: |
-        dotnet test --filter "Category!=Integration" /p:AltCover=true
-
-    - name: Save coverage report
-      uses: actions/upload-artifact@v2
-      with:
-        name: coverage.xml
-        path: /home/runner/work/firebolt-net-sdk/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
+        dotnet test --filter "Category!=Integration"

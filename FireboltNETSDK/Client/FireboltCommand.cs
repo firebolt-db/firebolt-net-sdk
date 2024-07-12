@@ -194,6 +194,7 @@ namespace FireboltDotNetSdk.Client
             {
                 newCommandText = GetParamQuery(commandText);
             }
+
             var database = Connection?.Database != string.Empty ? Connection?.Database : null;
 
             Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection?.AccountId, newCommandText, SetParamList, cancellationToken);

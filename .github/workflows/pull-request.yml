@@ -12,10 +12,10 @@ jobs:
         uses: jef/conventional-commits-pr-action@v1.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-  # build:
-  #   uses: ./.github/workflows/build.yml
-  # code-checkers:
-  #   uses: ./.github/workflows/code-check.yml
+  build:
+    uses: ./.github/workflows/build.yml
+  code-checkers:
+    uses: ./.github/workflows/code-check.yml
   unit-tests:
     uses: ./.github/workflows/unit-tests.yml
   sonar-scan:
