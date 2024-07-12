@@ -41,6 +41,8 @@ jobs:
         path: /home/runner/work/firebolt-net-sdk/firebolt-net-sdk/FireboltDotNetSdk.Tests/coverage.xml
 
   coverage:
+    # Can't decorate a PR if there's no PR
+    if: ${{ github.event_name != 'push' }}
     needs: [unit-tests]
     runs-on: ubuntu-latest
 
