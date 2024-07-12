@@ -1,10 +1,6 @@
 name: SonarCloud
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_call:
 jobs:
   build:
     name: Build and analyze
@@ -37,13 +33,18 @@ jobs:
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+          
+      - uses: actions/download-artifact@v2
+        with:
+            name: coverage.xml
+
       - name: Build and analyze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
         shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"firebolt-db_firebolt-net-sdk" /o:"firebolt-db" /d:sonar.token="${{ secrets.SONARCLOUD_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"firebolt-db_firebolt-net-sdk" /o:"firebolt-db" /d:sonar.token="${{ secrets.SONARCLOUD_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
           dotnet restore
           dotnet build
           dotnet test --filter "Category!=Integration" --collect "Code Coverage"
