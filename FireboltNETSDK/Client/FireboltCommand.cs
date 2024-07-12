@@ -189,15 +189,11 @@ namespace FireboltDotNetSdk.Client
                 }
                 return await Task.FromResult<string?>(null);
             }
-            // Adding some comments
             string newCommandText = commandText;
-            // to 
             if (Parameters.Any())
             {
-                // trigger
                 newCommandText = GetParamQuery(commandText);
             }
-            // coverage
             var database = Connection?.Database != string.Empty ? Connection?.Database : null;
 
             Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection?.AccountId, newCommandText, SetParamList, cancellationToken);

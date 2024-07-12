@@ -24,7 +24,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.Throws<ArgumentOutOfRangeException>(() => reader.GetValue(0));
             Assert.That(reader.Read(), Is.EqualTo(false));
 
-
             Assert.That(reader.IsClosed, Is.EqualTo(false));
             reader.Close();
             Assert.That(reader.IsClosed, Is.EqualTo(true));
