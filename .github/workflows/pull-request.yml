@@ -18,3 +18,5 @@ jobs:
     uses: ./.github/workflows/code-check.yml
   unit-tests:
     uses: ./.github/workflows/unit-tests.yml
+  sonar-cloud:
+    uses: ./.github/workflows/sonar-scan.yml
