@@ -330,7 +330,6 @@ namespace FireboltDotNetSdk.Client
                 EngineUrl = response.EngineUrl;
                 _isSystem = response.IsSystem;
                 _database = response.Database;
-                ValidateConnection();
                 OnSessionEstablished();
                 return EngineUrl != null;
             }
