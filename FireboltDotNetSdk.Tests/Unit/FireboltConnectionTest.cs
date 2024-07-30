@@ -455,7 +455,6 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - validate connection
             ;
             cs.CleanupCache();
             client.CleanupCache();
@@ -463,7 +462,7 @@ namespace FireboltDotNetSdk.Tests
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
             // 1. to retrive token
             // 2. to retrieve system engine URL
-            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(5));
+            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
         }
 
         [Test]
@@ -486,13 +485,12 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - validate connection
             ;
             cs1.Open(); // should succeed
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
             // 1. to retrive token
             // 2. to retrieve system engine URL
-            httpClientMock1.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(5));
+            httpClientMock1.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
             cs1.Close();
 
             // Now create the new connection. Due to caches are full we do not expect getting system engine URL and account ID. 
@@ -504,10 +502,9 @@ namespace FireboltDotNetSdk.Tests
             httpClientMock2.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - validate connection
             ;
             cs2.Open(); // should succeed
-            httpClientMock2.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            httpClientMock2.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
 
@@ -536,7 +533,6 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"text\", \"name\": \"attached_to\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // get Engine DB
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"t\", \"name\": \"table_name\"}],\"data\":[" + catalogs + "]}", HttpStatusCode.OK)) // check whether catalogs table exists
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"3\"}," + engineUrlMeta + ", " + engineUrlData + "}", HttpStatusCode.OK)) // get engine URL
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"string\"}, {\"name\": \"version()\"}],\"data\":[[\"1.2.3\"]]}", HttpStatusCode.OK)) // get version
             ;
             bool catalogsCalled = false;
@@ -552,7 +548,7 @@ namespace FireboltDotNetSdk.Tests
             cs.Open(); // should succeed
             That(cs.ServerVersion, Is.EqualTo("1.2.3"));
             That(cs.EngineUrl, Is.EqualTo(expectedEngineUrl));
-            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(9));
+            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(8));
             // if catalogs is empty the databases table is used; otherwise the catalogs table is used
             That(catalogsCalled, Is.EqualTo(catalogs.Length > 0));
             That(databasesCalled, Is.EqualTo(catalogs.Length == 0));
