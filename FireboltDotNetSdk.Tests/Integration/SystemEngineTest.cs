@@ -79,7 +79,9 @@ namespace FireboltDotNetSdk.Tests
         {
             try
             {
-                var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT); SELECT * FROM dummy");
+                var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT)");
+                command.ExecuteNonQuery();
+                command = CreateCommand("SELECT * FROM dummy");
                 string errorMessage = ((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => { command.ExecuteNonQuery(); }))?.Response ?? "";
                 Assert.True(new Regex("Run this (query|statement) on a user engine.").Match(errorMessage).Success);
             }
