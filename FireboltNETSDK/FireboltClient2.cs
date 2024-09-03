@@ -40,21 +40,6 @@ public class FireboltClient2 : FireboltClient
         _account = account;
     }
 
-    /// <param name="account"></param>
-    /// <param name="cancellationToken">
-    ///     A cancellation token that can be used by other objects or threads to receive notice of
-    ///     cancellation.
-    /// </param>
-    /// <summary>
-    ///     Returns Account id by account name given.
-    /// </summary>
-    /// <returns>A successful response.</returns>
-    /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public override async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string accountName, CancellationToken cancellationToken)
-    {
-        return await GetAccountField<GetAccountIdByNameResponse>("resolve", accountName);
-    }
-
     /// <summary>
     ///     Authenticates the user with Firebolt.
     /// </summary>
@@ -122,7 +107,6 @@ public class FireboltClient2 : FireboltClient
             systemEngineUrlCache[cacheKey] = systemEngineUrl;
             string[] urlParts = systemEngineUrl.Split('?');
             _connection.EngineUrl = urlParts[0];
-            string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
             if (urlParts.Length > 1)
             {
                 ProcessParameters(new FireboltConnectionStringBuilder(_connection.ConnectionString), ExtractParameters(urlParts[1]), false);
@@ -251,4 +235,9 @@ public class FireboltClient2 : FireboltClient
         systemEngineUrlCache.Clear();
     }
 
+    public override Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
+    {
+        // For 2.0 this is a no-op as account id is fetched during use engine command
+        return Task.FromResult(new GetAccountIdByNameResponse() { id = null });
+    }
 }

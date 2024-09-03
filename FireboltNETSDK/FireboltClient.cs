@@ -401,10 +401,6 @@ public abstract class FireboltClient
                         }
                         break;
                     case "account_id":
-                        if (!string.IsNullOrEmpty(_connection.AccountId) && !_connection.AccountId.Equals(kv[1]))
-                        {
-                            throw new FireboltException("Failed to execute command. Account parameter mismatch. Contact support");
-                        }
                         _connection.AccountId = kv[1];
                         break;
                     default:
