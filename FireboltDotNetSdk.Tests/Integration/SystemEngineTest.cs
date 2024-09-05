@@ -350,7 +350,7 @@ namespace FireboltDotNetSdk.Tests
                 var badConnection = new FireboltConnection(connectionString);
                 badConnection.CleanupCache();
 
-                Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => badConnection.Open()))?.Message, Does.Match("([Aa]ccount '.+?' does not exist)|(Received an unexpected status code from the server)"));
+                Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => badConnection.Open()))?.Message, Does.Contain("not authorized"));
             }
             finally
             {
