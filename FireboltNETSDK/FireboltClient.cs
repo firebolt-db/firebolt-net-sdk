@@ -244,7 +244,7 @@ public abstract class FireboltClient
         //Add access token only when it is required for the request
         if (needsAccessToken)
         {
-            AddAccessToken(request);
+            await AddAccessToken(request);
         }
 
         var response = await _httpClient
@@ -416,7 +416,7 @@ public abstract class FireboltClient
         return shouldUpdateConnection;
     }
 
-    private async void AddAccessToken(HttpRequestMessage request)
+    private async Task AddAccessToken(HttpRequestMessage request)
     {
         if (string.IsNullOrEmpty(_token))
         {
