@@ -107,7 +107,7 @@ public class FireboltClient2 : FireboltClient
             systemEngineUrlCache[cacheKey] = systemEngineUrl;
             string[] urlParts = systemEngineUrl.Split('?');
             _connection.EngineUrl = urlParts[0];
-            string? accountId = _connection.AccountId; // initializes InfraVersion and connection.accountId
+            _connection.InfraVersion = 2;
             if (urlParts.Length > 1)
             {
                 ProcessParameters(new FireboltConnectionStringBuilder(_connection.ConnectionString), ExtractParameters(urlParts[1]), false);
@@ -239,6 +239,7 @@ public class FireboltClient2 : FireboltClient
     public override Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
     {
         // For 2.0 this is a no-op as account id is fetched during use engine command
+        // Keeping this implementation since connection is independent of 1.0 and 2.0
         return Task.FromResult(new GetAccountIdByNameResponse() { id = null, infraVersion = 2 });
     }
 }
