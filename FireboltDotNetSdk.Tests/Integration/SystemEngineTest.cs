@@ -82,16 +82,21 @@ namespace FireboltDotNetSdk.Tests
                 var command = CreateCommand("CREATE TABLE IF NOT EXISTS dummy(id INT)");
                 command.ExecuteNonQuery();
                 command = CreateCommand("SELECT * FROM dummy");
-                string errorMessage = ((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => { command.ExecuteNonQuery(); }))?.Response ?? "";
-                Assert.True(new Regex("Run this (query|statement) on a user engine.").Match(errorMessage).Success);
+                string errorMessage = "";
+                try
+                {
+                    command.ExecuteNonQuery();
+                }
+                catch (FireboltException e)
+                {
+                    errorMessage = e.Message;
+                }
+                Assert.That(new Regex("Run this (query|statement) on a user engine.").Match(errorMessage).Success, Is.True);
+
             }
             finally
             {
-                try
-                {
-                    CreateCommand("DROP TABLE dummy").ExecuteNonQuery();
-                }
-                catch (FireboltException) { };
+                CreateCommand("DROP TABLE IF EXISTS dummy").ExecuteNonQuery();
             }
         }
 
@@ -337,10 +342,6 @@ namespace FireboltDotNetSdk.Tests
 
                 string clientId = reader.GetString(1);
                 string clientSecret = reader.GetString(2);
-                if (string.IsNullOrEmpty(clientId)) // Currently this is bugged so retrieve id via a query. FIR-28719
-                {
-                    clientId = (string)CreateCommand($"SELECT service_account_id FROM information_schema.service_accounts WHERE service_account_name='{sa_account_name}'").ExecuteScalar()!;
-                }
                 string connectionString = ConnectionString(new Tuple<string, string?>[]
                 {
                     Tuple.Create<string, string?>(nameof(ClientId), clientId),
