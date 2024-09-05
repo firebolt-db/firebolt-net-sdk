@@ -273,7 +273,17 @@ namespace FireboltDotNetSdk.Tests
             DbConnection connection = new FireboltConnection(connString1);
             connection.Open();
             assertSelect(connection.CreateCommand());
-            Assert.Throws<E>(() => connection.ConnectionString = connString2);
+            System.Exception? e = null;
+            try
+            {
+                connection.ConnectionString = connString2;
+            }
+            catch (System.Exception exception)
+            {
+                connection.Close();
+                e = exception;
+            }
+            Assert.That(e, Is.InstanceOf<E>());
         }
 
         private void assertSelect(DbCommand command)
