@@ -19,7 +19,7 @@ jobs:
     needs: integration-tests
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT }}
@@ -42,7 +42,7 @@ jobs:
         shell: bash
 
       - name: Checkout release action repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: firebolt-db/action-python-release
           path: release_action
@@ -77,7 +77,7 @@ jobs:
 
       - name: Set up .NET 6.0
         id: dotnet-setup
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 6.0
           
