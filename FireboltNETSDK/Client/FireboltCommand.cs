@@ -178,15 +178,19 @@ namespace FireboltDotNetSdk.Client
             {
                 commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
                 SetParamList.Add(commandText);
-                try
+                if (Connection != null)
                 {
-                    Connection?.ValidateConnection();
+                    try
+                    {
+                        await Connection.ValidateConnection(cancellationToken);
+                    }
+                    catch (FireboltException e)
+                    {
+                        SetParamList.Remove(commandText);
+                        throw e;
+                    }
                 }
-                catch (FireboltException e)
-                {
-                    SetParamList.Remove(commandText);
-                    throw e;
-                }
+
                 return await Task.FromResult<string?>(null);
             }
             string newCommandText = commandText;
@@ -214,16 +218,17 @@ namespace FireboltDotNetSdk.Client
 
         protected override Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                throw new TaskCanceledException();
-            }
-            CancellationTokenRegistration registration = new CancellationTokenRegistration();
             if (cancellationToken.CanBeCanceled)
             {
-                registration = cancellationToken.Register(Cancel);
+                cancellationToken.Register(Cancel);
             }
-            return ExecuteCommandAsync(StrictCommandText, cancellationToken).ContinueWith(result => CreateDbDataReader(CreateQueryResult(result.Result)));
+            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (CommandTimeoutMillis != 0)
+            {
+                // Add token timeout
+                linkedTokenSource.CancelAfter(CommandTimeoutMillis);
+            }
+            return ExecuteCommandAsync(StrictCommandText, linkedTokenSource.Token).ContinueWith(result => CreateDbDataReader(CreateQueryResult(result.Result)));
         }
 
         public override Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken)

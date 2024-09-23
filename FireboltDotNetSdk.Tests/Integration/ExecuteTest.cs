@@ -108,10 +108,12 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Timeout(60000)]
-        [TestCase(20)]
-        [TestCase(null)] // timeout is not set, i.e. default = 30 sec is used
+        [TestCase(20, false)]
+        [TestCase(20, true)]
+        [TestCase(null, false)] // timeout is not set, i.e. default = 30 sec is used
+        [TestCase(null, true)]
         [Category("general")]
-        public void WithTimeout(int? timeout)
+        public void WithTimeout(int? timeout, bool async)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
@@ -121,18 +123,34 @@ namespace FireboltDotNetSdk.Tests
             {
                 command.CommandTimeout = (int)timeout;
             }
-            Assert.ThrowsAsync<TaskCanceledException>(command.ExecuteReaderAsync); // works
+
+            if (async)
+            {
+                Assert.ThrowsAsync<AggregateException>(command.ExecuteReaderAsync);
+            }
+            else
+            {
+                Assert.Throws<TaskCanceledException>(() => command.ExecuteReader());
+            }
         }
 
-        [Test]
-        public async Task WithZeroTimeout()
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task WithZeroTimeout(bool async)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SELECT checksum(*) FROM GENERATE_SERIES(1, 3000000000)";
             command.CommandTimeout = 0;
-            await command.ExecuteReaderAsync(); // works
+            if (async)
+            {
+                await command.ExecuteReaderAsync(); // works
+            }
+            else
+            {
+                command.ExecuteReader(); // works
+            }
         }
 
         [Timeout(20)]
