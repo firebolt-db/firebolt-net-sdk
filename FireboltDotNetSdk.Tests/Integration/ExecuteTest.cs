@@ -39,7 +39,7 @@ namespace FireboltDotNetSdk.Tests
         private static string INSERT = "INSERT INTO ALL_TYPES (i, n, bi, r, dec, dp, t, d, ts, tstz, b, ba) VALUES (@i, @n, @bi, @r, @dec, @dp, @t, @d, @ts, @tstz, @b, @ba)";
         private static string SELECT_ALL_SIMPLE = "SELECT * FROM ALL_TYPES";
         private static string SELECT_WHERE_SIMPLE = "SELECT * FROM ALL_TYPES WHERE i = @i";
-        private static string LONG_QUERY = "SELECT checksum(*) FROM GENERATE_SERIES(1, 3000000000)";
+        private static string LONG_QUERY = "SELECT checksum(*) FROM GENERATE_SERIES(1, 300000000000)";
 
         [TestCase("SELECT 1")]
         [TestCase("SELECT 1, 'a'")]
@@ -107,7 +107,7 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [TestCase(0)] // 0 means infinite
+        [Timeout(60000)]
         [TestCase(20)]
         [TestCase(null)] // timeout is not set, i.e. default = 30 sec is used
         [Category("general")]
@@ -121,7 +121,28 @@ namespace FireboltDotNetSdk.Tests
             {
                 command.CommandTimeout = (int)timeout;
             }
-            Assert.NotNull(command.ExecuteReader()); // works
+            Assert.ThrowsAsync<TaskCanceledException>(command.ExecuteReaderAsync); // works
+        }
+
+        [Test]
+        public async Task WithZeroTimeout()
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = "SELECT checksum(*) FROM GENERATE_SERIES(1, 3000000000)";
+            command.CommandTimeout = 0;
+            await command.ExecuteReaderAsync(); // works
+        }
+
+        [Timeout(20)]
+        public void TimeoutThrowsError()
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = LONG_QUERY;
+            command.CommandTimeout = 10;
         }
 
         [Test]
