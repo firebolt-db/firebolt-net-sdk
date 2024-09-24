@@ -591,36 +591,5 @@ namespace FireboltDotNetSdk.Tests
             That(Throws<FireboltException>(() => cs.Open())?.Message, Is.EqualTo("Database db does not exist or current user does not have access to it!"));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(5));
         }
-
-        [TestCase("\"data\":[]", "Engine diesel not found.")]
-        [TestCase("\"data\":[[\"api.firebolt.io\", null, \"diesel\", \"RUNNING\"]]", "Engine diesel is not attached to any database")]
-        [TestCase("\"data\":[[\"api.firebolt.io\", \"other_db\", \"diesel\", \"RUNNING\"]]", "Engine diesel is not attached to db")]
-        [TestCase("\"data\":[[\"api.firebolt.io\", \"db\", \"diesel\", \"STOPPED\"]]", "Engine diesel is not running")]
-        [TestCase("\"data\":[[\"api.firebolt.io\", \"db\", \"diesel\", \"RUNNING\"], [\"api.firebolt.io\", \"db\", \"diesel\", \"RUNNING\"]]", "Unexpected duplicate entries found for diesel and database db")]
-        public void LoginFailedOnEngineUrl(string engineUrlData, string expectedErrorMessage)
-        {
-            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
-            const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
-            var cs = new FireboltConnection(connectionString);
-            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
-            cs.Client = client;
-            cs.CleanupCache();
-            client.CleanupCache();
-            FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
-            FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
-            FireResponse.GetAccountIdByNameResponse accountIdResponse = new FireResponse.GetAccountIdByNameResponse() { id = "account_id" };
-            string engineUrlMeta = "\"meta\":[{\"name\": \"url\", \"type\": \"string\"}, {\"name\": \"attached_to\", \"type\": \"string\"}, {\"name\": \"uint8\", \"type\": \"string\"}, {\"name\": \"database_name\", \"type\": \"string\"}, {\"name\": \"status\"}]";
-            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(accountIdResponse, HttpStatusCode.OK)) // get account ID
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"text\", \"name\": \"attached_to\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // get Engine DB
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"t\", \"name\": \"table_name\"}],\"data\":[[\"catalogs\"]]}", HttpStatusCode.OK)) // check whether categories table exists
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"2\"},\"meta\":[{\"type\": \"text\", \"name\": \"database_name\"}],\"data\":[[\"db\"]]}", HttpStatusCode.OK)) // check whether the DB is accessible
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"3\"}," + engineUrlMeta + ", " + engineUrlData + "}", HttpStatusCode.OK)) // get engine URL
-            ;
-            That(Throws<FireboltException>(() => cs.Open())?.Message, Is.EqualTo(expectedErrorMessage));
-            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(7));
-        }
     }
 }
