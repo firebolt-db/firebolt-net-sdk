@@ -247,13 +247,21 @@ namespace FireboltDotNetSdk.Tests
             SetConnectionStringFirstGoodThenWrong<E>(connString1, connString2);
         }
 
-        [TestCase(nameof(Account))]
-        [TestCase(nameof(Database))]
+        [Test]
         [Category("general")]
-        public void SetFieldUsingConnectionStringFirstGoodThenWrong(string fieldName)
+        public void SetAccountUsingConnectionStringFirstGoodThenWrong()
         {
             var connString1 = ConnectionString();
-            var connString2 = ConnectionString(new Tuple<string, string?>(fieldName, "WRONG"));
+            var connString2 = ConnectionString(new Tuple<string, string?>(nameof(Account), "WRONG"));
+            SetConnectionStringFirstGoodThenWrong<FireboltException>(connString1, connString2);
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void SetDatabaseUsingConnectionStringFirstGoodThenWrong()
+        {
+            var connString1 = ConnectionString();
+            var connString2 = ConnectionString(new Tuple<string, string?>(nameof(Database), "WRONG"));
             SetConnectionStringFirstGoodThenWrong<FireboltException>(connString1, connString2);
         }
 
