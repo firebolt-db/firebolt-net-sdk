@@ -173,22 +173,19 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Client is undefined. Initialize connection properly");
             }
-            var engineUrl = Connection?.EngineUrl;
+            var engineUrl = Connection.EngineUrl;
             if (commandText.Trim().ToUpper().StartsWith("SET"))
             {
                 commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
                 SetParamList.Add(commandText);
-                if (Connection != null)
+                try
                 {
-                    try
-                    {
-                        await Connection.ValidateConnection(cancellationToken);
-                    }
-                    catch (FireboltException e)
-                    {
-                        SetParamList.Remove(commandText);
-                        throw e;
-                    }
+                    await Connection.ValidateConnection(cancellationToken);
+                }
+                catch (FireboltException e)
+                {
+                    SetParamList.Remove(commandText);
+                    throw e;
                 }
 
                 return await Task.FromResult<string?>(null);
