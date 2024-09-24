@@ -337,7 +337,8 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SET foo=bar";
-            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<AggregateException>(), () => command.ExecuteNonQuery());
+            AggregateException? outerException = (AggregateException?)Assert.Throws(Is.InstanceOf<AggregateException>(), () => command.ExecuteNonQuery());
+            FireboltException? exception = (FireboltException?)outerException!.InnerExceptions[0].InnerException;
             Assert.NotNull(exception);
             Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
             Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
@@ -357,7 +358,8 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
 
             command.CommandText = "SET foo=bar";
-            FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<AggregateException>(), () => command.ExecuteNonQuery());
+            AggregateException? outerException = (AggregateException?)Assert.Throws(Is.InstanceOf<AggregateException>(), () => command.ExecuteNonQuery());
+            FireboltException? exception = (FireboltException?)outerException!.InnerExceptions[0].InnerException;
             Assert.NotNull(exception);
             Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
             Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
