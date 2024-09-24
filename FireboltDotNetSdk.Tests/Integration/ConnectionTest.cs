@@ -10,8 +10,7 @@ namespace FireboltDotNetSdk.Tests
     internal class ConnectionTest : IntegrationTest
     {
         [TestCase(true, false, true, Description = "Connect without engine but with database", Category = "v1")]
-        [TestCase(false, true, true, Description = "Connect with engine but without database; used default database", Category = "v2")]
-        [TestCase(false, false, false, Description = "Connect without engine and without database", Category = "v2,engine-v2")]
+        [TestCase(false, false, false, Description = "Connect without engine and without database", Category = "engine-v2")]
         [TestCase(false, true, false, Description = "Connect with engine but without database", Category = "engine-v2")]
         [TestCase(true, true, true, Description = "Connect with both engine and database", Category = "v1,v2,engine-v2")]
         public void SuccessfulConnectTest(bool useDatabase, bool useEngine, bool expectsDatabase)
@@ -93,7 +92,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void ChangeDatabaseToNotExistingWhenConnectionIsOpen()
         {
             var connString = ConnectionString();
@@ -104,7 +103,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void ChangeDatabaseToNotExistingWhenConnectionIsNotOpen()
         {
             var connString = ConnectionString();
@@ -115,7 +114,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void ChangeDatabaseToExistingWhenConnectionIsOpen()
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Database), "DOES_NOT_EXIST"));
@@ -248,13 +247,21 @@ namespace FireboltDotNetSdk.Tests
             SetConnectionStringFirstGoodThenWrong<E>(connString1, connString2);
         }
 
-        [TestCase(nameof(Account))]
-        [TestCase(nameof(Database))]
+        [Test]
         [Category("general")]
-        public void SetFieldUsingConnectionStringFirstGoodThenWrong(string fieldName)
+        public void SetAccountUsingConnectionStringFirstGoodThenWrong()
         {
             var connString1 = ConnectionString();
-            var connString2 = ConnectionString(new Tuple<string, string?>(fieldName, "WRONG"));
+            var connString2 = ConnectionString(new Tuple<string, string?>(nameof(Account), "WRONG"));
+            SetConnectionStringFirstGoodThenWrong<FireboltException>(connString1, connString2);
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void SetDatabaseUsingConnectionStringFirstGoodThenWrong()
+        {
+            var connString1 = ConnectionString();
+            var connString2 = ConnectionString(new Tuple<string, string?>(nameof(Database), "WRONG"));
             SetConnectionStringFirstGoodThenWrong<FireboltException>(connString1, connString2);
         }
 

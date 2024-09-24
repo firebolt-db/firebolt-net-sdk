@@ -182,7 +182,7 @@ namespace FireboltDotNetSdk.Client
                 {
                     await Connection.ValidateConnection(cancellationToken);
                 }
-                catch (FireboltException e)
+                catch (AggregateException e)
                 {
                     SetParamList.Remove(commandText);
                     throw e;
