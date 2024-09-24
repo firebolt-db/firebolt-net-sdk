@@ -92,7 +92,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void ChangeDatabaseToNotExistingWhenConnectionIsOpen()
         {
             var connString = ConnectionString();
@@ -103,7 +103,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void ChangeDatabaseToNotExistingWhenConnectionIsNotOpen()
         {
             var connString = ConnectionString();
@@ -114,7 +114,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void ChangeDatabaseToExistingWhenConnectionIsOpen()
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Database), "DOES_NOT_EXIST"));
