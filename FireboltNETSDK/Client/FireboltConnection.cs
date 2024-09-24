@@ -330,7 +330,7 @@ namespace FireboltDotNetSdk.Client
                 EngineUrl = response.EngineUrl;
                 _isSystem = response.IsSystem;
                 _database = response.Database;
-                ValidateConnection();
+                await ValidateConnection();
                 OnSessionEstablished();
                 return EngineUrl != null;
             }
@@ -341,9 +341,9 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        internal void ValidateConnection()
+        internal async Task ValidateConnection(CancellationToken? cancellationToken = null)
         {
-            CreateDbCommand("SELECT 1").ExecuteScalar();
+            await CreateDbCommand("SELECT 1").ExecuteScalarAsync(cancellationToken ?? CancellationToken.None);
         }
 
         private FireboltClient CreateClient()

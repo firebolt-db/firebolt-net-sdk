@@ -39,7 +39,7 @@ namespace FireboltDotNetSdk.Tests
         private static string INSERT = "INSERT INTO ALL_TYPES (i, n, bi, r, dec, dp, t, d, ts, tstz, b, ba) VALUES (@i, @n, @bi, @r, @dec, @dp, @t, @d, @ts, @tstz, @b, @ba)";
         private static string SELECT_ALL_SIMPLE = "SELECT * FROM ALL_TYPES";
         private static string SELECT_WHERE_SIMPLE = "SELECT * FROM ALL_TYPES WHERE i = @i";
-        private static string LONG_QUERY = "SELECT checksum(*) FROM GENERATE_SERIES(1, 3000000000)";
+        private static string LONG_QUERY = "SELECT checksum(*) FROM GENERATE_SERIES(1, 300000000000)";
 
         [TestCase("SELECT 1")]
         [TestCase("SELECT 1, 'a'")]
@@ -107,11 +107,13 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [TestCase(0)] // 0 means infinite
-        [TestCase(20)]
-        [TestCase(null)] // timeout is not set, i.e. default = 30 sec is used
+        [Timeout(60000)]
+        [TestCase(20, false)]
+        [TestCase(20, true)]
+        [TestCase(null, false)] // timeout is not set, i.e. default = 30 sec is used
+        [TestCase(null, true)]
         [Category("general")]
-        public void WithTimeout(int? timeout)
+        public void WithTimeout(int? timeout, bool async)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
@@ -121,7 +123,34 @@ namespace FireboltDotNetSdk.Tests
             {
                 command.CommandTimeout = (int)timeout;
             }
-            Assert.NotNull(command.ExecuteReader()); // works
+
+            if (async)
+            {
+                Assert.ThrowsAsync<AggregateException>(command.ExecuteReaderAsync);
+            }
+            else
+            {
+                Assert.Throws<TaskCanceledException>(() => command.ExecuteReader());
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task WithZeroTimeout(bool async)
+        {
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = "SELECT checksum(*) FROM GENERATE_SERIES(1, 3000000000)";
+            command.CommandTimeout = 0;
+            if (async)
+            {
+                await command.ExecuteReaderAsync(); // works
+            }
+            else
+            {
+                command.ExecuteReader(); // works
+            }
         }
 
         [Test]
