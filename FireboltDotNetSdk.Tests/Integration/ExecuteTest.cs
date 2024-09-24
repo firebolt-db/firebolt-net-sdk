@@ -153,16 +153,6 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [Timeout(20)]
-        public void TimeoutThrowsError()
-        {
-            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
-            conn.Open();
-            DbCommand command = conn.CreateCommand();
-            command.CommandText = LONG_QUERY;
-            command.CommandTimeout = 10;
-        }
-
         [Test]
         [Category("general")]
         public void ShortTimeout()
