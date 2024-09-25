@@ -176,7 +176,7 @@ namespace FireboltDotNetSdk.Tests
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
             FireboltCommand command = new FireboltCommand(conn, LONG_QUERY) { CommandTimeoutMillis = 1 };
-            Assert.Throws<TaskCanceledException>(() => command.ExecuteReader());
+            Assert.Throws<FireboltTimeoutException>(() => command.ExecuteReader());
         }
 
         [TestCase(0)] // 0 means infinite
