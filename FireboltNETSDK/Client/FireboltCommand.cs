@@ -45,6 +45,7 @@ namespace FireboltDotNetSdk.Client
         private static readonly string FORBIDDEN_PROPERTY_ERROR_SET_SUFFIX = "Try again with a different parameter name.";
         private static readonly string USE_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_USE_SUFFIX;
         private static readonly string SET_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_SET_SUFFIX;
+        private static readonly TimeSpan regexTimeout = TimeSpan.FromSeconds(5);
         internal static readonly string BYTE_ARRAY_PREFIX = "\\x";
 
         private FireboltConnection? _connection;
@@ -260,7 +261,7 @@ namespace FireboltDotNetSdk.Client
                 {
                     string pattern = string.Format(@"\{0}\b", parameter.ParameterName);
                     string verifyParameters = GetParamValue(parameter.Value);
-                    commandText = Regex.Replace(commandText, pattern, verifyParameters, RegexOptions.IgnoreCase);
+                    commandText = Regex.Replace(commandText, pattern, verifyParameters, RegexOptions.IgnoreCase, regexTimeout);
                 }
                 return commandText;
             }
