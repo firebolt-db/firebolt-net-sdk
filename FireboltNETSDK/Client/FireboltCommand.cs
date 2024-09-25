@@ -168,7 +168,6 @@ namespace FireboltDotNetSdk.Client
             {
                 return await ExecuteCommandAsync(commandText, cancellationToken);
             }
-            var maxTimeStamp = DateTime.Now + TimeSpan.FromMilliseconds(CommandTimeoutMillis);
             using (var timeoutSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(CommandTimeoutMillis)))
             using (var linkedTokenSource =
                    CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token))
@@ -177,8 +176,7 @@ namespace FireboltDotNetSdk.Client
                 {
                     return await ExecuteCommandAsync(commandText, linkedTokenSource.Token);
                 }
-                catch (TaskCanceledException) when (timeoutSource.IsCancellationRequested &&
-                                                    DateTime.Now >= maxTimeStamp)
+                catch (TaskCanceledException) when (timeoutSource.Token.IsCancellationRequested)
                 {
                     throw new FireboltTimeoutException(CommandTimeoutMillis);
                 }

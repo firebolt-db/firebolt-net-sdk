@@ -154,29 +154,19 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void WithTokenCancel(bool async)
+        [Test]
+        public void WithTokenCancel()
         {
-            // start a query, cancel a token and make sure TokenCancelException is thrown
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandText = LONG_QUERY;
             CancellationTokenSource source = new CancellationTokenSource();
             CancellationToken token = source.Token;
-            if (async)
-            {
-                var task = command.ExecuteReaderAsync(token);
-                source.Cancel();
-                var aggEx = Assert.ThrowsAsync<AggregateException>(async () => await command.ExecuteReaderAsync(token));
-                Assert.That(aggEx?.InnerException, Is.InstanceOf<TaskCanceledException>());
-            }
-            else
-            {
-                source.Cancel();
-                Assert.Throws<TaskCanceledException>(() => command.ExecuteReader());
-            }
+            var task = command.ExecuteReaderAsync(token);
+            source.Cancel();
+            var aggEx = Assert.ThrowsAsync<AggregateException>(async () => await task);
+            Assert.That(aggEx?.InnerException, Is.InstanceOf<TaskCanceledException>());
         }
 
         [Test]
