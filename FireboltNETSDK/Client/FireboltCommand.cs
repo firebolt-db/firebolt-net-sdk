@@ -149,8 +149,7 @@ namespace FireboltDotNetSdk.Client
 
         internal QueryResult? Execute(string commandText)
         {
-            CancellationTokenSource cancellationTokenSource = CommandTimeoutMillis == 0 ? new CancellationTokenSource() : new CancellationTokenSource(CommandTimeoutMillis);
-            return CreateQueryResult(ExecuteCommandAsync(commandText, cancellationTokenSource.Token).GetAwaiter().GetResult());
+            return CreateQueryResult(ExecuteCommandAsyncWithCommandTimeout(commandText, CancellationToken.None).GetAwaiter().GetResult());
         }
 
         private QueryResult? CreateQueryResult(string? response)
@@ -161,6 +160,29 @@ namespace FireboltDotNetSdk.Client
         private DbDataReader CreateDbDataReader(QueryResult? queryResult)
         {
             return queryResult != null ? new FireboltDataReader(null, queryResult, 0) : throw new InvalidOperationException("No result produced");
+        }
+
+        private async Task<string?> ExecuteCommandAsyncWithCommandTimeout(string commandText, CancellationToken cancellationToken)
+        {
+            if (CommandTimeoutMillis == 0)
+            {
+                return await ExecuteCommandAsync(commandText, cancellationToken);
+            }
+            var maxTimeStamp = DateTime.Now + TimeSpan.FromMilliseconds(CommandTimeoutMillis);
+            using (var timeoutSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(CommandTimeoutMillis)))
+            using (var linkedTokenSource =
+                   CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token))
+            {
+                try
+                {
+                    return await ExecuteCommandAsync(commandText, linkedTokenSource.Token);
+                }
+                catch (TaskCanceledException) when (timeoutSource.IsCancellationRequested &&
+                                                    DateTime.Now >= maxTimeStamp)
+                {
+                    throw new FireboltTimeoutException(CommandTimeoutMillis);
+                }
+            }
         }
 
         private async Task<string?> ExecuteCommandAsync(string commandText, CancellationToken cancellationToken)
@@ -219,13 +241,8 @@ namespace FireboltDotNetSdk.Client
             {
                 cancellationToken.Register(Cancel);
             }
-            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            if (CommandTimeoutMillis != 0)
-            {
-                // Add token timeout
-                linkedTokenSource.CancelAfter(CommandTimeoutMillis);
-            }
-            return ExecuteCommandAsync(StrictCommandText, linkedTokenSource.Token).ContinueWith(result => CreateDbDataReader(CreateQueryResult(result.Result)));
+            return ExecuteCommandAsyncWithCommandTimeout(StrictCommandText, cancellationToken).ContinueWith(
+                result => CreateDbDataReader(CreateQueryResult(result.Result)));
         }
 
         public override Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken)

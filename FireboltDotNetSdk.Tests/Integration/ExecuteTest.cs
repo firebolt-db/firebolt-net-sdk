@@ -126,11 +126,12 @@ namespace FireboltDotNetSdk.Tests
 
             if (async)
             {
-                Assert.ThrowsAsync<AggregateException>(command.ExecuteReaderAsync);
+                var aggEx = Assert.ThrowsAsync<AggregateException>(command.ExecuteReaderAsync);
+                Assert.That(aggEx?.InnerException, Is.InstanceOf<FireboltTimeoutException>());
             }
             else
             {
-                Assert.Throws<TaskCanceledException>(() => command.ExecuteReader());
+                Assert.Throws<FireboltTimeoutException>(() => command.ExecuteReader());
             }
         }
 
@@ -150,6 +151,31 @@ namespace FireboltDotNetSdk.Tests
             else
             {
                 command.ExecuteReader(); // works
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void WithTokenCancel(bool async)
+        {
+            // start a query, cancel a token and make sure TokenCancelException is thrown
+            using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
+            conn.Open();
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = LONG_QUERY;
+            CancellationTokenSource source = new CancellationTokenSource();
+            CancellationToken token = source.Token;
+            if (async)
+            {
+                var task = command.ExecuteReaderAsync(token);
+                source.Cancel();
+                var aggEx = Assert.ThrowsAsync<AggregateException>(async () => await command.ExecuteReaderAsync(token));
+                Assert.That(aggEx?.InnerException, Is.InstanceOf<TaskCanceledException>());
+            }
+            else
+            {
+                source.Cancel();
+                Assert.Throws<TaskCanceledException>(() => command.ExecuteReader());
             }
         }
 
