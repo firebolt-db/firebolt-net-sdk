@@ -203,10 +203,10 @@ namespace FireboltDotNetSdk.Client
                 {
                     await Connection.ValidateConnection(cancellationToken);
                 }
-                catch (AggregateException e)
+                catch (AggregateException)
                 {
                     SetParamList.Remove(commandText);
-                    throw e;
+                    throw;
                 }
 
                 return await Task.FromResult<string?>(null);
