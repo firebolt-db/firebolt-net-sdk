@@ -218,7 +218,7 @@ public class FireboltClient2 : FireboltClient
         command.Parameters.Add(new FireboltParameter(paramName, paramValue));
         return await command.ExecuteReaderAsync();
     }
-    
+
     private async Task<int> Execute(string query)
     {
         return await CreateCommand(query).ExecuteNonQueryAsync();
