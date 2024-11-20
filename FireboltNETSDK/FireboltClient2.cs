@@ -115,15 +115,15 @@ public class FireboltClient2 : FireboltClient
         }
         if (engineName == null || FireboltConnection.SYSTEM_ENGINE.Equals(engineName))
         {
-            return ConnectToSystemEngine(_connection.InfraVersion, database);
+            return await ConnectToSystemEngine(_connection.InfraVersion, database);
         }
         // Engine is specified
-        return ConnectToCustomEngine(_connection.InfraVersion, engineName, database);
+        return await ConnectToCustomEngine(_connection.InfraVersion, engineName, database);
     }
 
-    private ConnectionResponse ConnectToSystemEngine(int infraVersion, string database)
+    private async Task<ConnectionResponse> ConnectToSystemEngine(int infraVersion, string database)
     {
-        Execute("select 1"); // needed to get the InfraVersion back
+        await Execute("select 1"); // needed to get the InfraVersion back
         if (_connection.InfraVersion == 2)
         {
             _protocolVersion = PROTOCOL_VERSION;
@@ -132,27 +132,27 @@ public class FireboltClient2 : FireboltClient
     }
 
 
-    private ConnectionResponse ConnectToCustomEngine(int infraVersion, string engineName, string database)
+    private async Task<ConnectionResponse> ConnectToCustomEngine(int infraVersion, string engineName, string database)
     {
         switch (infraVersion)
         {
-            case 1: return ConnectToCustomEngineUsingInformationSchema(engineName, database);
+            case 1: return await ConnectToCustomEngineUsingInformationSchema(engineName, database);
             case 2:
                 _protocolVersion = PROTOCOL_VERSION;
-                return ConnectToCustomEngineUsingResponseHeaders(engineName, database);
+                return await ConnectToCustomEngineUsingResponseHeaders(engineName, database);
             default: throw new FireboltException($"Unexpected infrastructure version {infraVersion}");
         }
     }
 
-    private ConnectionResponse ConnectToCustomEngineUsingInformationSchema(string engineName, string database)
+    private async Task<ConnectionResponse> ConnectToCustomEngineUsingInformationSchema(string engineName, string database)
     {
         if (database == string.Empty)
         {
             // If no db provided - try to fetch it
-            database = GetEngineDatabase(engineName) ?? throw new FireboltException($"Engine {engineName} is attached to a database current user can not access");
+            database = await GetEngineDatabase(engineName) ?? throw new FireboltException($"Engine {engineName} is attached to a database current user can not access");
         }
-        string dbTerm = GetDatabaseTable();
-        var hasAccess = IsDatabaseAccessible(dbTerm, database);
+        string dbTerm = await GetDatabaseTable();
+        var hasAccess = await IsDatabaseAccessible(dbTerm, database);
         if (!hasAccess)
         {
             throw new FireboltException($"Database {database} does not exist or current user does not have access to it!");
@@ -162,8 +162,8 @@ public class FireboltClient2 : FireboltClient
                     LEFT JOIN information_schema.{0}s as dbs
                     ON engs.attached_to = dbs.{0}_name
                     WHERE engs.engine_name = @EngineName";
-        DbDataReader reader = Query(string.Format(query, dbTerm), "@EngineName", engineName);
-        if (!reader.Read())
+        DbDataReader reader = await Query(string.Format(query, dbTerm), "@EngineName", engineName);
+        if (!await reader.ReadAsync())
         {
             throw new FireboltException($"Engine {engineName} not found.");
         }
@@ -179,49 +179,49 @@ public class FireboltClient2 : FireboltClient
         {
             throw new FireboltException($"Engine {engineName} is not running");
         }
-        if (reader.Read())
+        if (await reader.ReadAsync())
         {
             throw new FireboltException($"Unexpected duplicate entries found for {engineName} and database {database}");
         }
         return new ConnectionResponse(reader.GetString(0).Split("?", 2)[0], database ?? string.Empty, false);
     }
 
-    private ConnectionResponse ConnectToCustomEngineUsingResponseHeaders(string engineName, string database)
+    private async Task<ConnectionResponse> ConnectToCustomEngineUsingResponseHeaders(string engineName, string database)
     {
         if (!string.IsNullOrEmpty(database))
         {
-            Execute($"USE DATABASE \"{database}\"");
+            await Execute($"USE DATABASE \"{database}\"");
         }
-        Execute($"USE ENGINE \"{engineName}\"");
+        await Execute($"USE ENGINE \"{engineName}\"");
         return new ConnectionResponse(_connection.EngineUrl, database ?? string.Empty, false);
     }
 
-    private string? GetEngineDatabase(string engineName)
+    private async Task<string?> GetEngineDatabase(string engineName)
     {
-        DbDataReader reader = Query("SELECT attached_to FROM information_schema.engines WHERE engine_name=@EngineName", "@EngineName", engineName);
-        return reader.Read() ? reader.GetString(0) : null;
+        DbDataReader reader = await Query("SELECT attached_to FROM information_schema.engines WHERE engine_name=@EngineName", "@EngineName", engineName);
+        return await reader.ReadAsync() ? reader.GetString(0) : null;
     }
 
-    private string GetDatabaseTable()
+    private async Task<string> GetDatabaseTable()
     {
-        return Query(string.Format(DB_QUERY, "table"), "@Name", "catalogs").Read() ? "catalog" : "database";
+        return await (await Query(string.Format(DB_QUERY, "table"), "@Name", "catalogs")).ReadAsync() ? "catalog" : "database";
     }
 
-    private bool IsDatabaseAccessible(string table, string database)
+    private async Task<bool> IsDatabaseAccessible(string table, string database)
     {
-        return Query(string.Format(DB_QUERY, table), "@Name", database).Read();
+        return await (await Query(string.Format(DB_QUERY, table), "@Name", database)).ReadAsync();
     }
 
-    private DbDataReader Query(string query, string paramName, string paramValue)
+    private async Task<DbDataReader> Query(string query, string paramName, string paramValue)
     {
         var command = CreateCommand(query);
         command.Parameters.Add(new FireboltParameter(paramName, paramValue));
-        return command.ExecuteReader();
+        return await command.ExecuteReaderAsync();
     }
 
-    private int Execute(string query)
+    private async Task<int> Execute(string query)
     {
-        return CreateCommand(query).ExecuteNonQuery();
+        return await CreateCommand(query).ExecuteNonQueryAsync();
     }
 
     private DbCommand CreateCommand(string sql)

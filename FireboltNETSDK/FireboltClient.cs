@@ -266,9 +266,9 @@ public abstract class FireboltClient
                     throw new FireboltStructuredException(anyResponse.Object.Errors);
                 }
             }
-            catch (FireboltStructuredException exception)
+            catch (FireboltStructuredException)
             {
-                throw exception;
+                throw;
             }
             catch (System.Exception)
             {
