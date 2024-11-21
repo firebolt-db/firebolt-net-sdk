@@ -810,7 +810,7 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SELECT 'blue'::int";
             FireboltException exception = Assert.Throws<FireboltStructuredException>(() => command.ExecuteReader());
-            Assert.That(exception.Message, Does.Contain("Cannot parse string 'blue' as integer"));
+            Assert.That(exception.Message, Does.Contain("Unable to cast text 'blue' to integer"));
         }
 
         private void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)
