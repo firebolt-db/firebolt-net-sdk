@@ -94,6 +94,8 @@ public class ColumnTypeTest
     [TestCase("integer null", FireboltDataType.Int, true)]
     [TestCase("double null", FireboltDataType.Double, true)]
     [TestCase("double", FireboltDataType.Double, false)]
+    [TestCase("geography", FireboltDataType.Geography, false)]
+    [TestCase("geography null", FireboltDataType.Geography, true)]
     public void CreateColumnTypeWithProvidedColumnTypeNamesTest(String columnTypeName, FireboltDataType expectedType, bool expectedIsNullable)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);

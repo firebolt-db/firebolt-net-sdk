@@ -64,7 +64,7 @@ namespace FireboltDotNetSdk.Tests
         {
             Database = EnvWithDefault("FIREBOLT_DATABASE");
             Endpoint = GetEnvironmentVariable("FIREBOLT_ENDPOINT");
-            Env = EnvWithDefault("FIREBOLT_ENV", "dev");
+            Env = EnvWithDefault("FIREBOLT_ENV", "staging");
             // Endpoint is not specified by CI/CD (YAML) for v2 where account and engine name are mandatory.
             Account = Endpoint == null ? EnvWithDefault("FIREBOLT_ACCOUNT") : GetEnvironmentVariable("FIREBOLT_ACCOUNT");
             Engine = Endpoint == null ? EnvWithDefault("FIREBOLT_ENGINE_NAME") : GetEnvironmentVariable("FIREBOLT_ENGINE_NAME");

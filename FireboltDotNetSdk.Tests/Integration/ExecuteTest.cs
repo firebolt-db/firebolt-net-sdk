@@ -813,6 +813,36 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(exception.Message, Does.Contain("Unable to cast text 'blue' to integer"));
         }
 
+        [Test]
+        [Category("v2")]
+        [Category("engine-v2")]
+        public void SelectInsertGeography()
+        {
+            var conn = new FireboltConnection(USER_CONNECTION_STRING); conn.Open();
+            String cleanup = "DROP TABLE IF EXISTS test_geography";
+            String createTableQuery = "CREATE FACT TABLE test_geography (g GEOGRAPHY)";
+            String insertQuery = "INSERT INTO test_geography (g) VALUES (@g)";
+            String selectQuery = "SELECT g FROM test_geography";
+            String point = "POINT(1 2)";
+            String pointHex = "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040";
+
+            CreateCommand(conn, cleanup).ExecuteNonQuery();
+            CreateCommand(conn, createTableQuery).ExecuteNonQuery();
+            DbCommand insert = CreateCommand(conn, insertQuery);
+            insert.Prepare();
+            insert.Parameters.Add(CreateParameter(insert, "@g", point));
+            insert.ExecuteNonQuery();
+
+            DbCommand select = CreateCommand(conn, selectQuery);
+            using (DbDataReader reader = select.ExecuteReader())
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetString(0), Is.EqualTo(pointHex));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(string)));
+                Assert.That(reader.Read(), Is.EqualTo(false));
+            }
+        }
+
         private void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)
         {
             using (var conn = new FireboltConnection(USER_CONNECTION_STRING))

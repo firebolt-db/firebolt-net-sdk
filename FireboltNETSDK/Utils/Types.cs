@@ -4,6 +4,7 @@
 
 using System.Globalization;
 using System.Text.RegularExpressions;
+using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
@@ -15,13 +16,14 @@ namespace FireboltDoNetSdk.Utils
     public enum FireboltDataType
     {
         String, Long, Int, Float, Double, Null, Decimal, Date, DateTime, TimestampNtz, TimestampTz,
-        Boolean, Array, Short, ByteA
+        Boolean, Array, Short, ByteA, Geography
     }
     public static class TypesConverter
     {
 
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
+        private const int matchTimeoutSeconds = 60;
         internal static IDictionary<string, double> doubleInfinity = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
         {
             { "inf", double.PositiveInfinity },
@@ -66,6 +68,7 @@ namespace FireboltDoNetSdk.Utils
                 case FireboltDataType.Decimal:
                     return Convert.ToDecimal(str.Trim('"'));
                 case FireboltDataType.String:
+                case FireboltDataType.Geography:
                     return str;
                 case FireboltDataType.DateTime:
                 case FireboltDataType.TimestampTz:
@@ -145,6 +148,7 @@ namespace FireboltDoNetSdk.Utils
                 "boolean" => FireboltDataType.Boolean,
                 "array" => FireboltDataType.Array,
                 "bytea" => FireboltDataType.ByteA,
+                "geography" => FireboltDataType.Geography,
                 _ => throw new FireboltException("The data type returned from the server is not supported: " + columnType),
             };
             return csharpType;
@@ -152,7 +156,7 @@ namespace FireboltDoNetSdk.Utils
 
         public static string GetFullColumnTypeName(Meta meta)
         {
-            Match nullableMatch = Regex.Match(meta.Type, NullableTypePattern);
+            Match nullableMatch = Regex.Match(meta.Type, NullableTypePattern, RegexOptions.None, TimeSpan.FromSeconds(matchTimeoutSeconds));
             var type = nullableMatch.Success ? nullableMatch.Groups[1].Value : meta.Type;
             return type;
         }
