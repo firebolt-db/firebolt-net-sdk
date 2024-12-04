@@ -825,14 +825,14 @@ namespace FireboltDotNetSdk.Tests
             String selectQuery = "SELECT g FROM test_geography";
             String point = "POINT(1 2)";
             String pointHex = "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040";
-            
+
             CreateCommand(conn, cleanup).ExecuteNonQuery();
             CreateCommand(conn, createTableQuery).ExecuteNonQuery();
             DbCommand insert = CreateCommand(conn, insertQuery);
             insert.Prepare();
             insert.Parameters.Add(CreateParameter(insert, "@g", point));
             insert.ExecuteNonQuery();
-            
+
             DbCommand select = CreateCommand(conn, selectQuery);
             using (DbDataReader reader = select.ExecuteReader())
             {
