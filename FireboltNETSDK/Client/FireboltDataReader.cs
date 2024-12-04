@@ -36,6 +36,7 @@ namespace FireboltDotNetSdk.Client
         private QueryResult _queryResult;
         private int _depth;
         private int _currentRowIndex = -1;
+        private const int matchTimeoutSeconds = 60;
         private static IDictionary<string, Type> typesMap = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
         {
             { "boolean", typeof(bool) },
@@ -282,7 +283,7 @@ namespace FireboltDotNetSdk.Client
 
         private string Remove(string str, string regex)
         {
-            return Regex.Replace(str, regex, "", RegexOptions.IgnoreCase);
+            return Regex.Replace(str, regex, "", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(matchTimeoutSeconds));
         }
 
         private bool IsArrayType(string typeName)
