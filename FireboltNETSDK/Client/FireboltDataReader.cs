@@ -59,6 +59,7 @@ namespace FireboltDotNetSdk.Client
 
             { "string", typeof(string) },
             { "text", typeof(string) },
+            { "geography", typeof(string) },
 
             { "date", typeof(DateTime) },
             { "datetime", typeof(DateTime) },

@@ -819,12 +819,14 @@ namespace FireboltDotNetSdk.Tests
         public void SelectInsertGeography()
         {
             var conn = new FireboltConnection(USER_CONNECTION_STRING); conn.Open();
+            String cleanup = "DROP TABLE IF EXISTS test_geography";
             String createTableQuery = "CREATE FACT TABLE test_geography (g GEOGRAPHY)";
             String insertQuery = "INSERT INTO test_geography (g) VALUES (@g)";
             String selectQuery = "SELECT g FROM test_geography";
             String point = "POINT(1 2)";
             String pointHex = "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040";
             
+            CreateCommand(conn, cleanup).ExecuteNonQuery();
             CreateCommand(conn, createTableQuery).ExecuteNonQuery();
             DbCommand insert = CreateCommand(conn, insertQuery);
             insert.Prepare();

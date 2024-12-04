@@ -15,7 +15,7 @@ namespace FireboltDoNetSdk.Utils
     public enum FireboltDataType
     {
         String, Long, Int, Float, Double, Null, Decimal, Date, DateTime, TimestampNtz, TimestampTz,
-        Boolean, Array, Short, ByteA
+        Boolean, Array, Short, ByteA, Geography
     }
     public static class TypesConverter
     {
@@ -66,6 +66,7 @@ namespace FireboltDoNetSdk.Utils
                 case FireboltDataType.Decimal:
                     return Convert.ToDecimal(str.Trim('"'));
                 case FireboltDataType.String:
+                case FireboltDataType.Geography:
                     return str;
                 case FireboltDataType.DateTime:
                 case FireboltDataType.TimestampTz:
@@ -145,6 +146,7 @@ namespace FireboltDoNetSdk.Utils
                 "boolean" => FireboltDataType.Boolean,
                 "array" => FireboltDataType.Array,
                 "bytea" => FireboltDataType.ByteA,
+                "geography" => FireboltDataType.Geography,
                 _ => throw new FireboltException("The data type returned from the server is not supported: " + columnType),
             };
             return csharpType;
