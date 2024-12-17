@@ -2,6 +2,7 @@
  * Copyright (c) 2022 FireBolt All rights reserved.
  */
 
+using System.Collections;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using FireboltDotNetSdk.Client;
@@ -16,7 +17,7 @@ namespace FireboltDoNetSdk.Utils
     public enum FireboltDataType
     {
         String, Long, Int, Float, Double, Null, Decimal, Date, DateTime, TimestampNtz, TimestampTz,
-        Boolean, Array, Short, ByteA, Geography
+        Boolean, Array, Short, ByteA, Geography, Struct
     }
     public static class TypesConverter
     {
@@ -52,72 +53,116 @@ namespace FireboltDoNetSdk.Utils
             { "0", false },
         };
 
-        public static object? ConvertToCSharpVal(string? val, ColumnType columnType)
+        public static object? ConvertToCSharpVal(object? val, ColumnType columnType)
         {
             if (val == null)
             {
                 return null;
             }
-            string str = val;
-            switch (columnType.Type)
-            {
-                case FireboltDataType.Long:
-                    return Convert.ToInt64(str.Trim('"'));
-                case FireboltDataType.Int:
-                    return Convert.ToInt32(str.Trim('"'));
-                case FireboltDataType.Decimal:
-                    return Convert.ToDecimal(str.Trim('"'));
-                case FireboltDataType.String:
-                case FireboltDataType.Geography:
-                    return str;
-                case FireboltDataType.DateTime:
-                case FireboltDataType.TimestampTz:
-                case FireboltDataType.TimestampNtz:
-                case FireboltDataType.Date:
-                    return ParseDateTime(str);
-                case FireboltDataType.Short:
-                    return Convert.ToInt16(str.Trim('"'));
-                case FireboltDataType.Double:
-                    return doubleInfinity.ContainsKey(str) ? doubleInfinity[str] : Convert.ToDouble(str.Trim('"'), CultureInfo.InvariantCulture);
-                case FireboltDataType.Float:
-                    return floatInfinity.ContainsKey(str) ? floatInfinity[str] : Convert.ToSingle(str.Trim('"'), CultureInfo.InvariantCulture);
-                case FireboltDataType.Boolean:
-                    return ParseBoolean(str);
-                case FireboltDataType.Array:
-                    return ArrayHelper.TransformToSqlArray(str, columnType);
-                case FireboltDataType.ByteA:
-                    return Convert.FromHexString(str.Remove(0, 2));
-                case FireboltDataType.Null:
-                    throw new FireboltException("Not null value in null type");
-                default:
-                    throw new FireboltException("Invalid destination type: " + columnType.Type);
-            }
-        }
 
-        public static bool ParseBoolean(string str)
-        {
-            bool b;
-            return booleanValues.TryGetValue(str, out b) ? b : throw new FormatException($"String '{str}' was not recognized as a valid Boolean.");
-        }
-
-        public static DateTime ParseDateTime(string str)
-        {
-            try
+            return columnType switch
             {
-                return DateTime.ParseExact(str, new[]
+                ArrayType arrayType => ToArray(val, arrayType),
+                StructType structType => ToStruct(val, structType),
+                _ => columnType.Type switch
                 {
-                   "yyyy-MM-dd HH:mm:ss.FFFFFF", // dateTime without timezone
-                   "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone in format +00
-                   "yyyy-MM-dd HH:mm:ss.FFFFFFzzz", // dateTime with timezone in format +00:00
-                    "yyyy-MM-dd" // date only
-                }, CultureInfo.InvariantCulture);
-            }
-            catch (FormatException)
+                    FireboltDataType.Long => Convert.ToInt64(val),
+                    FireboltDataType.Int => Convert.ToInt32(val),
+                    FireboltDataType.Decimal => Convert.ToDecimal(val),
+                    FireboltDataType.String => val.ToString(),
+                    FireboltDataType.Geography => val.ToString(),
+                    FireboltDataType.DateTime => ParseDateTime(val),
+                    FireboltDataType.TimestampTz => ParseDateTime(val),
+                    FireboltDataType.TimestampNtz => ParseDateTime(val),
+                    FireboltDataType.Date => ParseDateTime(val),
+                    FireboltDataType.Short => Convert.ToInt16(val),
+                    FireboltDataType.Double => ParseDouble(val),
+                    FireboltDataType.Float => ParseFloat(val),
+                    FireboltDataType.Boolean => ParseBoolean(val),
+                    FireboltDataType.ByteA => val switch
+                    {
+                        string str => Convert.FromHexString(str.Remove(0, 2)),
+                        _ => throw new FireboltException("Unexpected bytea value type: " + val.GetType())
+                    },
+                    FireboltDataType.Null => throw new FireboltException("Not null value in null type"),
+                    _ => throw new FireboltException("Invalid destination type: " + columnType.Type)
+                }
+            };
+        }
+
+        public static bool ParseBoolean(object val)
+        {
+            return val switch
             {
-                //DateTime.ParseExact does not handle timezones with seconds, so why we try with one last format that supports tz +00:00:00 with OffsetDateTimePattern
-                var pattern = OffsetDateTimePattern.CreateWithInvariantCulture("yyyy-MM-dd HH:mm:ss.FFFFFFo<+HH:mm:ss>");
-                return pattern.Parse(str).Value.InFixedZone().ToDateTimeUtc().ToLocalTime();
+                string str when booleanValues.TryGetValue(str, out bool result) => result,
+                string str => throw new FormatException($"String '{str}' was not recognized as a valid Boolean."),
+                bool b => b,
+                int i => i != 0,
+                _ => throw new FireboltException("Unexpected value type: " + val.GetType())
+            };
+        }
+
+        public static DateTime ParseDateTime(object val)
+        {
+            if (val is string str)
+            {
+                try
+                {
+                    return DateTime.ParseExact(str, new[]
+                    {
+                        "yyyy-MM-dd HH:mm:ss.FFFFFF", // dateTime without timezone
+                        "yyyy-MM-dd HH:mm:ss.FFFFFFz", // dateTime with timezone in format +00
+                        "yyyy-MM-dd HH:mm:ss.FFFFFFzzz", // dateTime with timezone in format +00:00
+                        "yyyy-MM-dd" // date only
+                    }, CultureInfo.InvariantCulture);
+                }
+                catch (FormatException)
+                {
+                    //DateTime.ParseExact does not handle timezones with seconds, so why we try with one last format that supports tz +00:00:00 with OffsetDateTimePattern
+                    var pattern =
+                        OffsetDateTimePattern.CreateWithInvariantCulture("yyyy-MM-dd HH:mm:ss.FFFFFFo<+HH:mm:ss>");
+                    return pattern.Parse(str).Value.InFixedZone().ToDateTimeUtc().ToLocalTime();
+                }
             }
+            throw new FireboltException("Unexpected datetime value type: " + val.GetType());
+        }
+
+        private static double ParseDouble(object val)
+        {
+            return val switch
+            {
+                string str when doubleInfinity.ContainsKey(str) => doubleInfinity[str],
+                double d => d,
+                _ => Convert.ToDouble(val)
+            };
+        }
+
+        private static float ParseFloat(object val)
+        {
+            return val switch
+            {
+                string str when floatInfinity.ContainsKey(str) => floatInfinity[str],
+                float f => f,
+                _ => Convert.ToSingle(val)
+            };
+        }
+
+        private static Array ToArray(object val, ArrayType arrayType)
+        {
+            return val switch
+            {
+                IEnumerable array => array.Cast<object>().Select(x => ConvertToCSharpVal(x, arrayType.InnerType)).ToArray(),
+                _ => throw new FireboltException("Unexpected array value type: " + val.GetType())
+            };
+        }
+
+        private static Dictionary<string, object?> ToStruct(object val, StructType structType)
+        {
+            return val switch
+            {
+                IDictionary<string, object> dict => dict.ToDictionary(x => x.Key, x => ConvertToCSharpVal(x.Value, structType.Fields[x.Key])),
+                _ => throw new FireboltException("Unexpected struct value type: " + val.GetType())
+            };
         }
 
         public static FireboltDataType MapColumnTypeToFireboltDataType(string columnType)
@@ -149,6 +194,7 @@ namespace FireboltDoNetSdk.Utils
                 "array" => FireboltDataType.Array,
                 "bytea" => FireboltDataType.ByteA,
                 "geography" => FireboltDataType.Geography,
+                "struct" => FireboltDataType.Struct,
                 _ => throw new FireboltException("The data type returned from the server is not supported: " + columnType),
             };
             return csharpType;

@@ -9,15 +9,13 @@ public class ColumnType
     public readonly int? Scale;
     public readonly int? Precision;
     public readonly FireboltDataType Type;
-    public ColumnType? InnerType;
     public readonly bool Nullable;
 
-    public ColumnType(int? precision, int? scale, FireboltDataType type, bool nullable, ColumnType? innerType)
+    public ColumnType(int? precision, int? scale, FireboltDataType type, bool nullable)
     {
         Precision = precision;
         Scale = scale;
         Type = type;
-        InnerType = innerType;
         Nullable = nullable;
     }
 
@@ -32,38 +30,32 @@ public class ColumnType
         if (dataType.Equals(FireboltDataType.Array))
         {
             innerDataType = GetInnerTypes(typeWithoutNullKeyword);
+            return new ArrayType(innerDataType, columnTypeWrapper.HasNullableKeyword);
+        }
+        if (dataType.Equals(FireboltDataType.Struct))
+        {
+            return new StructType(new Dictionary<string, ColumnType>(), columnTypeWrapper.HasNullableKeyword);
         }
 
-        String[] arguments;
+
         if (dataType.Equals(FireboltDataType.Decimal) &&
             (!ReachedEndOfTypeName(typeEndIndex, typeWithoutNullKeyword) || typeWithoutNullKeyword.Substring(typeEndIndex).StartsWith("(")))
         {
-            arguments = SplitArguments(typeWithoutNullKeyword, typeEndIndex);
+            String[] arguments = SplitArguments(typeWithoutNullKeyword, typeEndIndex);
             scaleAndPrecisionPair = GetScaleAndPrecision(arguments);
         }
-        return new ColumnType(scaleAndPrecisionPair?.Item1, scaleAndPrecisionPair?.Item2, dataType, columnTypeWrapper.HasNullableKeyword || dataType == FireboltDataType.Null, innerDataType);
+        return new ColumnType(scaleAndPrecisionPair?.Item1, scaleAndPrecisionPair?.Item2, dataType, columnTypeWrapper.HasNullableKeyword || dataType == FireboltDataType.Null);
     }
 
 
     private static FireboltDataType GetFireboltDataTypeFromColumnType(string typeWithoutNullKeyword, int typeEndIndex)
     {
-        string columnType;
-        if (typeWithoutNullKeyword.StartsWith("array"))
-        {
-            columnType = "array";
-        }
-        else if (typeWithoutNullKeyword.StartsWith("decimal"))
-        {
-            columnType = "decimal";
-        }
-        else if (typeWithoutNullKeyword.StartsWith("numeric"))
-        {
-            columnType = "numeric";
-        }
-        else
-        {
-            columnType = typeWithoutNullKeyword.Substring(0, typeEndIndex);
-        }
+
+        List<string> nestedTypes = new List<string> { "array", "decimal", "numeric", "struct" };
+
+        string columnType = nestedTypes.FirstOrDefault(
+            type => typeWithoutNullKeyword.StartsWith(type),
+            typeWithoutNullKeyword.Substring(0, typeEndIndex));
         return TypesConverter.MapColumnTypeToFireboltDataType(columnType);
     }
 
@@ -111,21 +103,6 @@ public class ColumnType
                                                || type.IndexOf(")", typeNameEndIndex) < 0;
     }
 
-    public ColumnType? GetArrayBaseColumnType()
-    {
-        if (InnerType == null)
-        {
-            return null;
-        }
-
-        ColumnType currentInnerType = InnerType;
-        while (currentInnerType.InnerType != null)
-        {
-            currentInnerType = currentInnerType.InnerType;
-        }
-        return currentInnerType;
-    }
-
     private class ColumnTypeWrapper
     {
         internal string Type { get; }
@@ -156,5 +133,25 @@ public class ColumnType
 
             return new ColumnTypeWrapper(type, typeWithoutNullableKeyword, containsNullableKeyword);
         }
+    }
+}
+
+public class ArrayType : ColumnType
+{
+    public ColumnType InnerType;
+
+    public ArrayType(ColumnType innerType, bool nullable) : base(null, null, FireboltDataType.Array, nullable)
+    {
+        InnerType = innerType;
+    }
+}
+
+public class StructType : ColumnType
+{
+    public readonly Dictionary<string, ColumnType> Fields;
+
+    public StructType(Dictionary<string, ColumnType> fields, bool nullable) : base(null, null, FireboltDataType.Struct, nullable)
+    {
+        Fields = fields;
     }
 }

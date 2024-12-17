@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
@@ -19,12 +20,17 @@ public class TypesConverterTest
     [TestCase("nothing", null, null)]
     [TestCase("nullable", null, null)]
     [TestCase("float", "1.5", 1.5f)]
-    [TestCase("array(integer null) null", "[1,2]", new[] { 1, 2 })]
+    [TestCase("float", 1.5f, 1.5f)]
     [TestCase("long", "5555555", 5555555)]
+    [TestCase("long", 5555555, 5555555)]
     [TestCase("int", "12345", 12345)]
+    [TestCase("int", 12345, 12345)]
     [TestCase("integer", "12345", 12345)]
+    [TestCase("integer", 12345, 12345)]
     [TestCase("short", "1234", 1234)]
+    [TestCase("short", 1234, 1234)]
     [TestCase("double", "15.18", 15.18d)]
+    [TestCase("double", 15.18d, 15.18d)]
     [TestCase("decimal(29,30)", "15.9999999999999999999999999999", 16)]
     [TestCase("decimal(29,30)", "15.5400000000000000000000000000", 15.54)]
     [TestCase("decimal(29,30)", "32", 32)]
@@ -34,6 +40,7 @@ public class TypesConverterTest
     [TestCase("decimal(29,30)", "0", 0)]
     [TestCase("decimal(29,30)", "0.321", 0.321)]
     [TestCase("decimal(29,30)", "12345678901234567890", 12345678901234567890)] // number longer thant 19 characters
+    [TestCase("decimal(29,30)", 123.456, 123.456)]
     [TestCase("timestampntz", null, null)]
     [TestCase("timestamptz", null, null)]
     [TestCase("pgdate", null, null)]
@@ -52,7 +59,11 @@ public class TypesConverterTest
     [TestCase("boolean", "false", false)]
     [TestCase("boolean", "1", true)]
     [TestCase("boolean", "0", false)]
-    public void ConvertProvidedValues(string columnTypeName, string value, object expectedValue)
+    [TestCase("boolean", true, true)]
+    [TestCase("boolean", false, false)]
+    [TestCase("boolean", 1, true)]
+    [TestCase("boolean", 0, false)]
+    public void ConvertProvidedValues(string columnTypeName, object value, object expectedValue)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
         object? result = TypesConverter.ConvertToCSharpVal(value, columnType);
@@ -140,6 +151,23 @@ public class TypesConverterTest
         Assert.That(exception!.Message, Is.EqualTo("Input string was not in a correct format."));
     }
 
+    public static IEnumerable<TestCaseData> ArrayTestCases()
+    {
+        yield return new TestCaseData(new[] { 1, 2 }, new[] { 1, 2 }, "array(int)");
+        yield return new TestCaseData(new[] { "1", "2" }, new[] { 1, 2 }, "array(int)");
+        yield return new TestCaseData(new[] { "2022-05-10", "2022-05-11" }, new[] { DateTime.Parse("2022-05-10"), DateTime.Parse("2022-05-11") }, "array(date)");
+        yield return new TestCaseData(new[] { "2022-05-10 23:01:02", "2022-05-11 23:01:02" }, new[] { DateTime.Parse("2022-05-10 23:01:02"), DateTime.Parse("2022-05-11 23:01:02") }, "array(timestamp)");
+        yield return new TestCaseData(new[] { new[] { 1, 2 }, new[] { 3, 4 } }, new[] { new[] { 1, 2 }, new[] { 3, 4 } }, "array(array(int))");
+    }
+
+    [TestCaseSource(nameof(ArrayTestCases))]
+    public void ConvertArray(object arrayValue, object expected, String type)
+    {
+        ColumnType columnType = ColumnType.Of(type);
+        object? result = TypesConverter.ConvertToCSharpVal(arrayValue, columnType);
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
     [TestCase(null, "Response is empty", "Response is empty")]
     [TestCase("invalid response", "Error while parsing response", "Unexpected character encountered while parsing value: i. Path '', line 0, position 0.")]
     public void ParseWrongJsonResponse(string? json, string? expectedMessage, string? expectedBaseMessage)
@@ -179,7 +207,7 @@ public class TypesConverterTest
     private void AssertQueryResult(QueryResult result, object? expectedValue, int line = 0, int column = 0)
     {
         var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
-        var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
+        var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column], columnType);
         Assert.That(convertedValue, Is.EqualTo(expectedValue));
     }
 
