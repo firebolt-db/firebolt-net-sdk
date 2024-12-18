@@ -6,6 +6,8 @@ namespace FireboltDotNetSdk.Utils;
 public class ColumnType
 {
     private static string NULL_TYPE = "NULL";
+    private static string ARRAY_PREFIX = "array(";
+    private static string STRUCT_PREFIX = "struct(";
     public readonly int? Scale;
     public readonly int? Precision;
     public readonly FireboltDataType Type;
@@ -21,20 +23,22 @@ public class ColumnType
 
     public static ColumnType Of(string fullColumnType)
     {
-        ColumnType? innerDataType = null;
         Tuple<int?, int?>? scaleAndPrecisionPair = null;
+
         ColumnTypeWrapper columnTypeWrapper = ColumnTypeWrapper.Of(fullColumnType);
         string typeWithoutNullKeyword = columnTypeWrapper.TypeWithoutNullKeyword;
         int typeEndIndex = GetTypeEndPosition(typeWithoutNullKeyword);
         FireboltDataType dataType = GetFireboltDataTypeFromColumnType(typeWithoutNullKeyword, typeEndIndex);
+
         if (dataType.Equals(FireboltDataType.Array))
         {
-            innerDataType = GetInnerTypes(typeWithoutNullKeyword);
-            return new ArrayType(innerDataType, columnTypeWrapper.HasNullableKeyword);
+            ColumnType innerType = GetArrayInnerType(typeWithoutNullKeyword);
+            return new ArrayType(innerType, columnTypeWrapper.HasNullableKeyword);
         }
         if (dataType.Equals(FireboltDataType.Struct))
         {
-            return new StructType(new Dictionary<string, ColumnType>(), columnTypeWrapper.HasNullableKeyword);
+            Dictionary<string, ColumnType> fields = GetStructField(typeWithoutNullKeyword);
+            return new StructType(fields, columnTypeWrapper.HasNullableKeyword);
         }
 
 
@@ -47,15 +51,14 @@ public class ColumnType
         return new ColumnType(scaleAndPrecisionPair?.Item1, scaleAndPrecisionPair?.Item2, dataType, columnTypeWrapper.HasNullableKeyword || dataType == FireboltDataType.Null);
     }
 
-
     private static FireboltDataType GetFireboltDataTypeFromColumnType(string typeWithoutNullKeyword, int typeEndIndex)
     {
 
         List<string> nestedTypes = new List<string> { "array", "decimal", "numeric", "struct" };
 
         string columnType = nestedTypes.FirstOrDefault(
-            type => typeWithoutNullKeyword.StartsWith(type),
-            typeWithoutNullKeyword.Substring(0, typeEndIndex));
+            typeWithoutNullKeyword.StartsWith,
+            typeWithoutNullKeyword[..typeEndIndex]);
         return TypesConverter.MapColumnTypeToFireboltDataType(columnType);
     }
 
@@ -72,28 +75,42 @@ public class ColumnType
         return new Tuple<int?, int?>(precision, scale);
     }
 
-    private static ColumnType GetInnerTypes(string columnType)
+    private static ColumnType GetArrayInnerType(string columnType)
     {
-        return Of(GetArrayType(columnType).Trim());
+        String innerType = columnType.Remove(columnType.Length - 1, 1) // Remove last )
+            .Remove(0, ARRAY_PREFIX.Length); // Remove first array(
+        return Of(innerType);
     }
 
-    private static string GetArrayType(string columnType)
+    private static Dictionary<string, ColumnType> GetStructField(string structType)
     {
-        Regex rgx = new Regex("(?i)ARRAY\\((?-i)");
-        String types = rgx.Replace(columnType, "", 1); //Remove first ARRAY(
-        return types.Remove(types.Length - 1, 1); // remove last )
+        String innerType = structType.Remove(structType.Length - 1, 1) // Remove last )
+            .Remove(0, STRUCT_PREFIX.Length); // Remove first struct(
+        var fields = Regex.Split(innerType, ",(?![^()]*\\))");
+        return fields.Select(SplitStructField).ToDictionary(
+            nameType => nameType[0], nameType => Of(nameType[1]));
+
+    }
+
+    private static string[] SplitStructField(string field)
+    {
+        field = field.Trim();
+        var firstTickIndex = field.IndexOf("`", StringComparison.Ordinal);
+        var secondTickIndex = firstTickIndex != -1 ? field.IndexOf("`", firstTickIndex + 1, StringComparison.Ordinal) : -1;
+        var splitIndex = secondTickIndex != -1 ? secondTickIndex + 1 : field.IndexOf(" ", StringComparison.Ordinal);
+        return new[] { field[..splitIndex].Trim(new[] { ' ', '`' }), field[splitIndex..].Trim() };
     }
 
     private static int GetTypeEndPosition(string type)
     {
-        int typeNameEndIndex = !type.Contains("(") ? type.IndexOf(")") : type.IndexOf("(");
+        int typeNameEndIndex = !type.Contains('(') ? type.IndexOf(')') : type.IndexOf('(');
         return typeNameEndIndex < 0 ? type.Length : typeNameEndIndex;
     }
 
     private static String[] SplitArguments(string args, int index)
     {
-        int startIndex = args.IndexOf("(", index) + 1;
-        int endIndex = args.IndexOf(")", index);
+        int startIndex = args.IndexOf('(', index) + 1;
+        int endIndex = args.IndexOf(')', index);
         return args.Substring(startIndex, endIndex - startIndex).Split(",");
     }
 
@@ -138,7 +155,7 @@ public class ColumnType
 
 public class ArrayType : ColumnType
 {
-    public ColumnType InnerType;
+    public readonly ColumnType InnerType;
 
     public ArrayType(ColumnType innerType, bool nullable) : base(null, null, FireboltDataType.Array, nullable)
     {

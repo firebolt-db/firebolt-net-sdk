@@ -133,6 +133,109 @@ public class ColumnTypeTest
         Assert.Null(columnType.Scale);
     }
 
+    [Test]
+    public void CreateStructTypeTest()
+    {
+        String type = "struct(a int, b text)";
+        ColumnType columnType = ColumnType.Of(type);
+        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+        Assert.False(columnType.Nullable);
+        Assert.Null(columnType.Precision);
+        Assert.Null(columnType.Scale);
+        if (columnType is StructType structType)
+        {
+            Assert.That(structType.Fields.Count, Is.EqualTo(2));
+            Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
+            Assert.False(structType.Fields["a"].Nullable);
+            Assert.Null(structType.Fields["a"].Precision);
+            Assert.Null(structType.Fields["a"].Scale);
+            Assert.That(structType.Fields["b"].Type, Is.EqualTo(FireboltDataType.String));
+            Assert.False(structType.Fields["b"].Nullable);
+            Assert.Null(structType.Fields["b"].Precision);
+            Assert.Null(structType.Fields["b"].Scale);
+        }
+        else
+        {
+            Assert.Fail("StructType expected");
+        }
+
+    }
+
+    [Test]
+    public void CreateStructTypeWithSpacesFieldName()
+    {
+        String type = "struct(a int, `b c` text)";
+        ColumnType columnType = ColumnType.Of(type);
+        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+        Assert.False(columnType.Nullable);
+        Assert.Null(columnType.Precision);
+        Assert.Null(columnType.Scale);
+        if (columnType is StructType structType)
+        {
+            Assert.That(structType.Fields.Count, Is.EqualTo(2));
+            Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
+            Assert.False(structType.Fields["a"].Nullable);
+            Assert.Null(structType.Fields["a"].Precision);
+            Assert.Null(structType.Fields["a"].Scale);
+            Assert.That(structType.Fields["b c"].Type, Is.EqualTo(FireboltDataType.String));
+            Assert.False(structType.Fields["b c"].Nullable);
+            Assert.Null(structType.Fields["b c"].Precision);
+            Assert.Null(structType.Fields["b c"].Scale);
+        }
+        else
+        {
+            Assert.Fail("StructType expected");
+        }
+    }
+
+    [Test]
+    public void CreateNestedStructTest()
+    {
+        String type = "struct(a int, b struct(c array(int), d text))";
+        ColumnType columnType = ColumnType.Of(type);
+        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+        Assert.False(columnType.Nullable);
+        Assert.Null(columnType.Precision);
+        Assert.Null(columnType.Scale);
+        if (columnType is StructType structType)
+        {
+            Assert.That(structType.Fields.Count, Is.EqualTo(2));
+            Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
+            Assert.False(structType.Fields["a"].Nullable);
+            Assert.Null(structType.Fields["a"].Precision);
+            Assert.Null(structType.Fields["a"].Scale);
+            Assert.That(structType.Fields["b"].Type, Is.EqualTo(FireboltDataType.Struct));
+            if (structType.Fields["b"] is StructType nestedStructType)
+            {
+                Assert.That(nestedStructType.Fields.Count, Is.EqualTo(2));
+                Assert.That(nestedStructType.Fields["c"].Type, Is.EqualTo(FireboltDataType.Array));
+                if (nestedStructType.Fields["c"] is ArrayType arrayType)
+                {
+                    Assert.That(arrayType.InnerType!.Type, Is.EqualTo(FireboltDataType.Int));
+                    Assert.False(arrayType.InnerType.Nullable);
+                    Assert.Null(arrayType.InnerType.Precision);
+                    Assert.Null(arrayType.InnerType.Scale);
+                }
+                else
+                {
+                    Assert.Fail("ArrayType expected");
+                }
+                Assert.That(nestedStructType.Fields["d"].Type, Is.EqualTo(FireboltDataType.String));
+                Assert.False(nestedStructType.Fields["d"].Nullable);
+                Assert.Null(nestedStructType.Fields["d"].Precision);
+                Assert.Null(nestedStructType.Fields["d"].Scale);
+            }
+            else
+            {
+                Assert.Fail("StructType expected");
+            }
+        }
+        else
+        {
+            Assert.Fail("StructType expected");
+        }
+    }
+
     /*[Test]
     public void CreateStructTypeWithProvidedColumnTypeNamesTest()
     {
