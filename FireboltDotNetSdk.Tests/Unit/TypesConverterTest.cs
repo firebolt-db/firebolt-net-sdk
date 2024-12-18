@@ -168,6 +168,43 @@ public class TypesConverterTest
         Assert.That(result, Is.EqualTo(expected));
     }
 
+    public static IEnumerable<TestCaseData> StructTestCase()
+    {
+        yield return new TestCaseData(
+            new Dictionary<String, object> { { "a", 1 }, { "b", "value" } },
+            new Dictionary<String, object> { { "a", 1 }, { "b", "value" } },
+            "struct(a int, b string)"
+        );
+        yield return new TestCaseData(
+            new Dictionary<String, object> { { "a", 1 }, { "b", new Dictionary<String, object> { { "c", 2 } } } },
+            new Dictionary<String, object> { { "a", 1 }, { "b", new Dictionary<String, object> { { "c", 2 } } } },
+            "struct(a int, b struct(c int))"
+        );
+        yield return new TestCaseData(
+            new Dictionary<String, object> { { "a", 1 }, { "b", new Dictionary<String, object> { { "c", new[] { 1, 2 } } } } },
+            new Dictionary<String, object> { { "a", 1 }, { "b", new Dictionary<String, object> { { "c", new[] { 1, 2 } } } } },
+            "struct(a int, b struct(c array(int)))"
+        );
+        yield return new TestCaseData(
+            new Dictionary<String, object> { { "a", 1 }, { "b", new Dictionary<String, object> { { "c", "2022-05-10 23:01:02" } } } },
+            new Dictionary<String, object> { { "a", 1 }, { "b", new Dictionary<String, object> { { "c", DateTime.Parse("2022-05-10 23:01:02") } } } },
+            "struct(a int, b struct(c timestamp))"
+        );
+        yield return new TestCaseData(
+            new Dictionary<String, object> { { "a", 1 }, { "b", new[] { new Dictionary<String, object> { { "c", 2 } }, new Dictionary<String, object> { { "c", 3 } } } } },
+            new Dictionary<String, object> { { "a", 1 }, { "b", new[] { new Dictionary<String, object> { { "c", 2 } }, new Dictionary<String, object> { { "c", 3 } } } } },
+            "struct(a int, b array(struct(c int)))"
+        );
+    }
+
+    [TestCaseSource(nameof(StructTestCase))]
+    public void ConvertStruct(object structValue, object expected, String type)
+    {
+        ColumnType columnType = ColumnType.Of(type);
+        object? result = TypesConverter.ConvertToCSharpVal(structValue, columnType);
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
     [TestCase(null, "Response is empty", "Response is empty")]
     [TestCase("invalid response", "Error while parsing response", "Unexpected character encountered while parsing value: i. Path '', line 0, position 0.")]
     public void ParseWrongJsonResponse(string? json, string? expectedMessage, string? expectedBaseMessage)
