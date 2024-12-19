@@ -235,20 +235,4 @@ public class ColumnTypeTest
             Assert.Fail("StructType expected");
         }
     }
-
-    /*[Test]
-    public void CreateStructTypeWithProvidedColumnTypeNamesTest()
-    {
-        String columnTypeName = "struct(a int, s struct(a array(int), b text null))";
-        
-        ColumnType columnType = ColumnType.Of(columnTypeName);
-        if (columnType is StructType structType)
-        Assert.That(columnType.Type, Is.EqualTo(expectedType));
-        Assert.That(columnType.Nullable, Is.EqualTo(expectedIsNullable));
-        Assert.Null(columnType.Precision);
-        Assert.Null(columnType.Scale);
-    }*/
-
-
-
 }
