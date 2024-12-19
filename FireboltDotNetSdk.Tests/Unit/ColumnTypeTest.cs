@@ -224,4 +224,29 @@ public class ColumnTypeTest
         Assert.Null(nestedStructType.Fields["d"].Precision);
         Assert.Null(nestedStructType.Fields["d"].Scale);
     }
+
+    [Test]
+    public void CreateNestedStructWithSpaces()
+    {
+        String type = "struct(s struct(`a b` int))";
+        ColumnType columnType = ColumnType.Of(type);
+        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+        Assert.False(columnType.Nullable);
+        Assert.Null(columnType.Precision);
+        Assert.Null(columnType.Scale);
+        if (columnType is not StructType structType)
+        {
+            Assert.Fail("StructType expected");
+            return;
+        }
+        Assert.That(structType.Fields.Count, Is.EqualTo(1));
+        Assert.That(structType.Fields["s"].Type, Is.EqualTo(FireboltDataType.Struct));
+        if (structType.Fields["s"] is not StructType nestedStructType)
+        {
+            Assert.Fail("StructType expected");
+            return;
+        }
+        Assert.That(nestedStructType.Fields.Count, Is.EqualTo(1));
+        Assert.That(nestedStructType.Fields["a b"].Type, Is.EqualTo(FireboltDataType.Int));
+    }
 }

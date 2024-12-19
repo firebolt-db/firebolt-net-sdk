@@ -97,7 +97,7 @@ public class ColumnType
         field = field.Trim();
         var firstTickIndex = field.IndexOf("`", StringComparison.Ordinal);
         var secondTickIndex = firstTickIndex != -1 ? field.IndexOf("`", firstTickIndex + 1, StringComparison.Ordinal) : -1;
-        var splitIndex = secondTickIndex != -1 ? secondTickIndex + 1 : field.IndexOf(" ", StringComparison.Ordinal);
+        var splitIndex = (secondTickIndex != -1 && field.StartsWith("`")) ? secondTickIndex + 1 : field.IndexOf(" ", StringComparison.Ordinal);
         return new[] { field[..splitIndex].Trim(new[] { ' ', '`' }), field[splitIndex..].Trim() };
     }
 
