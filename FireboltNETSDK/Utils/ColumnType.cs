@@ -8,6 +8,7 @@ public class ColumnType
     private static string NULL_TYPE = "NULL";
     private static string ARRAY_PREFIX = "array(";
     private static string STRUCT_PREFIX = "struct(";
+    private const int regexTimeoutSeconds = 60;
     public readonly int? Scale;
     public readonly int? Precision;
     public readonly FireboltDataType Type;
@@ -86,7 +87,7 @@ public class ColumnType
     {
         String innerType = structType.Remove(structType.Length - 1, 1) // Remove last )
             .Remove(0, STRUCT_PREFIX.Length); // Remove first struct(
-        var fields = Regex.Split(innerType, ",(?![^()]*\\))");
+        var fields = Regex.Split(innerType, ",(?![^()]*\\))", RegexOptions.None, TimeSpan.FromMilliseconds(regexTimeoutSeconds));
         return fields.Select(SplitStructField).ToDictionary(
             nameType => nameType[0], nameType => Of(nameType[1]));
 
