@@ -59,6 +59,10 @@ namespace FireboltDoNetSdk.Utils
             {
                 return null;
             }
+            if (val is JContainer jContainer)
+            {
+                val = jContainer.ToString();
+            }
 
             return columnType switch
             {
@@ -147,13 +151,14 @@ namespace FireboltDoNetSdk.Utils
             };
         }
 
-        private static Array ToArray(object val, ArrayType arrayType)
+        private static Array? ToArray(object val, ArrayType arrayType)
         {
             return val switch
             {
-                IEnumerable array => array.Cast<object>().Select(x => ConvertToCSharpVal(x, arrayType.InnerType)).ToArray(),
+                string str => ConvertArray(JsonConvert.DeserializeObject<List<object>>(str)),
                 _ => throw new FireboltException("Unexpected array value type: " + val.GetType())
             };
+            Array? ConvertArray(IEnumerable? array) => array?.Cast<object>().Select(x => ConvertToCSharpVal(x, arrayType.InnerType)).ToArray();
         }
 
         private static Dictionary<string, object?>? ToStruct(object val, StructType structType)
@@ -161,7 +166,6 @@ namespace FireboltDoNetSdk.Utils
             return val switch
             {
                 string str => ConvertDict(JsonConvert.DeserializeObject<Dictionary<string, object>>(str)),
-                JObject jObject => ConvertDict(jObject.ToObject<Dictionary<string, object>>()),
                 _ => throw new FireboltException("Unexpected struct value type: " + val.GetType())
             };
             Dictionary<string, object?>? ConvertDict(Dictionary<string, object>? dict) => dict?.ToDictionary(x => x.Key, x => ConvertToCSharpVal(x.Value, structType.Fields[x.Key]));
