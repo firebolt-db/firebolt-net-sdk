@@ -874,12 +874,13 @@ namespace FireboltDotNetSdk.Tests
             {
                 Assert.That(reader.Read(), Is.EqualTo(true));
                 var type = reader.GetFieldType(0);
+                Assert.That(type, Is.EqualTo(typeof(Dictionary<string, object>)));
 
                 Dictionary<string, object> s = (Dictionary<string, object>)reader.GetValue(0);
                 Assert.That(s["id"], Is.EqualTo(1));
                 Assert.That(s["s"], Is.InstanceOf<Dictionary<string, object>>());
                 Dictionary<string, object> s2 = (Dictionary<string, object>)s["s"];
-                Assert.That(s2["a"], Is.EqualTo(new int[] { 1, 2 }));
+                Assert.That(s2["a"], Is.EqualTo(new[] { 1, 2 }));
                 Assert.That(s2["b"], Is.EqualTo(TypesConverter.ParseDateTime("2019-07-31 01:01:01")));
 
             }
