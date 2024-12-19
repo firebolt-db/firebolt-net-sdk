@@ -156,13 +156,15 @@ namespace FireboltDoNetSdk.Utils
             };
         }
 
-        private static Dictionary<string, object?> ToStruct(object val, StructType structType)
+        private static Dictionary<string, object?>? ToStruct(object val, StructType structType)
         {
             return val switch
             {
-                IDictionary<string, object> dict => dict.ToDictionary(x => x.Key, x => ConvertToCSharpVal(x.Value, structType.Fields[x.Key])),
+                string str => ConvertDict(JsonConvert.DeserializeObject<Dictionary<string, object>>(str)),
+                JObject jObject => ConvertDict(jObject.ToObject<Dictionary<string, object>>()),
                 _ => throw new FireboltException("Unexpected struct value type: " + val.GetType())
             };
+            Dictionary<string, object?>? ConvertDict(Dictionary<string, object>? dict) => dict?.ToDictionary(x => x.Key, x => ConvertToCSharpVal(x.Value, structType.Fields[x.Key]));
         }
 
         public static FireboltDataType MapColumnTypeToFireboltDataType(string columnType)
