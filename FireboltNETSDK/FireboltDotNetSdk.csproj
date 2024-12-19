@@ -6,9 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <FileVersion>1.4.0</FileVersion>
-    <AssemblyVersion>1.4.0</AssemblyVersion>
-    <Version>1.4.0</Version>
+    <FileVersion>1.5.0</FileVersion>
+    <AssemblyVersion>1.5.0</AssemblyVersion>
+    <Version>1.5.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>Utils/images/firebolt_logo.png</PackageIcon>
     <RepositoryUrl>https://github.com/firebolt-db/firebolt-net-sdk</RepositoryUrl>
