@@ -5,6 +5,7 @@ using System.Collections;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDoNetSdk.Utils;
+using FireboltDotNetSdk.Utils;
 using NodaTime.Extensions;
 using FireboltNETSDK.Exception;
 
@@ -841,6 +842,50 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(string)));
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
+        }
+
+        [Test]
+        [Category("v2")]
+        [Category("engine-v2")]
+        public void TestSelectStruct()
+        {
+            string[] setupSQL = {
+                "SET advanced_mode=1",
+                "SET enable_struct=1",
+                "SET enable_create_table_v2=true",
+                "SET enable_row_selection=true",
+                "SET prevent_create_on_information_schema=true",
+                "SET enable_create_table_with_struct_type=true",
+                "DROP TABLE IF EXISTS test_struct",
+                "DROP TABLE IF EXISTS test_struct_helper",
+                "CREATE TABLE IF NOT EXISTS test_struct(id int not null, s struct(a array(int) not null, b datetime null) not null)",
+                "CREATE TABLE IF NOT EXISTS test_struct_helper(a array(int) not null, b datetime null)",
+                "INSERT INTO test_struct_helper(a, b) VALUES ([1, 2], '2019-07-31 01:01:01')",
+                "INSERT INTO test_struct(id, s) SELECT 1, test_struct_helper FROM test_struct_helper"
+            };
+            var conn = new FireboltConnection(USER_CONNECTION_STRING); conn.Open();
+            for (int i = 0; i < setupSQL.Length; i++)
+            {
+                CreateCommand(conn, setupSQL[i]).ExecuteNonQuery();
+            }
+
+            DbCommand select = CreateCommand(conn, "SELECT test_struct FROM test_struct");
+            using (DbDataReader reader = select.ExecuteReader())
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                var type = reader.GetFieldType(0);
+                Assert.That(type, Is.EqualTo(typeof(Dictionary<string, object>)));
+
+                Dictionary<string, object> s = (Dictionary<string, object>)reader.GetValue(0);
+                Assert.That(s["id"], Is.EqualTo(1));
+                Assert.That(s["s"], Is.InstanceOf<Dictionary<string, object>>());
+                Dictionary<string, object> s2 = (Dictionary<string, object>)s["s"];
+                Assert.That(s2["a"], Is.EqualTo(new[] { 1, 2 }));
+                Assert.That(s2["b"], Is.EqualTo(TypesConverter.ParseDateTime("2019-07-31 01:01:01")));
+
+            }
+
+
         }
 
         private void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)

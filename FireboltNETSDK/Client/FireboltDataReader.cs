@@ -70,6 +70,7 @@ namespace FireboltDotNetSdk.Client
 
             { "bytea", typeof(byte[]) },
             { "array", typeof(Array) },
+            { "struct", typeof(Dictionary<string, object>)}
         };
 
         public FireboltDataReader(string? fullTableName, QueryResult queryResult, int depth = 0)
