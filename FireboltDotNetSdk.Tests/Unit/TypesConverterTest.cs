@@ -195,6 +195,16 @@ public class TypesConverterTest
             new Dictionary<String, object> { { "a", 1 }, { "b", new[] { new Dictionary<String, object> { { "c", 2 } }, new Dictionary<String, object> { { "c", 3 } } } } },
             "struct(a int, b array(struct(c int)))"
         );
+        yield return new TestCaseData(
+            new Dictionary<String, object?> { { "a", 1 }, { "b", null } },
+            new Dictionary<String, object?> { { "a", 1 }, { "b", null } },
+            "struct(a int, b int null)"
+        );
+        yield return new TestCaseData(
+            new Dictionary<String, object> { { "a", 1 }, { "b c", "value" } },
+            new Dictionary<String, object> { { "a", 1 }, { "b c", "value" } },
+            "struct(a int, `b c` string)"
+        );
     }
 
     [TestCaseSource(nameof(StructTestCase))]
