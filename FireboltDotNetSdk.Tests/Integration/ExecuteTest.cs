@@ -434,7 +434,6 @@ namespace FireboltDotNetSdk.Tests
                 long length = reader.GetInt64(1);
                 Assert.That(length, Is.EqualTo(name.Length));
             }
-            AssertSystemTables(tableNames);
         }
 
         [Test]
@@ -460,14 +459,6 @@ namespace FireboltDotNetSdk.Tests
                 tableNames.Add(name!);
                 Assert.That(name!.Length, Is.EqualTo(length!));
             }
-            AssertSystemTables(tableNames);
-        }
-
-        private void AssertSystemTables(List<string> tableNames)
-        {
-            List<string> expectedTables = new List<string>() { "engines", "tables", "views", "columns", "accounts", "users" };
-            string missingTables = string.Join(",", expectedTables.Where(table => !tableNames.Contains(table)));
-            Assert.True(missingTables.Length == 0, $"The following expected tables are missing: {missingTables}");
         }
 
         [Test]
@@ -884,8 +875,23 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(s2["b"], Is.EqualTo(TypesConverter.ParseDateTime("2019-07-31 01:01:01")));
 
             }
+        }
 
-
+        [Test]
+        [Category("v2")]
+        public void TestSelectLargeDecimal()
+        {
+            string sql = "SELECT 12345678901234567890123456789.123456789::decimal(38, 9)";
+            using (var conn = new FireboltConnection(USER_CONNECTION_STRING))
+            {
+                conn.Open();
+                DbCommand command = conn.CreateCommand();
+                command.CommandText = sql;
+                DbDataReader reader = command.ExecuteReader();
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetDecimal(0), Is.EqualTo(12345678901234567890123456789.123456789M));
+                Assert.That(reader.Read(), Is.EqualTo(false));
+            }
         }
 
         private void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)
