@@ -19,6 +19,7 @@ namespace FireboltDotNetSdk.Tests
 
         private readonly string? _response;
         public string? Query { get; private set; }
+        public HashSet<string> CapturedSetParamList { get; private set; } = new HashSet<string>();
 
         public MockClient(string? response) : base(connection, "id", "secret", "", null, null, httpClientMock.Object)
         {
@@ -26,17 +27,17 @@ namespace FireboltDotNetSdk.Tests
             _tokenStorage.CacheToken(new LoginResponse("token", "60", "type"), "id", "secret").Wait();
             EstablishConnection().GetAwaiter().GetResult();
         }
-
         override public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
         {
             Query = query;
+            CapturedSetParamList = new HashSet<string>(setParamList);
             return Task.FromResult(_response);
         }
-
         public override async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
                          string query, HashSet<string> setParamList, CancellationToken cancellationToken)
         {
             Query = query;
+            CapturedSetParamList = new HashSet<string>(setParamList);
             return await Task.FromResult(_response);
         }
 
@@ -488,6 +489,76 @@ namespace FireboltDotNetSdk.Tests
             var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
             Assert.That(convertedValue, Is.EqualTo(expectedValue));
             Assert.That(columnType.Type.ToString, Is.EqualTo(expectedType));
+        }
+
+        [Test]
+        public void ExecuteAsyncNonQuery_ReturnsZero_SetsTokenProperty()
+        {
+            string expectedToken = "test-async-token-123";
+            string response = $"{{\"token\":\"{expectedToken}\"}}";
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
+
+            int result = command.ExecuteAsyncNonQuery();
+
+            Assert.That(result, Is.EqualTo(0));
+            Assert.That(command.AsyncToken, Is.EqualTo(expectedToken));
+        }
+
+        [Test]
+        public void ExecuteAsyncNonQuery_WithNullConnection_ThrowsException()
+        {
+            var command = new FireboltCommand(null, "SELECT 1", new FireboltParameterCollection());
+
+            var ex = Assert.Throws<FireboltException>(() => command.ExecuteAsyncNonQuery());
+            Assert.That(ex.Message, Does.Contain("no connection was initialised"));
+        }
+
+
+        [Test]
+        public void ExecuteAsyncNonQuery_WithNullResponse_ThrowsException()
+        {
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(null), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
+
+            var ex = Assert.Throws<FireboltException>(() => command.ExecuteAsyncNonQuery());
+            Assert.That(ex.Message, Does.Contain("no response"));
+        }
+
+        [Test]
+        public void ExecuteAsyncNonQuery_WithInvalidJsonResponse_ThrowsException()
+        {
+            string response = "invalid json";
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
+
+            var ex = Assert.Throws<FireboltException>(() => command.ExecuteAsyncNonQuery());
+            Assert.That(ex.Message, Does.Contain("Failed to parse async query response"));
+        }
+
+        [Test]
+        public void ExecuteAsyncNonQuery_WithMissingToken_ThrowsException()
+        {
+            string response = "{\"status\":\"running\"}"; // No token field
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
+
+            var ex = Assert.Throws<FireboltException>(() => command.ExecuteAsyncNonQuery());
+            Assert.That(ex.Message, Does.Contain("missing or empty token"));
+        }
+
+        [Test]
+        public void ExecuteAsyncNonQuery_SendsAsyncParameterToServer()
+        {
+            string response = "{\"token\":\"test-token\"}";
+            var mockClient = new MockClient(response);
+            var connection = new FireboltConnection(mockConnectionString) { Client = mockClient, EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
+
+            command.ExecuteAsyncNonQuery();
+
+            Assert.That(mockClient.Query, Is.EqualTo("SELECT 1"));
+            Assert.That(mockClient.CapturedSetParamList, Contains.Item("async=true"));
         }
     }
 }

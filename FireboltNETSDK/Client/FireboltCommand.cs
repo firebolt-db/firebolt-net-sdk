@@ -478,10 +478,6 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Unable to execute SQL as no connection was initialised. Create command using working connection");
             }
-            if (Connection.Client == null)
-            {
-                throw new FireboltException("Client is undefined. Initialize connection properly");
-            }
             
             var engineUrl = Connection.EngineUrl;
             string newCommandText = StrictCommandText;
@@ -504,7 +500,7 @@ namespace FireboltDotNetSdk.Client
             
             if (response == null)
             {
-                throw new FireboltException("Failed to execute async query: null response received");
+                throw new FireboltException("Failed to execute async query: no response received");
             }
             
             try
