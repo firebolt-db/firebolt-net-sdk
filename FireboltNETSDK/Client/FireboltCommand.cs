@@ -478,7 +478,7 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Unable to execute SQL as no connection was initialised. Create command using working connection");
             }
-            
+
             var engineUrl = Connection.EngineUrl;
             string newCommandText = StrictCommandText;
             if (Parameters.Any())
@@ -487,33 +487,33 @@ namespace FireboltDotNetSdk.Client
             }
 
             var database = Connection?.Database != string.Empty ? Connection?.Database : null;
-            
+
             // Use existing parameters but add async=true
             var asyncParams = new HashSet<string>(SetParamList)
             {
                 "async=true"
             };
-            
+
             // Execute the query with the async parameter
             string? response = await Connection!.Client.ExecuteQueryAsync(
                 engineUrl, database, Connection?.AccountId, newCommandText, asyncParams, cancellationToken);
-            
+
             if (response == null)
             {
                 throw new FireboltException("Failed to execute async query: no response received");
             }
-            
+
             try
             {
                 // Parse the async response which has a different format than regular queries
                 var jsonResponse = JObject.Parse(response);
                 var token = jsonResponse["token"]?.ToString();
-                
+
                 if (string.IsNullOrEmpty(token))
                 {
                     throw new FireboltException("Invalid async query response format: missing or empty token");
                 }
-                
+
                 // Store the token for later use
                 AsyncToken = token;
                 return 0;

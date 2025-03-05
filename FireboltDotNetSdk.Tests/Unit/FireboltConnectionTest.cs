@@ -549,7 +549,7 @@ namespace FireboltDotNetSdk.Tests
 
             FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
             FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
-            
+
             var setupSequence = httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
                 .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
@@ -581,7 +581,7 @@ namespace FireboltDotNetSdk.Tests
             );
 
             bool result = connection.IsAsyncQueryRunning("test-token");
-            
+
             That(result, Is.EqualTo(expected));
         }
 
