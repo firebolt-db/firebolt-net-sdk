@@ -458,20 +458,21 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Executes a query asynchronously on the server-side and returns a token to track the query status.
+        /// Executes a query asynchronously on the server-side without returning results.
+        /// The token to track the query status can be accessed via the AsyncToken property.
         /// </summary>
-        /// <returns>A token that can be used to check the status of the async query.</returns>
-        public string ExecuteAsyncQuery()
+        /// <returns>Always returns 0.</returns>
+        public int ExecuteAsyncNonQuery()
         {
-            return ExecuteAsyncQueryAsync().GetAwaiter().GetResult();
+            return ExecuteAsyncNonQueryAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
-        /// Executes a query asynchronously on the server-side and returns a token to track the query status.
+        /// Executes a query asynchronously on the server-side without returning results.
+        /// The token to track the query status can be accessed via the AsyncToken property.
         /// </summary>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns>A task representing the asynchronous operation with a token to track the async query status.</returns>
-        public async Task<string> ExecuteAsyncQueryAsync(CancellationToken cancellationToken = default)
+        /// <returns>A task representing the asynchronous operation. Always returns 0.</returns>
+        public async Task<int> ExecuteAsyncNonQueryAsync(CancellationToken cancellationToken = default)
         {
             if (Connection == null)
             {
@@ -519,35 +520,12 @@ namespace FireboltDotNetSdk.Client
                 
                 // Store the token for later use
                 AsyncToken = token;
-                return token;
+                return 0;
             }
             catch (JsonReaderException ex)
             {
                 throw new FireboltException("Failed to parse async query response", ex);
             }
-        }
-
-        /// <summary>
-        /// Gets the result of an async query by its token.
-        /// </summary>
-        /// <param name="token">The token of the async query.</param>
-        /// <returns>A DbDataReader that can be used to read the query results.</returns>
-        public DbDataReader GetAsyncQueryResult(string token)
-        {
-            return GetAsyncQueryResultAsync(token).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Gets the result of an async query by its token asynchronously.
-        /// </summary>
-        /// <param name="token">The token of the async query.</param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns>A task representing the asynchronous operation with a DbDataReader to read the query results.</returns>
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<DbDataReader> GetAsyncQueryResultAsync(string token, CancellationToken cancellationToken = default)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-        {
-            throw new NotImplementedException("Getting async query results is not implemented yet.");
         }
     }
 }

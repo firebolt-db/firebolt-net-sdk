@@ -469,6 +469,11 @@ namespace FireboltDotNetSdk.Client
             accountCache.Clear();
         }
 
+        // Async query status constants
+        private const string QueryStatusRunning = "RUNNING";
+        private const string QueryStatusEndedSuccessfully = "ENDED_SUCCESSFULLY";
+
+
         /// <summary>
         /// Checks if an async query is still running.
         /// </summary>
@@ -487,8 +492,8 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A task representing the asynchronous operation with a boolean indicating if the query is still running.</returns>
         public async Task<bool> IsAsyncQueryRunningAsync(string token, CancellationToken cancellationToken = default)
         {
-            var status = await GetAsyncQueryStatusAsync(token, cancellationToken);
-            return status.TryGetValue("status", out string? statusValue) && statusValue == "RUNNING";
+            var info = await GetAsyncQueryInfoAsync(token, cancellationToken);
+            return info.TryGetValue("status", out string? status) && status == QueryStatusRunning;
         }
 
         /// <summary>
@@ -510,19 +515,17 @@ namespace FireboltDotNetSdk.Client
         /// or null if it's still running.</returns>
         public async Task<bool?> IsAsyncQuerySuccessfulAsync(string token, CancellationToken cancellationToken = default)
         {
-            var status = await GetAsyncQueryStatusAsync(token, cancellationToken);
-            
-            if (!status.TryGetValue("status", out string? statusValue))
-                return false;
-            
+            var info = await GetAsyncQueryInfoAsync(token, cancellationToken);
+            info.TryGetValue("status", out string? status);
+
             // If the query is still running, return null (undefined)
-            if (statusValue == "RUNNING")
+            if (status == QueryStatusRunning)
             {
                 return null;
             }
-            
+
             // Return true if the query completed successfully
-            return statusValue == "ENDED_SUCCESSFULLY";
+            return status == QueryStatusEndedSuccessfully;
         }
 
         /// <summary>
@@ -530,9 +533,9 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         /// <param name="token">The token of the async query.</param>
         /// <returns>A dictionary containing status information for the async query.</returns>
-        public Dictionary<string, string> GetAsyncQueryStatus(string token)
+        private Dictionary<string, string> GetAsyncQueryStatus(string token)
         {
-            return GetAsyncQueryStatusAsync(token).GetAwaiter().GetResult();
+            return GetAsyncQueryInfoAsync(token).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -541,7 +544,7 @@ namespace FireboltDotNetSdk.Client
         /// <param name="token">The token of the async query.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A task representing the asynchronous operation with a dictionary containing status information for the async query.</returns>
-        public async Task<Dictionary<string, string>> GetAsyncQueryStatusAsync(string token, CancellationToken cancellationToken = default)
+        private async Task<Dictionary<string, string>> GetAsyncQueryInfoAsync(string token, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(token))
             {
@@ -550,7 +553,7 @@ namespace FireboltDotNetSdk.Client
 
             DbCommand command = CreateDbCommand();
             command.CommandText = $"CALL fb_GetAsyncStatus('{token}')";
-            
+
             using (DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken))
             {
                 if (!reader.HasRows || !await reader.ReadAsync(cancellationToken))
@@ -559,15 +562,15 @@ namespace FireboltDotNetSdk.Client
                 }
 
                 var result = new Dictionary<string, string>();
-                
+
                 // Map all fields from the result to the dictionary
                 for (int i = 0; i < reader.FieldCount; i++)
                 {
-                    string fieldName = reader.GetName(i).ToLowerInvariant();
+                    string fieldName = reader.GetName(i);
                     string value = reader.IsDBNull(i) ? string.Empty : reader.GetString(i);
                     result[fieldName] = value;
                 }
-                
+
                 return result;
             }
         }
@@ -596,7 +599,7 @@ namespace FireboltDotNetSdk.Client
             }
 
             // Get the query status to extract the query_id
-            var statusInfo = await GetAsyncQueryStatusAsync(token, cancellationToken);
+            var statusInfo = await GetAsyncQueryInfoAsync(token, cancellationToken);
 
             // Get the query_id - it's needed for cancellation
             if (!statusInfo.TryGetValue("query_id", out string? queryId) || string.IsNullOrEmpty(queryId))
@@ -606,9 +609,9 @@ namespace FireboltDotNetSdk.Client
 
             var command = CreateDbCommand();
             command.CommandText = $"CANCEL QUERY WHERE query_id = '{queryId}'";
-            
+
             await command.ExecuteNonQueryAsync(cancellationToken);
-            
+
             return true;
         }
     }
