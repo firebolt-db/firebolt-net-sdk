@@ -567,95 +567,69 @@ namespace FireboltDotNetSdk.Tests
             return (connection, httpClientMock, client);
         }
 
-        [Test]
-        public void IsAsyncQueryRunning_RunningQuery_ReturnsTrue()
+        [TestCase("RUNNING", true)]
+        [TestCase("ENDED_SUCCESSFULLY", false)]
+        [TestCase("FAILED", false)]
+        [TestCase("CANCELLED", false)]
+        public void IsAsyncQueryRunning_WithStatus_ReturnsExpectedResult(string status, bool expected)
         {
-            string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"RUNNING\",\"456\"]]}";
+            // Ensure the status in JSON matches exactly what the IsAsyncQueryRunning method expects
+            string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var (connection, _, _) = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool result = connection.IsAsyncQueryRunning("test-token");
-
-            That(result, Is.True);
+            
+            That(result, Is.EqualTo(expected));
         }
 
-        [Test]
-        public void IsAsyncQueryRunning_CompletedQuery_ReturnsFalse()
+        [TestCase("RUNNING", true)]
+        [TestCase("ENDED_SUCCESSFULLY", false)]
+        [TestCase("FAILED", false)]
+        [TestCase("CANCELLED", false)]
+        public async Task IsAsyncQueryRunningAsync_WithStatus_ReturnsExpectedResult(string status, bool expected)
         {
-            string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"ENDED_SUCCESSFULLY\",\"456\"]]}";
-            var (connection, _, _) = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
-            );
-
-            bool result = connection.IsAsyncQueryRunning("test-token");
-
-            That(result, Is.False);
-        }
-
-        [Test]
-        public async Task IsAsyncQueryRunningAsync_RunningQuery_ReturnsTrue()
-        {
-            string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"RUNNING\",\"456\"]]}";
+            string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var (connection, _, _) = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool result = await connection.IsAsyncQueryRunningAsync("test-token");
 
-            That(result, Is.True);
+            That(result, Is.EqualTo(expected));
         }
 
-        [Test]
-        public void IsAsyncQuerySuccessful_RunningQuery_ReturnsNull()
+        [TestCase("RUNNING", null)]
+        [TestCase("ENDED_SUCCESSFULLY", true)]
+        [TestCase("FAILED", false)]
+        [TestCase("CANCELLED", false)]
+        public void IsAsyncQuerySuccessful_WithStatus_ReturnsExpectedResult(string status, bool? expected)
         {
-            string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"RUNNING\",\"456\"]]}";
+            string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var (connection, _, _) = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool? result = connection.IsAsyncQuerySuccessful("test-token");
 
-            That(result, Is.Null);
+            That(result, Is.EqualTo(expected));
         }
 
-        [Test]
-        public void IsAsyncQuerySuccessful_SuccessfulQuery_ReturnsTrue()
+        [TestCase("RUNNING", null)]
+        [TestCase("ENDED_SUCCESSFULLY", true)]
+        [TestCase("FAILED", false)]
+        [TestCase("CANCELLED", false)]
+        public async Task IsAsyncQuerySuccessfulAsync_WithStatus_ReturnsExpectedResult(string status, bool? expected)
         {
-            string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"ENDED_SUCCESSFULLY\",\"456\"]]}";
-            var (connection, _, _) = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
-            );
-
-            bool? result = connection.IsAsyncQuerySuccessful("test-token");
-
-            That(result, Is.True);
-        }
-
-        [Test]
-        public void IsAsyncQuerySuccessful_FailedQuery_ReturnsFalse()
-        {
-            string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"FAILED\",\"456\"]]}";
-            var (connection, _, _) = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
-            );
-
-            bool? result = connection.IsAsyncQuerySuccessful("test-token");
-
-            That(result, Is.False);
-        }
-
-        [Test]
-        public async Task IsAsyncQuerySuccessfulAsync_SuccessfulQuery_ReturnsTrue()
-        {
-            string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"ENDED_SUCCESSFULLY\",\"456\"]]}";
+            string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var (connection, _, _) = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool? result = await connection.IsAsyncQuerySuccessfulAsync("test-token");
 
-            That(result, Is.True);
+            That(result, Is.EqualTo(expected));
         }
 
         [Test]
