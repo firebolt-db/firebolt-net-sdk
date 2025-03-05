@@ -55,6 +55,8 @@ namespace FireboltDotNetSdk.Client
 
         public readonly HashSet<string> SetParamList;
 
+        public string? AsyncToken { get; private set; }
+
         public FireboltCommand() : this(null, null)
         {
         }
@@ -453,6 +455,99 @@ namespace FireboltDotNetSdk.Client
         {
             await ExecuteCommandAsync(StrictCommandText, cancellationToken);
             return await Task.FromResult(0);
+        }
+
+        /// <summary>
+        /// Executes a query asynchronously on the server-side and returns a token to track the query status.
+        /// </summary>
+        /// <returns>A token that can be used to check the status of the async query.</returns>
+        public string ExecuteAsyncQuery()
+        {
+            return ExecuteAsyncQueryAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Executes a query asynchronously on the server-side and returns a token to track the query status.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>A task representing the asynchronous operation with a token to track the async query status.</returns>
+        public async Task<string> ExecuteAsyncQueryAsync(CancellationToken cancellationToken = default)
+        {
+            if (Connection == null)
+            {
+                throw new FireboltException("Unable to execute SQL as no connection was initialised. Create command using working connection");
+            }
+            if (Connection.Client == null)
+            {
+                throw new FireboltException("Client is undefined. Initialize connection properly");
+            }
+            
+            var engineUrl = Connection.EngineUrl;
+            string newCommandText = StrictCommandText;
+            if (Parameters.Any())
+            {
+                newCommandText = GetParamQuery(StrictCommandText);
+            }
+
+            var database = Connection?.Database != string.Empty ? Connection?.Database : null;
+            
+            // Use existing parameters but add async=true
+            var asyncParams = new HashSet<string>(SetParamList)
+            {
+                "async=true"
+            };
+            
+            // Execute the query with the async parameter
+            string? response = await Connection!.Client.ExecuteQueryAsync(
+                engineUrl, database, Connection?.AccountId, newCommandText, asyncParams, cancellationToken);
+            
+            if (response == null)
+            {
+                throw new FireboltException("Failed to execute async query: null response received");
+            }
+            
+            try
+            {
+                // Parse the async response which has a different format than regular queries
+                var jsonResponse = JObject.Parse(response);
+                var token = jsonResponse["token"]?.ToString();
+                
+                if (string.IsNullOrEmpty(token))
+                {
+                    throw new FireboltException("Invalid async query response format: missing or empty token");
+                }
+                
+                // Store the token for later use
+                AsyncToken = token;
+                return token;
+            }
+            catch (JsonReaderException ex)
+            {
+                throw new FireboltException("Failed to parse async query response", ex);
+            }
+        }
+
+        /// <summary>
+        /// Gets the result of an async query by its token.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <returns>A DbDataReader that can be used to read the query results.</returns>
+        public DbDataReader GetAsyncQueryResult(string token)
+        {
+            return GetAsyncQueryResultAsync(token).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Gets the result of an async query by its token asynchronously.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>A task representing the asynchronous operation with a DbDataReader to read the query results.</returns>
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+        public async Task<DbDataReader> GetAsyncQueryResultAsync(string token, CancellationToken cancellationToken = default)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+        {
+            throw new NotImplementedException("Getting async query results is not implemented yet.");
         }
     }
 }
