@@ -60,6 +60,7 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs = new MockFireboltConnection(connectionString);
+            cs.CleanupCache();
             Assert.Null(cs.AccountId); // retrieving account ID initializes the InfraVersion that is 1 by default
             Assert.That(cs.InfraVersion, Is.EqualTo(1));
             // now let's change the InfraVersion
