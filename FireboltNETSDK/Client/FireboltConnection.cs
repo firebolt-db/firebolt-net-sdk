@@ -550,9 +550,11 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new ArgumentNullException(nameof(token), "Token cannot be null or empty");
             }
-
-            DbCommand command = CreateDbCommand();
-            command.CommandText = $"CALL fb_GetAsyncStatus('{token}')";
+            DbCommand command = CreateDbCommand("CALL fb_GetAsyncStatus(@token)");
+            var tokenParam = command.CreateParameter();
+            tokenParam.ParameterName = "@token";
+            tokenParam.Value = token;
+            command.Parameters.Add(tokenParam);
 
             using (DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken))
             {
@@ -607,8 +609,12 @@ namespace FireboltDotNetSdk.Client
                 throw new FireboltException("Could not find query_id for the running query");
             }
 
-            var command = CreateDbCommand();
-            command.CommandText = $"CANCEL QUERY WHERE query_id = '{queryId}'";
+            DbCommand command = CreateDbCommand("CANCEL QUERY WHERE query_id = @queryId");
+            var queryIdParam = command.CreateParameter();
+            queryIdParam.ParameterName = "@queryId";
+            queryIdParam.Value = queryId;
+            command.Parameters.Add(queryIdParam);
+
 
             await command.ExecuteNonQueryAsync(cancellationToken);
 
