@@ -73,7 +73,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" };
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
-            Assert.IsEmpty(cs.SetParamList);
+            Assert.That(cs.SetParamList, Is.Empty);
             cs.ExecuteNonQuery();
             Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string>(new string[] { commandText.Replace("SET ", "") })));
         }
@@ -84,7 +84,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" };
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
-            Assert.IsEmpty(cs.SetParamList);
+            Assert.That(cs.SetParamList, Is.Empty);
             await cs.ExecuteNonQueryAsync();
             Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string>(new string[] { commandText.Replace("SET ", "") })));
         }
@@ -109,7 +109,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var cs = new FireboltCommand { CommandText = commandText };
             FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => cs.ExecuteReader());
-            Assert.NotNull(exception);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception!.Message, Is.EqualTo("Unable to execute SQL as no connection was initialised. Create command using working connection"));
         }
 
@@ -118,7 +118,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var cs = createCommand("select 1", null);
             DbDataReader reader = cs.ExecuteReader();
-            Assert.False(reader.Read());
+            Assert.That(reader.Read(), Is.False);
         }
 
         [TestCase(null, null, "SQL command is null")]
@@ -138,12 +138,12 @@ namespace FireboltDotNetSdk.Tests
 
             var cs = createCommand("select 1", response);
             DbDataReader reader = cs.ExecuteReader();
-            Assert.True(reader.Read());
+            Assert.That(reader.Read(), Is.True);
             Assert.That(reader.GetInt16(0), Is.EqualTo(1));
             Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
             Assert.That(reader.GetDouble(1), Is.EqualTo(double.PositiveInfinity));
             Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(double)));
-            Assert.False(reader.Read());
+            Assert.That(reader.Read(), Is.False);
         }
 
         [Test]
@@ -163,11 +163,11 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
 
             cs.ExecuteNonQuery();
-            Assert.IsNotEmpty(cs.SetParamList);
-            Assert.IsNotEmpty(connection.SetParamList);
+            Assert.That(cs.SetParamList, Is.Not.Empty);
+            Assert.That(connection.SetParamList, Is.Not.Empty);
             cs.ClearSetList();
-            Assert.IsEmpty(cs.SetParamList);
-            Assert.IsEmpty(connection.SetParamList);
+            Assert.That(cs.SetParamList, Is.Empty);
+            Assert.That(connection.SetParamList, Is.Empty);
         }
 
         [Test]
@@ -175,7 +175,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var cs = new FireboltCommand();
             cs.Parameters.Add(new FireboltParameter("@param", "abcd"));
-            Assert.IsTrue(cs.Parameters.Any());
+            Assert.That(cs.Parameters.Any(), Is.True);
         }
 
         [TestCase("hello")]
@@ -190,7 +190,7 @@ namespace FireboltDotNetSdk.Tests
             parameter.ParameterName = "@param";
             parameter.Value = value;
             cs.Parameters.Add(parameter);
-            Assert.IsTrue(cs.Parameters.Any());
+            Assert.That(cs.Parameters.Any(), Is.True);
         }
 
         [Test]
@@ -395,13 +395,13 @@ namespace FireboltDotNetSdk.Tests
         public void SetDesignTimeVisible()
         {
             DbCommand command = new FireboltCommand();
-            Assert.True(command.DesignTimeVisible); // the default
+            Assert.That(command.DesignTimeVisible, Is.True); // the default
             // change the value and validate it
             command.DesignTimeVisible = false;
-            Assert.False(command.DesignTimeVisible);
+            Assert.That(command.DesignTimeVisible, Is.False);
             // restore the value and validate again
             command.DesignTimeVisible = true;
-            Assert.True(command.DesignTimeVisible);
+            Assert.That(command.DesignTimeVisible, Is.True);
         }
 
         [Test]
@@ -467,7 +467,7 @@ namespace FireboltDotNetSdk.Tests
         public void SetAndGetConnection()
         {
             DbCommand command = new FireboltCommand();
-            Assert.Null(command.Connection);
+            Assert.That(command.Connection, Is.Null);
             FireboltConnection connection = createConnection(null);
             command.Connection = connection;
             Assert.That(command.Connection, Is.SameAs(connection));

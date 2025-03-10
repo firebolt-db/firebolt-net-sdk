@@ -33,8 +33,8 @@ namespace FireboltDotNetSdk.Tests
                 string? token = command.AsyncToken;
 
                 // Verify we received a token
-                Assert.NotNull(token);
-                Assert.IsFalse(string.IsNullOrEmpty(token));
+                Assert.That(token, Is.Not.Null);
+                Assert.That(string.IsNullOrEmpty(token), Is.False);
 
                 // Check the token format (should be non-empty string)
                 Assert.That(token.Length, Is.GreaterThan(0));
@@ -89,8 +89,8 @@ namespace FireboltDotNetSdk.Tests
                 string? token = command.AsyncToken;
 
                 // Verify we received a token
-                Assert.NotNull(token);
-                Assert.IsFalse(string.IsNullOrEmpty(token));
+                Assert.That(token, Is.Not.Null);
+                Assert.That(string.IsNullOrEmpty(token), Is.False);
 
                 // Check the token format (should be non-empty string)
                 Assert.That(token.Length, Is.GreaterThan(0));
@@ -141,7 +141,7 @@ namespace FireboltDotNetSdk.Tests
                 // Execute the query asynchronously
                 await command.ExecuteAsyncNonQueryAsync();
                 string? token = command.AsyncToken;
-                Assert.NotNull(token);
+                Assert.That(token, Is.Not.Null);
 
                 // Wait a moment to make sure the query starts running
                 await Task.Delay(1000);
