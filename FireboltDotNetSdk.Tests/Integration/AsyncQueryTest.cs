@@ -13,7 +13,7 @@ namespace FireboltDotNetSdk.Tests
         public async Task ExecuteAsyncNonQueryTest()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
-            conn.Open();
+            await conn.OpenAsync();
 
             try
             {
@@ -26,17 +26,13 @@ namespace FireboltDotNetSdk.Tests
                 FireboltCommand command = (FireboltCommand)conn.CreateCommand();
                 command.CommandText = "INSERT INTO async_test_table SELECT checksum(*) FROM GENERATE_SERIES(1, 2500000000)";
 
-                // Execute the query asynchronously
                 await command.ExecuteAsyncNonQueryAsync();
 
-                // Retrieve the token from the command
                 string? token = command.AsyncToken;
 
                 // Verify we received a token
                 Assert.That(token, Is.Not.Null);
                 Assert.That(string.IsNullOrEmpty(token), Is.False);
-
-                // Check the token format (should be non-empty string)
                 Assert.That(token.Length, Is.GreaterThan(0));
 
                 // Check that the query status is initially running
@@ -45,7 +41,7 @@ namespace FireboltDotNetSdk.Tests
                 // Wait a bit for the query to make progress
                 await Task.Delay(5000);
 
-                // Check the status again - it should finished
+                // Check the status again - it should be finished
                 Assert.That(await conn.IsAsyncQueryRunningAsync(token), Is.False);
                 Assert.That(await conn.IsAsyncQuerySuccessfulAsync(token), Is.True);
 
@@ -57,7 +53,6 @@ namespace FireboltDotNetSdk.Tests
             }
             finally
             {
-                // drop test table - will run even if previous commands fail
                 DbCommand dropTableCommand = conn.CreateCommand();
                 dropTableCommand.CommandText = "DROP TABLE IF EXISTS async_test_table";
                 await dropTableCommand.ExecuteNonQueryAsync();
@@ -85,23 +80,20 @@ namespace FireboltDotNetSdk.Tests
                 // Execute the query asynchronously using the synchronous method
                 command.ExecuteAsyncNonQuery();
 
-                // Retrieve the token from the command
                 string? token = command.AsyncToken;
 
                 // Verify we received a token
                 Assert.That(token, Is.Not.Null);
                 Assert.That(string.IsNullOrEmpty(token), Is.False);
-
-                // Check the token format (should be non-empty string)
                 Assert.That(token.Length, Is.GreaterThan(0));
 
                 // Check that the query status is initially running
                 Assert.That(conn.IsAsyncQueryRunning(token), Is.True);
 
                 // Wait a bit for the query to make progress
-                Thread.Sleep(5000);
+                Task.Delay(5000).Wait();
 
-                // Check the status again - it should finished
+                // Check the status again - it should be finished
                 Assert.That(conn.IsAsyncQueryRunning(token), Is.False);
                 Assert.That(conn.IsAsyncQuerySuccessful(token), Is.True);
 
@@ -113,7 +105,6 @@ namespace FireboltDotNetSdk.Tests
             }
             finally
             {
-                // drop test table - will run even if previous commands fail
                 DbCommand dropTableCommand = conn.CreateCommand();
                 dropTableCommand.CommandText = "DROP TABLE IF EXISTS async_test_table_sync";
                 dropTableCommand.ExecuteNonQuery();
@@ -125,7 +116,7 @@ namespace FireboltDotNetSdk.Tests
         public async Task CancelAsyncQueryTest()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
-            conn.Open();
+            await conn.OpenAsync();
 
             try
             {
@@ -138,7 +129,6 @@ namespace FireboltDotNetSdk.Tests
                 FireboltCommand command = (FireboltCommand)conn.CreateCommand();
                 command.CommandText = "INSERT INTO async_test_table_cancel SELECT checksum(*) FROM GENERATE_SERIES(1, 5000000000)";
 
-                // Execute the query asynchronously
                 await command.ExecuteAsyncNonQueryAsync();
                 string? token = command.AsyncToken;
                 Assert.That(token, Is.Not.Null);
@@ -166,7 +156,6 @@ namespace FireboltDotNetSdk.Tests
             }
             finally
             {
-                // drop test table - will run even if previous commands fail
                 DbCommand dropTableCommand = conn.CreateCommand();
                 dropTableCommand.CommandText = "DROP TABLE IF EXISTS async_test_table_cancel";
                 await dropTableCommand.ExecuteNonQueryAsync();
