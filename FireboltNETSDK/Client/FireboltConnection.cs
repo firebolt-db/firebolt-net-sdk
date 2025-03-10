@@ -336,7 +336,7 @@ namespace FireboltDotNetSdk.Client
             }
             catch (System.Exception)
             {
-                Close();
+                await CloseAsync();
                 throw;
             }
         }
@@ -569,7 +569,7 @@ namespace FireboltDotNetSdk.Client
                 for (int i = 0; i < reader.FieldCount; i++)
                 {
                     string fieldName = reader.GetName(i);
-                    string value = reader.IsDBNull(i) ? string.Empty : reader.GetString(i);
+                    string value = await reader.IsDBNullAsync(i, cancellationToken) ? string.Empty : reader.GetString(i);
                     result[fieldName] = value;
                 }
 

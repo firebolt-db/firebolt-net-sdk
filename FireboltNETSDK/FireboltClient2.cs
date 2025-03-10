@@ -167,7 +167,7 @@ public class FireboltClient2 : FireboltClient
         {
             throw new FireboltException($"Engine {engineName} not found.");
         }
-        if (reader.IsDBNull(1))
+        if (await reader.IsDBNullAsync(1))
         {
             throw new FireboltException($"Engine {engineName} is not attached to any database");
         }
