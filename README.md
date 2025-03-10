@@ -9,6 +9,7 @@
 This is an implementation of .NET 6 Core driver for Firebolt in a form of a [DbConnection](https://learn.microsoft.com/en-us/dotnet/api/system.data.common.dbconnection?view=net-6.0) class.
 Supports all latest .NET frameworks and all platforms.
 
+
 This project is developed under Visual Studio 2022. Earlier versions of Visual Studio are not supported.
 
 
