@@ -53,7 +53,7 @@ namespace FireboltDotNetSdk.Client
         private bool _designTimeVisible = true;
         private DbParameterCollection _parameters;
 
-        public readonly HashSet<string> SetParamList;
+        public HashSet<string> SetParamList;
 
         public string? AsyncToken { get; private set; }
 
