@@ -53,8 +53,8 @@ namespace FireboltDotNetSdk.Client
         private string _connectionString;
         private string? _serverVersion;
         private FireboltClient? _fireboltClient;
-        public readonly HashSet<string> SetParamList = new();
         private int _infraVersion = 0;
+        public HashSet<string> SetParamList { get; private set; } = new HashSet<string>();
         private static IDictionary<string, GetAccountIdByNameResponse> accountCache = new ConcurrentDictionary<string, GetAccountIdByNameResponse>();
 
         /// <summary>
