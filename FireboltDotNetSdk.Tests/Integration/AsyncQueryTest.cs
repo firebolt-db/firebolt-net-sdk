@@ -7,159 +7,152 @@ namespace FireboltDotNetSdk.Tests
     internal class AsyncQueryTest : IntegrationTest
     {
         private static string USER_CONNECTION_STRING = ConnectionString();
+        private string _tableName;
+
+        [SetUp]
+        public new void SetUp()
+        {
+            base.SetUp();
+            
+            // Generate a unique table name for each test
+            _tableName = $"async_test_table_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            
+            // Create a connection specifically for setup
+            using var setupConnection = new FireboltConnection(USER_CONNECTION_STRING);
+            setupConnection.Open();
+            
+            // Create test table
+            FireboltCommand createTableCommand = (FireboltCommand)setupConnection.CreateCommand();
+            createTableCommand.CommandText = $"CREATE TABLE IF NOT EXISTS {_tableName} (id bigint)";
+            createTableCommand.ExecuteNonQuery();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            // Create a connection specifically for teardown
+            using var teardownConnection = new FireboltConnection(USER_CONNECTION_STRING);
+            teardownConnection.Open();
+            
+            // Drop test table
+            DbCommand dropTableCommand = teardownConnection.CreateCommand();
+            dropTableCommand.CommandText = $"DROP TABLE IF EXISTS {_tableName}";
+            dropTableCommand.ExecuteNonQuery();
+        }
 
         [Test]
         [Category("engine-v2")]
         public async Task ExecuteAsyncNonQueryTest()
         {
-            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
-            await conn.OpenAsync();
+            // Create a separate connection for the test
+            using var connection = new FireboltConnection(USER_CONNECTION_STRING);
+            await connection.OpenAsync();
 
-            try
-            {
-                // Create command to create a table
-                FireboltCommand createTableCommand = (FireboltCommand)conn.CreateCommand();
-                createTableCommand.CommandText = "CREATE TABLE IF NOT EXISTS async_test_table (id bigint)";
-                await createTableCommand.ExecuteNonQueryAsync();
+            // Create command with a computationally intensive query
+            FireboltCommand command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = $"INSERT INTO {_tableName} SELECT checksum(*) FROM GENERATE_SERIES(1, 2500000000)";
 
-                // Create command with a computationally intensive query
-                FireboltCommand command = (FireboltCommand)conn.CreateCommand();
-                command.CommandText = "INSERT INTO async_test_table SELECT checksum(*) FROM GENERATE_SERIES(1, 2500000000)";
+            await command.ExecuteAsyncNonQueryAsync();
 
-                await command.ExecuteAsyncNonQueryAsync();
+            string? token = command.AsyncToken;
 
-                string? token = command.AsyncToken;
+            // Verify we received a token
+            Assert.That(token, Is.Not.Null);
+            Assert.That(string.IsNullOrEmpty(token), Is.False);
+            Assert.That(token.Length, Is.GreaterThan(0));
 
-                // Verify we received a token
-                Assert.That(token, Is.Not.Null);
-                Assert.That(string.IsNullOrEmpty(token), Is.False);
-                Assert.That(token.Length, Is.GreaterThan(0));
+            // Check that the query status is initially running
+            Assert.That(await connection.IsAsyncQueryRunningAsync(token), Is.True);
 
-                // Check that the query status is initially running
-                Assert.That(await conn.IsAsyncQueryRunningAsync(token), Is.True);
+            // Wait a bit for the query to make progress
+            await Task.Delay(5000);
 
-                // Wait a bit for the query to make progress
-                await Task.Delay(5000);
+            // Check the status again - it should be finished
+            Assert.That(await connection.IsAsyncQueryRunningAsync(token), Is.False);
+            Assert.That(await connection.IsAsyncQuerySuccessfulAsync(token), Is.True);
 
-                // Check the status again - it should be finished
-                Assert.That(await conn.IsAsyncQueryRunningAsync(token), Is.False);
-                Assert.That(await conn.IsAsyncQuerySuccessfulAsync(token), Is.True);
-
-                // Verify the data was written to the table
-                DbCommand countCommand = conn.CreateCommand();
-                countCommand.CommandText = "SELECT COUNT(*) FROM async_test_table";
-                var count = await countCommand.ExecuteScalarAsync();
-                Assert.That(count, Is.EqualTo(1));
-            }
-            finally
-            {
-                DbCommand dropTableCommand = conn.CreateCommand();
-                dropTableCommand.CommandText = "DROP TABLE IF EXISTS async_test_table";
-                await dropTableCommand.ExecuteNonQueryAsync();
-            }
+            // Verify the data was written to the table
+            DbCommand countCommand = connection.CreateCommand();
+            countCommand.CommandText = $"SELECT COUNT(*) FROM {_tableName}";
+            var count = await countCommand.ExecuteScalarAsync();
+            Assert.That(count, Is.EqualTo(1));
         }
 
         [Test]
         [Category("engine-v2")]
         public void ExecuteAsyncNonQuerySyncTest()
         {
-            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
-            conn.Open();
+            // Create a separate connection for the test
+            using var connection = new FireboltConnection(USER_CONNECTION_STRING);
+            connection.Open();
 
-            try
-            {
-                // Create command to create a table
-                FireboltCommand createTableCommand = (FireboltCommand)conn.CreateCommand();
-                createTableCommand.CommandText = "CREATE TABLE IF NOT EXISTS async_test_table_sync (id bigint)";
-                createTableCommand.ExecuteNonQuery();
+            // Create command with a computationally intensive query
+            FireboltCommand command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = $"INSERT INTO {_tableName} SELECT checksum(*) FROM GENERATE_SERIES(1, 2500000000)";
 
-                // Create command with a computationally intensive query
-                FireboltCommand command = (FireboltCommand)conn.CreateCommand();
-                command.CommandText = "INSERT INTO async_test_table_sync SELECT checksum(*) FROM GENERATE_SERIES(1, 2500000000)";
+            // Execute the query asynchronously using the synchronous method
+            command.ExecuteAsyncNonQuery();
 
-                // Execute the query asynchronously using the synchronous method
-                command.ExecuteAsyncNonQuery();
+            string? token = command.AsyncToken;
 
-                string? token = command.AsyncToken;
+            // Verify we received a token
+            Assert.That(token, Is.Not.Null);
+            Assert.That(string.IsNullOrEmpty(token), Is.False);
+            Assert.That(token.Length, Is.GreaterThan(0));
 
-                // Verify we received a token
-                Assert.That(token, Is.Not.Null);
-                Assert.That(string.IsNullOrEmpty(token), Is.False);
-                Assert.That(token.Length, Is.GreaterThan(0));
+            // Check that the query status is initially running
+            Assert.That(connection.IsAsyncQueryRunning(token), Is.True);
 
-                // Check that the query status is initially running
-                Assert.That(conn.IsAsyncQueryRunning(token), Is.True);
+            // Wait a bit for the query to make progress
+            Task.Delay(5000).Wait();
 
-                // Wait a bit for the query to make progress
-                Task.Delay(5000).Wait();
+            // Check the status again - it should be finished
+            Assert.That(connection.IsAsyncQueryRunning(token), Is.False);
+            Assert.That(connection.IsAsyncQuerySuccessful(token), Is.True);
 
-                // Check the status again - it should be finished
-                Assert.That(conn.IsAsyncQueryRunning(token), Is.False);
-                Assert.That(conn.IsAsyncQuerySuccessful(token), Is.True);
-
-                // Verify the data was written to the table
-                DbCommand countCommand = conn.CreateCommand();
-                countCommand.CommandText = "SELECT COUNT(*) FROM async_test_table_sync";
-                var count = countCommand.ExecuteScalar();
-                Assert.That(count, Is.EqualTo(1));
-            }
-            finally
-            {
-                DbCommand dropTableCommand = conn.CreateCommand();
-                dropTableCommand.CommandText = "DROP TABLE IF EXISTS async_test_table_sync";
-                dropTableCommand.ExecuteNonQuery();
-            }
+            // Verify the data was written to the table
+            DbCommand countCommand = connection.CreateCommand();
+            countCommand.CommandText = $"SELECT COUNT(*) FROM {_tableName}";
+            var count = countCommand.ExecuteScalar();
+            Assert.That(count, Is.EqualTo(1));
         }
 
         [Test]
         [Category("engine-v2")]
         public async Task CancelAsyncQueryTest()
         {
-            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
-            await conn.OpenAsync();
+            // Create a separate connection for the test
+            using var connection = new FireboltConnection(USER_CONNECTION_STRING);
+            await connection.OpenAsync();
 
-            try
-            {
-                // Create command to create a table
-                FireboltCommand createTableCommand = (FireboltCommand)conn.CreateCommand();
-                createTableCommand.CommandText = "CREATE TABLE IF NOT EXISTS async_test_table_cancel (id bigint)";
-                await createTableCommand.ExecuteNonQueryAsync();
+            // Create command with a computationally intensive query that will take a while
+            FireboltCommand command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = $"INSERT INTO {_tableName} SELECT checksum(*) FROM GENERATE_SERIES(1, 5000000000)";
 
-                // Create command with a computationally intensive query that will take a while
-                FireboltCommand command = (FireboltCommand)conn.CreateCommand();
-                command.CommandText = "INSERT INTO async_test_table_cancel SELECT checksum(*) FROM GENERATE_SERIES(1, 5000000000)";
+            await command.ExecuteAsyncNonQueryAsync();
+            string? token = command.AsyncToken;
+            Assert.That(token, Is.Not.Null);
 
-                await command.ExecuteAsyncNonQueryAsync();
-                string? token = command.AsyncToken;
-                Assert.That(token, Is.Not.Null);
+            // Wait a moment to make sure the query starts running
+            await Task.Delay(1000);
 
-                // Wait a moment to make sure the query starts running
-                await Task.Delay(1000);
+            // Verify the query is running
+            bool isRunning = await connection.IsAsyncQueryRunningAsync(token);
+            Assert.That(isRunning, Is.True, "Query should be running before cancellation");
 
-                // Verify the query is running
-                bool isRunning = await conn.IsAsyncQueryRunningAsync(token);
-                Assert.That(isRunning, Is.True, "Query should be running before cancellation");
+            // Stop the query
+            bool stopped = await connection.CancelAsyncQueryAsync(token);
+            Assert.That(stopped, Is.True, "Failed to stop the async query");
 
-                // Stop the query
-                bool stopped = await conn.CancelAsyncQueryAsync(token);
-                Assert.That(stopped, Is.True, "Failed to stop the async query");
+            // Verify the query is no longer running
+            isRunning = await connection.IsAsyncQueryRunningAsync(token);
+            Assert.That(isRunning, Is.False, "Query should no longer be running");
 
-                // Verify the query is no longer running
-                isRunning = await conn.IsAsyncQueryRunningAsync(token);
-                Assert.That(isRunning, Is.False, "Query should no longer be running");
-
-                // Verify no data was written to the table
-                DbCommand countCommand = conn.CreateCommand();
-                countCommand.CommandText = "SELECT COUNT(*) FROM async_test_table_cancel";
-                var count = await countCommand.ExecuteScalarAsync();
-                Assert.That(count, Is.EqualTo(0));
-            }
-            finally
-            {
-                DbCommand dropTableCommand = conn.CreateCommand();
-                dropTableCommand.CommandText = "DROP TABLE IF EXISTS async_test_table_cancel";
-                await dropTableCommand.ExecuteNonQueryAsync();
-            }
+            // Verify no data was written to the table
+            DbCommand countCommand = connection.CreateCommand();
+            countCommand.CommandText = $"SELECT COUNT(*) FROM {_tableName}";
+            var count = await countCommand.ExecuteScalarAsync();
+            Assert.That(count, Is.EqualTo(0));
         }
     }
 }
