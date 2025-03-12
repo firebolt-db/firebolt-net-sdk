@@ -186,7 +186,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private async Task<string?> ExecuteCommandAsync(string commandText, CancellationToken cancellationToken)
+        private void verifyConnection()
         {
             if (Connection == null)
             {
@@ -196,21 +196,33 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Client is undefined. Initialize connection properly");
             }
-            var engineUrl = Connection.EngineUrl;
-            if (commandText.Trim().ToUpper().StartsWith("SET"))
-            {
-                commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
-                SetParamList.Add(commandText);
-                try
-                {
-                    await Connection.ValidateConnection(cancellationToken);
-                }
-                catch (AggregateException)
-                {
-                    SetParamList.Remove(commandText);
-                    throw;
-                }
+        }
 
+        private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
+        {
+            verifyConnection();
+            commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
+            SetParamList.Add(commandText);
+            try
+            {
+                await Connection!.ValidateConnection(cancellationToken);
+            }
+            catch (AggregateException)
+            {
+                SetParamList.Remove(commandText);
+                throw;
+            }
+        }
+
+        private async Task<string?> ExecuteCommandAsync(string commandText, CancellationToken cancellationToken, bool isServerAsync = false)
+        {
+            verifyConnection();
+            var engineUrl = Connection!.EngineUrl;
+            // If the command is a SET command, process it and return null
+            // SET commands are not supported by the server-side async
+            if (!isServerAsync && commandText.Trim().ToUpper().StartsWith("SET"))
+            {
+                await ProcessSetCommand(commandText, cancellationToken);
                 return await Task.FromResult<string?>(null);
             }
             string newCommandText = commandText;
@@ -218,10 +230,19 @@ namespace FireboltDotNetSdk.Client
             {
                 newCommandText = GetParamQuery(commandText);
             }
+            var paramList = SetParamList;
+            // Need to tell the backend we are running async
+            if (isServerAsync)
+            {
+                paramList = new HashSet<string>(SetParamList)
+                {
+                    "async=true"
+                };
+            }
 
             var database = Connection?.Database != string.Empty ? Connection?.Database : null;
 
-            Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection?.AccountId, newCommandText, SetParamList, cancellationToken);
+            Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection?.AccountId, newCommandText, paramList, cancellationToken);
             return await t;
         }
 
@@ -474,30 +495,8 @@ namespace FireboltDotNetSdk.Client
         /// <returns>A task representing the asynchronous operation. Always returns 0.</returns>
         public async Task<int> ExecuteAsyncNonQueryAsync(CancellationToken cancellationToken = default)
         {
-            if (Connection == null)
-            {
-                throw new FireboltException("Unable to execute SQL as no connection was initialised. Create command using working connection");
-            }
-
-            var engineUrl = Connection.EngineUrl;
-            string newCommandText = StrictCommandText;
-            if (Parameters.Any())
-            {
-                newCommandText = GetParamQuery(StrictCommandText);
-            }
-
-            var database = Connection?.Database != string.Empty ? Connection?.Database : null;
-
-            // Use existing parameters but add async=true
-            var asyncParams = new HashSet<string>(SetParamList)
-            {
-                "async=true"
-            };
-
             // Execute the query with the async parameter
-            string? response = await Connection!.Client.ExecuteQueryAsync(
-                engineUrl, database, Connection?.AccountId, newCommandText, asyncParams, cancellationToken);
-
+            string? response = await ExecuteCommandAsync(StrictCommandText, cancellationToken, true);
             if (response == null)
             {
                 throw new FireboltException("Failed to execute async query: no response received");
