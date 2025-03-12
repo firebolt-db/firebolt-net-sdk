@@ -17,7 +17,6 @@ namespace FireboltDotNetSdk.Tests
             // Generate a unique table name for each test
             _tableName = $"async_test_table_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
 
-            // Create a connection specifically for setup
             using var setupConnection = new FireboltConnection(USER_CONNECTION_STRING);
             setupConnection.Open();
 
@@ -30,7 +29,6 @@ namespace FireboltDotNetSdk.Tests
         [TearDown]
         public void TearDown()
         {
-            // Create a connection specifically for teardown
             using var teardownConnection = new FireboltConnection(USER_CONNECTION_STRING);
             teardownConnection.Open();
 
@@ -44,7 +42,7 @@ namespace FireboltDotNetSdk.Tests
         [Category("engine-v2")]
         public async Task ExecuteAsyncNonQueryTest()
         {
-            // Create a separate connection for the test
+
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
             await connection.OpenAsync();
 
@@ -82,7 +80,6 @@ namespace FireboltDotNetSdk.Tests
         [Category("engine-v2")]
         public void ExecuteAsyncNonQuerySyncTest()
         {
-            // Create a separate connection for the test
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
             connection.Open();
 
@@ -97,8 +94,11 @@ namespace FireboltDotNetSdk.Tests
 
             // Verify we received a token
             Assert.That(token, Is.Not.Null);
-            Assert.That(string.IsNullOrEmpty(token), Is.False);
-            Assert.That(token.Length, Is.GreaterThan(0));
+            Assert.Multiple(() =>
+            {
+                Assert.That(string.IsNullOrEmpty(token), Is.False);
+                Assert.That(token.Length, Is.GreaterThan(0));
+            });
 
             // Check that the query status is initially running
             Assert.That(connection.IsAsyncQueryRunning(token), Is.True);
@@ -107,8 +107,11 @@ namespace FireboltDotNetSdk.Tests
             Task.Delay(5000).Wait();
 
             // Check the status again - it should be finished
-            Assert.That(connection.IsAsyncQueryRunning(token), Is.False);
-            Assert.That(connection.IsAsyncQuerySuccessful(token), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(connection.IsAsyncQueryRunning(token), Is.False);
+                Assert.That(connection.IsAsyncQuerySuccessful(token), Is.True);
+            });
 
             // Verify the data was written to the table
             DbCommand countCommand = connection.CreateCommand();
@@ -121,7 +124,6 @@ namespace FireboltDotNetSdk.Tests
         [Category("engine-v2")]
         public async Task CancelAsyncQueryTest()
         {
-            // Create a separate connection for the test
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
             await connection.OpenAsync();
 
