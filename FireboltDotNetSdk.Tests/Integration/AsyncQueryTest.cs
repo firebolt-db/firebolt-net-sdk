@@ -13,14 +13,14 @@ namespace FireboltDotNetSdk.Tests
         public new void SetUp()
         {
             base.SetUp();
-            
+
             // Generate a unique table name for each test
             _tableName = $"async_test_table_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-            
+
             // Create a connection specifically for setup
             using var setupConnection = new FireboltConnection(USER_CONNECTION_STRING);
             setupConnection.Open();
-            
+
             // Create test table
             FireboltCommand createTableCommand = (FireboltCommand)setupConnection.CreateCommand();
             createTableCommand.CommandText = $"CREATE TABLE IF NOT EXISTS {_tableName} (id bigint)";
@@ -33,7 +33,7 @@ namespace FireboltDotNetSdk.Tests
             // Create a connection specifically for teardown
             using var teardownConnection = new FireboltConnection(USER_CONNECTION_STRING);
             teardownConnection.Open();
-            
+
             // Drop test table
             DbCommand dropTableCommand = teardownConnection.CreateCommand();
             dropTableCommand.CommandText = $"DROP TABLE IF EXISTS {_tableName}";
