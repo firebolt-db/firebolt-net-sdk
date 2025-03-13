@@ -488,9 +488,9 @@ namespace FireboltDotNetSdk.Client
         /// The token to track the query status can be accessed via the AsyncToken property.
         /// </summary>
         /// <returns>Always returns 0.</returns>
-        public int ExecuteAsyncNonQuery()
+        public int ExecuteServerSideAsyncNonQuery()
         {
-            return ExecuteAsyncNonQueryAsync().GetAwaiter().GetResult();
+            return ExecuteServerSideAsyncNonQueryAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -498,7 +498,7 @@ namespace FireboltDotNetSdk.Client
         /// The token to track the query status can be accessed via the AsyncToken property.
         /// </summary>
         /// <returns>A task representing the asynchronous operation. Always returns 0.</returns>
-        public async Task<int> ExecuteAsyncNonQueryAsync(CancellationToken cancellationToken = default)
+        public async Task<int> ExecuteServerSideAsyncNonQueryAsync(CancellationToken cancellationToken = default)
         {
             // Execute the query with the async parameter
             string? response = await ExecuteCommandAsync(StrictCommandText, cancellationToken, true);

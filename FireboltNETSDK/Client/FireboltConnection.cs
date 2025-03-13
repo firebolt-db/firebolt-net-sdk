@@ -479,9 +479,9 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         /// <param name="token">The token of the async query.</param>
         /// <returns>True if the query is still running, false otherwise.</returns>
-        public bool IsAsyncQueryRunning(string token)
+        public bool IsServerSideAsyncQueryRunning(string token)
         {
-            return IsAsyncQueryRunningAsync(token).GetAwaiter().GetResult();
+            return IsServerSideAsyncQueryRunningAsync(token).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -490,7 +490,7 @@ namespace FireboltDotNetSdk.Client
         /// <param name="token">The token of the async query.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A task representing the asynchronous operation with a boolean indicating if the query is still running.</returns>
-        public async Task<bool> IsAsyncQueryRunningAsync(string token, CancellationToken cancellationToken = default)
+        public async Task<bool> IsServerSideAsyncQueryRunningAsync(string token, CancellationToken cancellationToken = default)
         {
             var info = await GetAsyncQueryInfoAsync(token, cancellationToken);
             return info.TryGetValue("status", out string? status) && status == QueryStatusRunning;
@@ -501,9 +501,9 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         /// <param name="token">The token of the async query.</param>
         /// <returns>True if the query completed successfully, false if it failed, null if it's still running.</returns>
-        public bool? IsAsyncQuerySuccessful(string token)
+        public bool? IsServerSideAsyncQuerySuccessful(string token)
         {
-            return IsAsyncQuerySuccessfulAsync(token).GetAwaiter().GetResult();
+            return IsServerSideAsyncQuerySuccessfulAsync(token).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -513,7 +513,7 @@ namespace FireboltDotNetSdk.Client
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A task representing the asynchronous operation with a boolean indicating if the query completed successfully, 
         /// or null if it's still running.</returns>
-        public async Task<bool?> IsAsyncQuerySuccessfulAsync(string token, CancellationToken cancellationToken = default)
+        public async Task<bool?> IsServerSideAsyncQuerySuccessfulAsync(string token, CancellationToken cancellationToken = default)
         {
             var info = await GetAsyncQueryInfoAsync(token, cancellationToken);
             info.TryGetValue("status", out string? status);
@@ -582,9 +582,9 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         /// <param name="token">The token of the async query.</param>
         /// <returns>True if the query was successfully stopped, false otherwise.</returns>
-        public bool CancelAsyncQuery(string token)
+        public bool CancelServerSideAsyncQuery(string token)
         {
-            return CancelAsyncQueryAsync(token).GetAwaiter().GetResult();
+            return CancelServerSideAsyncQueryAsync(token).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -593,7 +593,7 @@ namespace FireboltDotNetSdk.Client
         /// <param name="token">The token of the async query.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A task representing the asynchronous operation with a boolean indicating if the query was successfully stopped.</returns>
-        public async Task<bool> CancelAsyncQueryAsync(string token, CancellationToken cancellationToken = default)
+        public async Task<bool> CancelServerSideAsyncQueryAsync(string token, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(token))
             {

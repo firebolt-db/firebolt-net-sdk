@@ -40,7 +40,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("engine-v2")]
-        public async Task ExecuteAsyncNonQueryTest()
+        public async Task ExecuteServerSideAsyncNonQueryTest()
         {
 
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
@@ -50,7 +50,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltCommand command = (FireboltCommand)connection.CreateCommand();
             command.CommandText = $"INSERT INTO {_tableName} SELECT checksum(*) FROM GENERATE_SERIES(1, 2500000000)";
 
-            await command.ExecuteAsyncNonQueryAsync();
+            await command.ExecuteServerSideAsyncNonQueryAsync();
 
             string? token = command.AsyncToken;
 
@@ -60,14 +60,14 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(token.Length, Is.GreaterThan(0));
 
             // Check that the query status is initially running
-            Assert.That(await connection.IsAsyncQueryRunningAsync(token), Is.True);
+            Assert.That(await connection.IsServerSideAsyncQueryRunningAsync(token), Is.True);
 
             // Wait a bit for the query to make progress
             await Task.Delay(5000);
 
             // Check the status again - it should be finished
-            Assert.That(await connection.IsAsyncQueryRunningAsync(token), Is.False);
-            Assert.That(await connection.IsAsyncQuerySuccessfulAsync(token), Is.True);
+            Assert.That(await connection.IsServerSideAsyncQueryRunningAsync(token), Is.False);
+            Assert.That(await connection.IsServerSideAsyncQuerySuccessfulAsync(token), Is.True);
 
             // Verify the data was written to the table
             DbCommand countCommand = connection.CreateCommand();
@@ -78,7 +78,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("engine-v2")]
-        public void ExecuteAsyncNonQuerySyncTest()
+        public void ExecuteServerSideAsyncNonQuerySyncTest()
         {
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
             connection.Open();
@@ -88,7 +88,7 @@ namespace FireboltDotNetSdk.Tests
             command.CommandText = $"INSERT INTO {_tableName} SELECT checksum(*) FROM GENERATE_SERIES(1, 2500000000)";
 
             // Execute the query asynchronously using the synchronous method
-            command.ExecuteAsyncNonQuery();
+            command.ExecuteServerSideAsyncNonQuery();
 
             string? token = command.AsyncToken;
 
@@ -101,7 +101,7 @@ namespace FireboltDotNetSdk.Tests
             });
 
             // Check that the query status is initially running
-            Assert.That(connection.IsAsyncQueryRunning(token), Is.True);
+            Assert.That(connection.IsServerSideAsyncQueryRunning(token), Is.True);
 
             // Wait a bit for the query to make progress
             Task.Delay(5000).Wait();
@@ -109,8 +109,8 @@ namespace FireboltDotNetSdk.Tests
             // Check the status again - it should be finished
             Assert.Multiple(() =>
             {
-                Assert.That(connection.IsAsyncQueryRunning(token), Is.False);
-                Assert.That(connection.IsAsyncQuerySuccessful(token), Is.True);
+                Assert.That(connection.IsServerSideAsyncQueryRunning(token), Is.False);
+                Assert.That(connection.IsServerSideAsyncQuerySuccessful(token), Is.True);
             });
 
             // Verify the data was written to the table
@@ -122,7 +122,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("engine-v2")]
-        public async Task CancelAsyncQueryTest()
+        public async Task CancelServerSideAsyncQueryTest()
         {
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
             await connection.OpenAsync();
@@ -131,7 +131,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltCommand command = (FireboltCommand)connection.CreateCommand();
             command.CommandText = $"INSERT INTO {_tableName} SELECT checksum(*) FROM GENERATE_SERIES(1, 5000000000)";
 
-            await command.ExecuteAsyncNonQueryAsync();
+            await command.ExecuteServerSideAsyncNonQueryAsync();
             string? token = command.AsyncToken;
             Assert.That(token, Is.Not.Null);
 
@@ -139,15 +139,15 @@ namespace FireboltDotNetSdk.Tests
             await Task.Delay(1000);
 
             // Verify the query is running
-            bool isRunning = await connection.IsAsyncQueryRunningAsync(token);
+            bool isRunning = await connection.IsServerSideAsyncQueryRunningAsync(token);
             Assert.That(isRunning, Is.True, "Query should be running before cancellation");
 
             // Stop the query
-            bool stopped = await connection.CancelAsyncQueryAsync(token);
+            bool stopped = await connection.CancelServerSideAsyncQueryAsync(token);
             Assert.That(stopped, Is.True, "Failed to stop the async query");
 
             // Verify the query is no longer running
-            isRunning = await connection.IsAsyncQueryRunningAsync(token);
+            isRunning = await connection.IsServerSideAsyncQueryRunningAsync(token);
             Assert.That(isRunning, Is.False, "Query should no longer be running");
 
             // Verify no data was written to the table
