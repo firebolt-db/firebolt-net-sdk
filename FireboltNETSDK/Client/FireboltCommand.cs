@@ -220,7 +220,12 @@ namespace FireboltDotNetSdk.Client
             var engineUrl = Connection!.EngineUrl;
             // If the command is a SET command, process it and return null
             // SET commands are not supported by the server-side async
-            if (!isServerAsync && commandText.Trim().ToUpper().StartsWith("SET"))
+            var isSetCommand = commandText.Trim().ToUpper().StartsWith("SET");
+            if (isSetCommand && isServerAsync)
+            {
+                throw new InvalidOperationException("SET commands are not supported by the server-side async");
+            }
+            if (isSetCommand)
             {
                 await ProcessSetCommand(commandText, cancellationToken);
                 return await Task.FromResult<string?>(null);

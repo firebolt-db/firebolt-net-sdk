@@ -560,5 +560,15 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(mockClient.Query, Is.EqualTo("SELECT 1"));
             Assert.That(mockClient.CapturedSetParamList, Contains.Item("async=true"));
         }
+
+        [Test]
+        public void ExecuteAsyncNonQuery_ThrowsException_OnSetCommand()
+        {
+            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(null), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "SET param=1", new FireboltParameterCollection());
+
+            var ex = Assert.Throws<InvalidOperationException>(() => command.ExecuteAsyncNonQuery());
+            Assert.That(ex.Message, Does.Contain("SET command"));
+        }
     }
 }
