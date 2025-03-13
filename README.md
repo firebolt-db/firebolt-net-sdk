@@ -129,53 +129,67 @@ if (tzr.Read())
 }
 ```
 
-###### Server-side async query execution
+### Server-side Asynchronous Query Execution
 
-Firebolt supports server-side asynchronous query execution. This feature allows you to run queries in the background and fetch the results later. This is especially useful for long-running queries that you don't want to wait for or maintain a persistent connection to the server.
+Firebolt supports **server-side asynchronous query execution**, allowing queries to run in the background while you retrieve results later. This is particularly useful for long-running queries, as it eliminates the need to maintain a persistent connection to the server while waiting for execution to complete.
 
-**Execute Async Query**
+⚠ **Note:** This is different from .NET's asynchronous programming model. Firebolt's server-side async execution means that the query runs independently on the server, while .NET async/await handles non-blocking execution on the client side.
 
-Executes a query asynchronously. This is useful for long-running queries like data manipulation operations that you don't want to block execution with. The result does not contain data and is used to receive an async query token. This token can be saved and reused, even with a new connection, to check on this query later.
+###### **Execute an Asynchronous Query**
+
+Executing a query asynchronously means the database will start processing it in the background. Instead of returning data immediately, the response contains a **query token**, which can be used later (even in a new connection) to check the query status or retrieve results.
 
 ```cs
 var command = conn.CreateCommand();
 command.CommandText = "INSERT INTO large_table SELECT * FROM source_table";
 
-// Execute the query asynchronously
+// Execute the query asynchronously on the server
 command.ExecuteAsyncNonQuery();
 
-// Alternatively execute it asynchronously
-// await command.ExecuteAsyncNonQueryAsync();
+// Alternatively, use .NET's async/await to avoid blocking the client thread
+await command.ExecuteAsyncNonQueryAsync();
 
-// Get the token for checking status later
+// Store the async query token for later use
 string token = command.AsyncToken;
 ```
 
-**Check Async Query Status**
+###### **Check the Status of an Asynchronous Query**
 
-Check the status of an asynchronous query to determine if it's still running or has completed.
+You can check if the query is still running or if it has finished executing.
 
-`IsAsyncQueryRunning` would return true or false if the query is running or has finished. `IsAsyncQuerySuccessful` would return true if the query has completed successfully, false if it has failed and null if the query is still running
+- `IsAsyncQueryRunning(token)` returns `true` if the query is still in progress and `false` if it has finished.
+- `IsAsyncQuerySuccessful(token)` returns:  
+  - `true` if the query completed successfully  
+  - `false` if the query failed  
+  - `null` if the query is still running  
 
 ```cs
 // Check if the query is still running
 bool isRunning = conn.IsAsyncQueryRunning(token);
-// or asynchronously
+
+// Check if the query completed successfully (returns null if it's still running)
+bool? isSuccessful = conn.IsAsyncQuerySuccessful(token);
+```
+or use .NET asynchronous eqivalents
+```cs
+// Check if the query is still running
 bool isRunning = await conn.IsAsyncQueryRunningAsync(token);
 
-// Check if the query completed successfully (returns null if still running)
-bool? isSuccessful = conn.IsAsyncQuerySuccessful(token);
-// or asynchronously
+// Check if the query completed successfully (returns null if it's still running)
 bool? isSuccessful = await conn.IsAsyncQuerySuccessfulAsync(token);
 ```
 
-**Cancel Async Query**
+###### **Cancel an Asynchronous Query**
 
-Cancel a running asynchronous query if its execution is no longer needed.
+If an asynchronous query is no longer needed, you can cancel it before execution completes.
 
 ```cs
 // Cancel the async query
 bool cancelled = conn.CancelAsyncQuery(token);
-// or asynchronously
+```
+or do so asynchronously 
+```cs
 bool cancelled = await conn.CancelAsyncQueryAsync(token);
 ```
+
+This approach ensures that long-running queries do not block your application while allowing you to monitor, manage, and cancel them as needed.
