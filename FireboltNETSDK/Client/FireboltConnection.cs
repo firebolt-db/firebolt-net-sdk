@@ -24,6 +24,7 @@ using static System.Environment;
 using FireboltDotNetSdk.Utils;
 using IsolationLevel = System.Data.IsolationLevel;
 using static FireboltDotNetSdk.Client.FireResponse;
+using FireboltDotNetSdk.Exception;
 
 [assembly: InternalsVisibleTo("FireboltDotNetSdk.Tests")]
 [assembly: InternalsVisibleTo("FireboltDotNetSdk")]
@@ -52,8 +53,8 @@ namespace FireboltDotNetSdk.Client
         private string _connectionString;
         private string? _serverVersion;
         private FireboltClient? _fireboltClient;
-        public readonly HashSet<string> SetParamList = new();
         private int _infraVersion = 0;
+        public HashSet<string> SetParamList { get; private set; } = new HashSet<string>();
         private static IDictionary<string, GetAccountIdByNameResponse> accountCache = new ConcurrentDictionary<string, GetAccountIdByNameResponse>();
 
         /// <summary>
@@ -335,7 +336,7 @@ namespace FireboltDotNetSdk.Client
             }
             catch (System.Exception)
             {
-                Close();
+                await CloseAsync();
                 throw;
             }
         }
@@ -466,6 +467,158 @@ namespace FireboltDotNetSdk.Client
         internal void CleanupCache()
         {
             accountCache.Clear();
+        }
+
+        // Async query status constants
+        private const string QueryStatusRunning = "RUNNING";
+        private const string QueryStatusEndedSuccessfully = "ENDED_SUCCESSFULLY";
+
+
+        /// <summary>
+        /// Checks if an async query is still running.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <returns>True if the query is still running, false otherwise.</returns>
+        public bool IsServerSideAsyncQueryRunning(string token)
+        {
+            return IsServerSideAsyncQueryRunningAsync(token).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Checks if an async query is still running asynchronously.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>A task representing the asynchronous operation with a boolean indicating if the query is still running.</returns>
+        public async Task<bool> IsServerSideAsyncQueryRunningAsync(string token, CancellationToken cancellationToken = default)
+        {
+            var info = await GetAsyncQueryInfoAsync(token, cancellationToken);
+            return info.TryGetValue("status", out string? status) && status == QueryStatusRunning;
+        }
+
+        /// <summary>
+        /// Checks if an async query has completed successfully.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <returns>True if the query completed successfully, false if it failed, null if it's still running.</returns>
+        public bool? IsServerSideAsyncQuerySuccessful(string token)
+        {
+            return IsServerSideAsyncQuerySuccessfulAsync(token).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Checks if an async query has completed successfully asynchronously.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>A task representing the asynchronous operation with a boolean indicating if the query completed successfully, 
+        /// or null if it's still running.</returns>
+        public async Task<bool?> IsServerSideAsyncQuerySuccessfulAsync(string token, CancellationToken cancellationToken = default)
+        {
+            var info = await GetAsyncQueryInfoAsync(token, cancellationToken);
+            info.TryGetValue("status", out string? status);
+
+            // If the query is still running, return null (undefined)
+            if (status == QueryStatusRunning)
+            {
+                return null;
+            }
+
+            // Return true if the query completed successfully
+            return status == QueryStatusEndedSuccessfully;
+        }
+
+        /// <summary>
+        /// Gets the status of an async query.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <returns>A dictionary containing status information for the async query.</returns>
+        private Dictionary<string, string> GetAsyncQueryStatus(string token)
+        {
+            return GetAsyncQueryInfoAsync(token).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Gets the status of an async query asynchronously.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>A task representing the asynchronous operation with a dictionary containing status information for the async query.</returns>
+        private async Task<Dictionary<string, string>> GetAsyncQueryInfoAsync(string token, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(token))
+            {
+                throw new ArgumentNullException(nameof(token), "Token cannot be null or empty");
+            }
+            DbCommand command = CreateDbCommand("CALL fb_GetAsyncStatus(@token)");
+            var tokenParam = command.CreateParameter();
+            tokenParam.ParameterName = "@token";
+            tokenParam.Value = token;
+            command.Parameters.Add(tokenParam);
+
+            using (DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken))
+            {
+                if (!reader.HasRows || !await reader.ReadAsync(cancellationToken))
+                {
+                    throw new FireboltException("Invalid response format: missing data");
+                }
+
+                var result = new Dictionary<string, string>();
+
+                // Map all fields from the result to the dictionary
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    string fieldName = reader.GetName(i);
+                    string value = await reader.IsDBNullAsync(i, cancellationToken) ? string.Empty : reader.GetString(i);
+                    result[fieldName] = value;
+                }
+
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Stops an async query execution.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <returns>True if the query was successfully stopped, false otherwise.</returns>
+        public bool CancelServerSideAsyncQuery(string token)
+        {
+            return CancelServerSideAsyncQueryAsync(token).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Stops an async query execution asynchronously.
+        /// </summary>
+        /// <param name="token">The token of the async query.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>A task representing the asynchronous operation with a boolean indicating if the query was successfully stopped.</returns>
+        public async Task<bool> CancelServerSideAsyncQueryAsync(string token, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(token))
+            {
+                throw new ArgumentNullException(nameof(token), "Token cannot be null or empty");
+            }
+
+            // Get the query status to extract the query_id
+            var statusInfo = await GetAsyncQueryInfoAsync(token, cancellationToken);
+
+            // Get the query_id - it's needed for cancellation
+            if (!statusInfo.TryGetValue("query_id", out string? queryId) || string.IsNullOrEmpty(queryId))
+            {
+                throw new FireboltException("Could not find query_id for the running query");
+            }
+
+            DbCommand command = CreateDbCommand("CANCEL QUERY WHERE query_id = @queryId");
+            var queryIdParam = command.CreateParameter();
+            queryIdParam.ParameterName = "@queryId";
+            queryIdParam.Value = queryId;
+            command.Parameters.Add(queryIdParam);
+
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+
+            return true;
         }
     }
 }

@@ -128,3 +128,72 @@ if (tzr.Read())
   Console.WriteLine(tzr.GetDateTime(0));
 }
 ```
+
+### Server-side Asynchronous Query Execution
+
+Firebolt supports **server-side asynchronous query execution**, allowing queries to run in the background while you retrieve results later. This is particularly useful for long-running queries, as it eliminates the need to maintain a persistent connection to the server while waiting for execution to complete.
+
+⚠ **Note:** This is different from .NET's asynchronous programming model. Firebolt's server-side async execution means that the query runs independently on the server, while .NET async/await handles non-blocking execution on the client side.
+
+###### **Execute an Asynchronous Query**
+
+Executing a query asynchronously means the database will start processing it in the background. Instead of returning data immediately, the response contains a **query token**, which can be used later (even in a new connection) to check the query status or retrieve results.
+
+```cs
+FireboltCommand command = (FireboltCommand)conn.CreateCommand();
+command.CommandText = "INSERT INTO large_table SELECT * FROM source_table";
+
+// Execute the query asynchronously on the server
+command.ExecuteServerSideAsyncNonQuery();
+
+// Alternatively, use .NET's async/await to avoid blocking the client thread
+await command.ExecuteServerSideAsyncNonQueryAsync();
+
+// Store the async query token for later use
+string token = command.AsyncToken;
+```
+
+###### **Check the Status of an Asynchronous Query**
+
+You can check if the query is still running or if it has finished executing.
+
+- `IsServerSideAsyncQueryRunning(token)` returns `true` if the query is still in progress and `false` if it has finished.
+- `IsServerSideAsyncQuerySuccessful(token)` returns:  
+  - `true` if the query completed successfully  
+  - `false` if the query failed  
+  - `null` if the query is still running  
+
+```cs
+using FireboltConnection conn = new FireboltConnection(conn_string);
+conn.Open();
+// Check if the query is still running
+bool isRunning = conn.IsServerSideAsyncQueryRunning(token);
+
+// Check if the query completed successfully (returns null if it's still running)
+bool? isSuccessful = conn.IsServerSideAsyncQuerySuccessful(token);
+```
+or use .NET asynchronous eqivalents
+```cs
+// Check if the query is still running
+bool isRunning = await conn.IsServerSideAsyncQueryRunningAsync(token);
+
+// Check if the query completed successfully (returns null if it's still running)
+bool? isSuccessful = await conn.IsServerSideAsyncQuerySuccessfulAsync(token);
+```
+
+###### **Cancel an Asynchronous Query**
+
+If an asynchronous query is no longer needed, you can cancel it before execution completes.
+
+```cs
+using FireboltConnection conn = new FireboltConnection(conn_string);
+conn.Open();
+// Cancel the async query
+bool cancelled = conn.CancelServerSideAsyncQuery(token);
+```
+or do so asynchronously 
+```cs
+bool cancelled = await conn.CancelServerSideAsyncQueryAsync(token);
+```
+
+This approach ensures that long-running queries do not block your application while allowing you to monitor, manage, and cancel them as needed.

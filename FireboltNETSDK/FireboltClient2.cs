@@ -29,7 +29,7 @@ using static FireboltDotNetSdk.Utils.Constant;
 namespace FireboltDotNetSdk;
 public class FireboltClient2 : FireboltClient
 {
-    private const string PROTOCOL_VERSION = "2.1";
+    private const string PROTOCOL_VERSION = "2.3";
     private ISet<string> engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
     private readonly string _account;
     private static IDictionary<string, string> systemEngineUrlCache = new ConcurrentDictionary<string, string>();
@@ -167,7 +167,7 @@ public class FireboltClient2 : FireboltClient
         {
             throw new FireboltException($"Engine {engineName} not found.");
         }
-        if (reader.IsDBNull(1))
+        if (await reader.IsDBNullAsync(1))
         {
             throw new FireboltException($"Engine {engineName} is not attached to any database");
         }
