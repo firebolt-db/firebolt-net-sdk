@@ -140,7 +140,7 @@ Firebolt supports **server-side asynchronous query execution**, allowing queries
 Executing a query asynchronously means the database will start processing it in the background. Instead of returning data immediately, the response contains a **query token**, which can be used later (even in a new connection) to check the query status or retrieve results.
 
 ```cs
-var command = conn.CreateCommand();
+FireboltCommand command = (FireboltCommand)conn.CreateCommand();
 command.CommandText = "INSERT INTO large_table SELECT * FROM source_table";
 
 // Execute the query asynchronously on the server
@@ -164,6 +164,8 @@ You can check if the query is still running or if it has finished executing.
   - `null` if the query is still running  
 
 ```cs
+using FireboltConnection conn = new FireboltConnection(conn_string);
+conn.Open();
 // Check if the query is still running
 bool isRunning = conn.IsAsyncQueryRunning(token);
 
@@ -184,6 +186,8 @@ bool? isSuccessful = await conn.IsAsyncQuerySuccessfulAsync(token);
 If an asynchronous query is no longer needed, you can cancel it before execution completes.
 
 ```cs
+using FireboltConnection conn = new FireboltConnection(conn_string);
+conn.Open();
 // Cancel the async query
 bool cancelled = conn.CancelAsyncQuery(token);
 ```
