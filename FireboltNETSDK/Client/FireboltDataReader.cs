@@ -268,7 +268,7 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override Type GetFieldType(int ordinal)
         {
-            return GetTypeByName(GetDataTypeName(ordinal)) ?? throw new ArgumentNullException($"Cannot get type of column #{ordinal}");
+            return TypesConverter.GetType(GetColumnType(ordinal)) ?? throw new ArgumentNullException($"Cannot get type of column #{ordinal}");
         }
 
         private Type GetTypeByName(string typeName)
@@ -493,8 +493,13 @@ namespace FireboltDotNetSdk.Client
             {
                 return DBNull.Value;
             }
-            var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(_queryResult.Meta[ordinal]));
+            var columnType = GetColumnType(ordinal);
             return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
+        }
+
+        private ColumnType GetColumnType(int ordinal)
+        {
+            return ColumnType.Of(TypesConverter.GetFullColumnTypeName(_queryResult.Meta[ordinal]));
         }
 
         /// <summary>

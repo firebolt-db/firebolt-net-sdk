@@ -424,10 +424,10 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase("array(int)", typeof(int[]))]
-        [TestCase("array(int null)", typeof(int[]))]
-        [TestCase("array(int null) null", typeof(int[]))]
+        [TestCase("array(int null)", typeof(int?[]))]
+        [TestCase("array(int null) null", typeof(int?[]))]
         [TestCase("array(int) null", typeof(int[]))]
-        [TestCase("array(array(long null) null) null", typeof(long[][]))]
+        [TestCase("array(array(long null) null) null", typeof(long?[][]))]
         public void GetArrayMetadata(string typeDefinition, Type expectedType)
         {
             QueryResult result = new QueryResult
@@ -458,7 +458,7 @@ namespace FireboltDotNetSdk.Tests
             };
 
             DbDataReader reader = new FireboltDataReader(null, result);
-            Assert.Throws<InvalidCastException>(() => reader.GetFieldType(0));
+            Assert.Throws<FireboltException>(() => reader.GetFieldType(0));
         }
 
         [Test]

@@ -94,6 +94,55 @@ namespace FireboltDoNetSdk.Utils
             };
         }
 
+        public static Type GetType(ColumnType columnType)
+        {
+            if (columnType is ArrayType arrayType)
+            {
+                return GetArrayType(arrayType);
+            }
+            var normalType = columnType switch
+            {
+                StructType => typeof(Dictionary<string, object>),
+                _ => columnType.Type switch
+                {
+                    FireboltDataType.Long => typeof(long),
+                    FireboltDataType.Int => typeof(int),
+                    FireboltDataType.Decimal => typeof(decimal),
+                    FireboltDataType.String => typeof(string),
+                    FireboltDataType.Geography => typeof(string),
+                    FireboltDataType.DateTime => typeof(DateTime),
+                    FireboltDataType.TimestampTz => typeof(DateTime),
+                    FireboltDataType.TimestampNtz => typeof(DateTime),
+                    FireboltDataType.Date => typeof(DateTime),
+                    FireboltDataType.Short => typeof(short),
+                    FireboltDataType.Double => typeof(double),
+                    FireboltDataType.Float => typeof(float),
+                    FireboltDataType.Boolean => typeof(bool),
+                    FireboltDataType.ByteA => columnType.Nullable ? typeof(byte?[]) : typeof(byte[]),
+                    FireboltDataType.Null => throw new FireboltException("Not null value in null type"),
+                    _ => throw new FireboltException("Invalid destination type: " + columnType.Type)
+                }
+            };
+            if (normalType == typeof(string)
+                || normalType == typeof(byte?[])
+                || normalType == typeof(byte[])
+                || !columnType.Nullable)
+            {
+                return normalType;
+            }
+            return typeof(Nullable<>).MakeGenericType(normalType);
+        }
+
+        public static Type GetArrayType(ArrayType arrayType)
+        {
+            if (arrayType.InnerType is ArrayType innerArrayType)
+            {
+                return GetArrayType(innerArrayType).MakeArrayType();
+            }
+
+            return GetType(arrayType.InnerType).MakeArrayType();
+        }
+
         public static bool ParseBoolean(object val)
         {
             return val switch
@@ -153,12 +202,12 @@ namespace FireboltDoNetSdk.Utils
 
         private static Array? ToArray(object val, ArrayType arrayType)
         {
+            var type = GetType(arrayType);
             return val switch
             {
-                string str => ConvertArray(JsonConvert.DeserializeObject<List<object>>(str)),
+                string str => JsonConvert.DeserializeObject(str, type) as Array,
                 _ => throw new FireboltException("Unexpected array value type: " + val.GetType())
             };
-            Array? ConvertArray(IEnumerable? array) => array?.Cast<object>().Select(x => ConvertToCSharpVal(x, arrayType.InnerType)).ToArray();
         }
 
         private static Dictionary<string, object?>? ToStruct(object val, StructType structType)
@@ -177,11 +226,14 @@ namespace FireboltDoNetSdk.Utils
             {
                 "string" => FireboltDataType.String,
                 "long" => FireboltDataType.Long,
+                "bigint" => FireboltDataType.Long,
                 "short" => FireboltDataType.Short,
                 "int" => FireboltDataType.Int,
                 "integer" => FireboltDataType.Int,
                 "float" => FireboltDataType.Float,
+                "real" => FireboltDataType.Float,
                 "double" => FireboltDataType.Double,
+                "double precision" => FireboltDataType.Double,
                 "text" => FireboltDataType.String,
                 "date_ext" => FireboltDataType.Date,
                 "date" => FireboltDataType.Date,

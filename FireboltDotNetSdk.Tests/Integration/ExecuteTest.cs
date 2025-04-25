@@ -58,7 +58,6 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test, Timeout(2400000)]
-        [Category("general")]
         [Category("slow")]
         public void ExecuteLongTest()
         {
@@ -496,23 +495,55 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("general")]
+        public void ExecuteSelectArrayNullable()
+        {
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,NULL,3]", new int?[] { 1, null, 3 }, typeof(int?[]));
+        }
+
+        [Test]
+        [Category("general")]
+        public void ExecuteSelectTwoDimensionalArrayNullable()
+        {
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,NULL,3]]", new int?[1][] { new int?[] { 1, null, 3 } }, typeof(int?[][]));
+        }
+
+        [Test]
+        [Category("general")]
         public void ExecuteSelectArray()
         {
-            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,NULL,3]", new int?[] { 1, null, 3 }, typeof(int[]));
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,3]", new int?[] { 1, 3 }, typeof(int[]));
         }
 
         [Test]
         [Category("general")]
         public void ExecuteSelectTwoDimensionalArray()
         {
-            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,NULL,3]]", new int?[1][] { new int?[] { 1, null, 3 } }, typeof(int[][]));
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,3]]", new int?[1][] { new int?[] { 1, 3 } }, typeof(int[][]));
+        }
+
+        [TestCase("select array_agg(arr) from (select array_agg(n) arr from (SELECT n FROM GENERATE_SERIES(1, 10, 1) s(n) ) group by n / 2)", typeof(int[][]))]
+        [TestCase("select array_agg(n) arr from (SELECT n FROM GENERATE_SERIES(1, 10, 1) s(n) ) group by n / 2", typeof(int[]))]
+        [TestCase("SELECT n FROM GENERATE_SERIES(1, 10, 1) s(n)", typeof(int))]
+        [Category("general")]
+        public void executeDifferentArrays(string commandText, Type expectedType)
+        {
+            DbConnection connection = new FireboltConnection(USER_CONNECTION_STRING);
+            connection.Open();
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            var reader = command.ExecuteReader();
+            var type = reader.GetFieldType(0);
+            reader.Read();
+            var value = reader.GetValue(0);
+            Assert.That(value.GetType(), Is.EqualTo(type));
+            Assert.That(value.GetType(), Is.EqualTo(expectedType));
         }
 
         private void ExecuteTest(string connString, string commandText, object expectedValue, Type expectedType)
         {
             var conn = new FireboltConnection(connString);
             conn.Open();
-            DbDataReader reader = ExecuteTest(conn, commandText, expectedValue, null); //TODO: improve type discovery and send expectedType here
+            DbDataReader reader = ExecuteTest(conn, commandText, expectedValue, expectedType); //TODO: improve type discovery and send expectedType here
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
         }
@@ -653,9 +684,9 @@ namespace FireboltDotNetSdk.Tests
                 DbCommand selectAll = CreateCommand(conn, SELECT_ALL_SIMPLE);
                 Type[] expectedTypes = new Type[]
                 {
-                    typeof(int), typeof(decimal), typeof(long), typeof(float), typeof(decimal), typeof(double),
-                    typeof(string), typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(bool),
-                    typeof(byte[])
+                    typeof(int?), typeof(decimal?), typeof(long?), typeof(float?), typeof(decimal?), typeof(double?),
+                    typeof(string), typeof(DateTime?), typeof(DateTime?), typeof(DateTime?), typeof(bool?),
+                    typeof(byte?[])
                 };
 
                 using (DbDataReader reader = selectAll.ExecuteReader())
@@ -738,14 +769,14 @@ namespace FireboltDotNetSdk.Tests
         [Category("general")]
         public void CreateDropFillTableWithEmptyArrays()
         {
-            CreateDropFillTableWithArrays("int", new int[0], typeof(int[]), "int", new int[0][], typeof(int[][]), "int", new int[0][][], typeof(int[][][]));
+            CreateDropFillTableWithArrays("int", new int[0], typeof(int?[]), "int", new int[0][], typeof(int?[][]), "int", new int[0][][], typeof(int?[][][]));
         }
 
         [Test]
         [Category("general")]
         public void CreateDropFillTableWithNullArrays()
         {
-            CreateDropFillTableWithArrays("int", null, typeof(int[]), "int", null, typeof(int[][]), "int", null, typeof(int[][][]));
+            CreateDropFillTableWithArrays("int", null, typeof(int?[]), "int", null, typeof(int?[][]), "int", null, typeof(int?[][][]));
         }
 
         [Test]
@@ -753,9 +784,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithSingetonArrays()
         {
             CreateDropFillTableWithArrays(
-                "int", new int[] { 1 }, typeof(int[]),
-                "int", new int[][] { new int[] { 22 } }, typeof(int[][]),
-                "int", new int[][][] { new int[][] { new int[] { 333 } } }, typeof(int[][][]));
+                "int", new int[] { 1 }, typeof(int?[]),
+                "int", new int[][] { new int[] { 22 } }, typeof(int?[][]),
+                "int", new int[][][] { new int[][] { new int[] { 333 } } }, typeof(int?[][][]));
         }
 
         [Test]
@@ -763,9 +794,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithFullArrays()
         {
             CreateDropFillTableWithArrays(
-                "int", new int[] { 1, 2, 3 }, typeof(int[]),
-                "int", new int[][] { new int[] { 21, 22, 23 }, new int[] { 31, 32, 33 } }, typeof(int[][]),
-                "int", new int[][][] { new int[][] { new int[] { 333, 334, 335, 336 }, new int[] { 1, 2 } } }, typeof(int[][][])
+                "int", new int[] { 1, 2, 3 }, typeof(int?[]),
+                "int", new int[][] { new int[] { 21, 22, 23 }, new int[] { 31, 32, 33 } }, typeof(int?[][]),
+                "int", new int[][][] { new int[][] { new int[] { 333, 334, 335, 336 }, new int[] { 1, 2 } } }, typeof(int?[][][])
             );
         }
 
@@ -774,9 +805,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithArraysOfDifferentTypes()
         {
             CreateDropFillTableWithArrays(
-                "long", new long[] { 1, 2 }, typeof(long[]),
-                "float", new float[][] { new float[] { 2.7F, 3.14F } }, typeof(float[][]),
-                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
+                "long", new long[] { 1, 2 }, typeof(long?[]),
+                "float", new float[][] { new float[] { 2.7F, 3.14F } }, typeof(float?[][]),
+                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double?[][][]));
         }
 
         [Test]
@@ -785,9 +816,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithArraysOfDifferentTypesV2()
         {
             CreateDropFillTableWithArrays(
-                "long", new long[] { 1, 2 }, typeof(long[]),
-                "float", new double[][] { new double[] { 2.7, 3.14 } }, typeof(double[][]), // float is alias to double in engine V2
-                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
+                "long", new long[] { 1, 2 }, typeof(long?[]),
+                "float", new double[][] { new double[] { 2.7, 3.14 } }, typeof(double?[][]), // float is alias to double in engine V2
+                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double?[][][]));
         }
 
         [Test]
