@@ -475,10 +475,14 @@ namespace FireboltDotNetSdk.Client
 
         private object? GetValueSafely(int ordinal)
         {
+            if (_currentRowIndex == -1)
+            {
+                throw new InvalidOperationException("Read() must be called before fetching values");
+            }
             List<object?>? row = _queryResult.Data[_currentRowIndex];
             if (ordinal < 0 || ordinal > row?.Count - 1)
             {
-                throw new FireboltException($"Column ${ordinal} does not exist");
+                throw new InvalidOperationException($"Column ${ordinal} does not exist");
             }
             if (row == null)
             {

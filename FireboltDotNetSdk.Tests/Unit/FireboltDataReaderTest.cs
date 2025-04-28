@@ -23,7 +23,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(reader.HasRows, Is.EqualTo(false));
-                Assert.Throws<ArgumentOutOfRangeException>(() => reader.GetValue(0));
+                Assert.That(Assert.Throws<InvalidOperationException>(() => reader.GetValue(0))?.Message, Is.EqualTo("Read() must be called before fetching values"));
                 Assert.That(reader.Read(), Is.EqualTo(false));
 
                 Assert.That(reader.IsClosed, Is.EqualTo(false));
@@ -98,8 +98,8 @@ namespace FireboltDotNetSdk.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.Throws<FireboltException>(() => reader.GetValue(-1));
-                Assert.Throws<FireboltException>(() => reader.GetValue(2));
+                Assert.Throws<InvalidOperationException>(() => reader.GetValue(-1));
+                Assert.Throws<InvalidOperationException>(() => reader.GetValue(2));
                 Assert.That(reader.Read(), Is.EqualTo(false));
             });
         }
