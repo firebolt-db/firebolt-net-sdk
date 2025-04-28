@@ -25,19 +25,22 @@ namespace FireboltDoNetSdk.Utils
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
         private const int matchTimeoutSeconds = 60;
-        internal static IDictionary<string, double> doubleInfinity = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+
+        private static readonly IDictionary<string, double> DoubleInfinity = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
         {
             { "inf", double.PositiveInfinity },
             { "+inf", double.PositiveInfinity },
             { "-inf", double.NegativeInfinity },
         };
-        internal static IDictionary<string, float> floatInfinity = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+
+        private static readonly IDictionary<string, float> FloatInfinity = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
         {
             { "inf", float.PositiveInfinity },
             { "+inf", float.PositiveInfinity },
             { "-inf", float.NegativeInfinity },
         };
-        internal static ISet<object> infinityValues = new HashSet<object>()
+
+        private static readonly ISet<object> InfinityValues = new HashSet<object>()
         {
             double.PositiveInfinity, double.NegativeInfinity, float.PositiveInfinity, float.NegativeInfinity
         };
@@ -94,6 +97,55 @@ namespace FireboltDoNetSdk.Utils
             };
         }
 
+        public static Type GetType(ColumnType columnType)
+        {
+            if (columnType is ArrayType arrayType)
+            {
+                return GetArrayType(arrayType);
+            }
+            var normalType = columnType switch
+            {
+                StructType => typeof(Dictionary<string, object>),
+                _ => columnType.Type switch
+                {
+                    FireboltDataType.Long => typeof(long),
+                    FireboltDataType.Int => typeof(int),
+                    FireboltDataType.Decimal => typeof(decimal),
+                    FireboltDataType.String => typeof(string),
+                    FireboltDataType.Geography => typeof(string),
+                    FireboltDataType.DateTime => typeof(DateTime),
+                    FireboltDataType.TimestampTz => typeof(DateTime),
+                    FireboltDataType.TimestampNtz => typeof(DateTime),
+                    FireboltDataType.Date => typeof(DateTime),
+                    FireboltDataType.Short => typeof(short),
+                    FireboltDataType.Double => typeof(double),
+                    FireboltDataType.Float => typeof(float),
+                    FireboltDataType.Boolean => typeof(bool),
+                    FireboltDataType.ByteA => columnType.Nullable ? typeof(byte?[]) : typeof(byte[]),
+                    FireboltDataType.Null => throw new FireboltException("Not null value in null type"),
+                    _ => throw new FireboltException("Invalid destination type: " + columnType.Type)
+                }
+            };
+            if (normalType == typeof(string)
+                || normalType == typeof(byte?[])
+                || normalType == typeof(byte[])
+                || !columnType.Nullable)
+            {
+                return normalType;
+            }
+            return typeof(Nullable<>).MakeGenericType(normalType);
+        }
+
+        public static Type GetArrayType(ArrayType arrayType)
+        {
+            if (arrayType.InnerType is ArrayType innerArrayType)
+            {
+                return GetArrayType(innerArrayType).MakeArrayType();
+            }
+
+            return GetType(arrayType.InnerType).MakeArrayType();
+        }
+
         public static bool ParseBoolean(object val)
         {
             return val switch
@@ -135,7 +187,7 @@ namespace FireboltDoNetSdk.Utils
         {
             return val switch
             {
-                string str when doubleInfinity.ContainsKey(str) => doubleInfinity[str],
+                string str when DoubleInfinity.ContainsKey(str) => DoubleInfinity[str],
                 double d => d,
                 _ => Convert.ToDouble(val)
             };
@@ -145,7 +197,7 @@ namespace FireboltDoNetSdk.Utils
         {
             return val switch
             {
-                string str when floatInfinity.ContainsKey(str) => floatInfinity[str],
+                string str when FloatInfinity.ContainsKey(str) => FloatInfinity[str],
                 float f => f,
                 _ => Convert.ToSingle(val)
             };
@@ -153,12 +205,12 @@ namespace FireboltDoNetSdk.Utils
 
         private static Array? ToArray(object val, ArrayType arrayType)
         {
+            var type = GetType(arrayType);
             return val switch
             {
-                string str => ConvertArray(JsonConvert.DeserializeObject<List<object>>(str)),
+                string str => JsonConvert.DeserializeObject(str, type) as Array,
                 _ => throw new FireboltException("Unexpected array value type: " + val.GetType())
             };
-            Array? ConvertArray(IEnumerable? array) => array?.Cast<object>().Select(x => ConvertToCSharpVal(x, arrayType.InnerType)).ToArray();
         }
 
         private static Dictionary<string, object?>? ToStruct(object val, StructType structType)
@@ -177,11 +229,14 @@ namespace FireboltDoNetSdk.Utils
             {
                 "string" => FireboltDataType.String,
                 "long" => FireboltDataType.Long,
+                "bigint" => FireboltDataType.Long,
                 "short" => FireboltDataType.Short,
                 "int" => FireboltDataType.Int,
                 "integer" => FireboltDataType.Int,
                 "float" => FireboltDataType.Float,
+                "real" => FireboltDataType.Float,
                 "double" => FireboltDataType.Double,
+                "double precision" => FireboltDataType.Double,
                 "text" => FireboltDataType.String,
                 "date_ext" => FireboltDataType.Date,
                 "date" => FireboltDataType.Date,
@@ -232,7 +287,7 @@ namespace FireboltDoNetSdk.Utils
 
         public static bool isInfinity(object value)
         {
-            return infinityValues.Contains(value);
+            return InfinityValues.Contains(value);
         }
 
         public static bool isNaN(object value)

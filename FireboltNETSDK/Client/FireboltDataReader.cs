@@ -32,12 +32,12 @@ namespace FireboltDotNetSdk.Client
     public sealed class FireboltDataReader : DbDataReader
     {
         private bool _closed = false;
-        private string? _fullTableName;
-        private QueryResult _queryResult;
-        private int _depth;
+        private readonly string? _fullTableName;
+        private readonly QueryResult _queryResult;
+        private readonly int _depth;
         private int _currentRowIndex = -1;
-        private const int matchTimeoutSeconds = 60;
-        private static IDictionary<string, Type> typesMap = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
+        private const int MatchTimeoutSeconds = 60;
+        private static readonly IDictionary<string, Type> TypesMap = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
         {
             { "boolean", typeof(bool) },
 
@@ -121,19 +121,19 @@ namespace FireboltDotNetSdk.Client
         public override bool GetBoolean(int ordinal)
         {
             object value = GetValue(ordinal);
-            switch (value)
+            return value switch
             {
-                case bool b: return b;
-                case float f: return (float)f != 0;
-                case double d: return (double)d != 0;
-                case decimal d: return d != 0;
-                case byte b: return b != 0;
-                case short s: return s != 0;
-                case int i: return i != 0;
-                case long l: return l != 0;
-                case string s: return TypesConverter.ParseBoolean(s);
-                default: throw new InvalidCastException($"Cannot cast ({value.GetType()}){value} to boolean");
-            }
+                bool b => b,
+                float f => Math.Abs(f) > 0.000001f,
+                double d => Math.Abs(d) > 0.000001f,
+                decimal d => d != 0,
+                byte b => b != 0,
+                short s => s != 0,
+                int i => i != 0,
+                long l => l != 0,
+                string s => TypesConverter.ParseBoolean(s),
+                _ => throw new InvalidCastException($"Cannot cast ({value.GetType()}){value} to boolean")
+            };
         }
 
         /// <inheritdoc/>
@@ -165,7 +165,7 @@ namespace FireboltDotNetSdk.Client
                 case byte[] b: bytes = b; break;
                 default: throw new InvalidCastException($"Cannot retrive byte array from ({value.GetType()}){value}");
             }
-            return GetBuffer(bytes, dataOffset, buffer, bufferOffset, length);
+            return GetBuffer(bytes, dataOffset, buffer, bufferOffset);
         }
 
         /// <inheritdoc/>
@@ -189,10 +189,10 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
         {
-            return GetBuffer(GetString(ordinal).ToCharArray(), dataOffset, buffer, bufferOffset, length);
+            return GetBuffer(GetString(ordinal).ToCharArray(), dataOffset, buffer, bufferOffset);
         }
 
-        private long GetBuffer<T>(T[] source, long dataOffset, T[]? buffer, int bufferOffset, int length)
+        private static long GetBuffer<T>(T[] source, long dataOffset, T[]? buffer, int bufferOffset)
         {
             if (buffer == null)
             {
@@ -268,7 +268,7 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override Type GetFieldType(int ordinal)
         {
-            return GetTypeByName(GetDataTypeName(ordinal)) ?? throw new ArgumentNullException($"Cannot get type of column #{ordinal}");
+            return TypesConverter.GetType(GetColumnType(ordinal)) ?? throw new ArgumentNullException($"Cannot get type of column #{ordinal}");
         }
 
         private Type GetTypeByName(string typeName)
@@ -279,15 +279,15 @@ namespace FireboltDotNetSdk.Client
                 return GetArrayTypeByName(typeName, 0);
             }
             typeName = Remove(typeName, @"\(.*");
-            return typesMap[typeName] ?? typeof(object);
+            return TypesMap[typeName] ?? typeof(object);
         }
 
-        private string Remove(string str, string regex)
+        private static string Remove(string str, string regex)
         {
-            return Regex.Replace(str, regex, "", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(matchTimeoutSeconds));
+            return Regex.Replace(str, regex, "", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(MatchTimeoutSeconds));
         }
 
-        private bool IsArrayType(string typeName)
+        private static bool IsArrayType(string typeName)
         {
             return typeName.ToLower().StartsWith("array");
         }
@@ -428,7 +428,7 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override int GetOrdinal(string name)
         {
-            return _queryResult?.Meta.FindIndex(m => m.Name == name) ?? throw new IndexOutOfRangeException($"Cannot find index for column {name}");
+            return _queryResult?.Meta.FindIndex(m => m.Name == name) ?? throw new FireboltException($"Cannot find index for column {name}");
         }
 
         /// <inheritdoc/>
@@ -459,10 +459,6 @@ namespace FireboltDotNetSdk.Client
         public override int GetValues(object[] values)
         {
             List<object?> row = _queryResult.Data[_currentRowIndex] ?? new List<object?>();
-            if (row == null)
-            {
-                return 0;
-            }
             int n = Math.Min(row.Count, values.Length);
             for (int i = 0; i < n; i++)
             {
@@ -479,10 +475,14 @@ namespace FireboltDotNetSdk.Client
 
         private object? GetValueSafely(int ordinal)
         {
+            if (_currentRowIndex == -1)
+            {
+                throw new InvalidOperationException("Read() must be called before fetching values");
+            }
             List<object?>? row = _queryResult.Data[_currentRowIndex];
             if (ordinal < 0 || ordinal > row?.Count - 1)
             {
-                throw new IndexOutOfRangeException($"Column ${ordinal} does not exist");
+                throw new InvalidOperationException($"Column ${ordinal} does not exist");
             }
             if (row == null)
             {
@@ -493,8 +493,13 @@ namespace FireboltDotNetSdk.Client
             {
                 return DBNull.Value;
             }
-            var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(_queryResult.Meta[ordinal]));
+            var columnType = GetColumnType(ordinal);
             return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
+        }
+
+        private ColumnType GetColumnType(int ordinal)
+        {
+            return ColumnType.Of(TypesConverter.GetFullColumnTypeName(_queryResult.Meta[ordinal]));
         }
 
         /// <summary>

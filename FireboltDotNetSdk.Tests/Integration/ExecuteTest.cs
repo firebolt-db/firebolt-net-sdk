@@ -5,7 +5,6 @@ using System.Collections;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDoNetSdk.Utils;
-using FireboltDotNetSdk.Utils;
 using NodaTime.Extensions;
 using FireboltNETSDK.Exception;
 
@@ -54,7 +53,7 @@ namespace FireboltDotNetSdk.Tests
         [Category("general")]
         public void ExecuteSelectTest(string commandText)
         {
-            executeTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
+            ExecuteTest(SYSTEM_CONNECTION_STRING, commandText, null, true);
         }
 
         [Test, Timeout(2400000)]
@@ -73,7 +72,7 @@ namespace FireboltDotNetSdk.Tests
             command.Prepare();
             command.Parameters.Add(CreateParameter(command, "@max", max));
             DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
+            Assert.That(reader, Is.Not.Null);
             watch.Stop();
             var elapsed = watch.ElapsedDuration().TotalSeconds;
             if (elapsed < 350)
@@ -85,10 +84,10 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select * from information_schema.tables", Category = "general")]
         public void ExecuteSetEngineTest(string commandText)
         {
-            executeTest(USER_CONNECTION_STRING, commandText, null, false);
+            ExecuteTest(USER_CONNECTION_STRING, commandText, null, false);
         }
 
-        private void executeTest(string connString, string commandText, string? additionalCommandText, bool noNextLine)
+        private static void ExecuteTest(string connString, string commandText, string? additionalCommandText, bool noNextLine)
         {
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -99,9 +98,12 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandText = commandText;
             DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
-            Assert.That(reader.Read(), Is.EqualTo(true));
-            Assert.NotNull(reader.GetValue(0));
+            Assert.That(reader, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetValue(0), Is.Not.Null);
+            });
             if (noNextLine)
             {
                 Assert.That(reader.Read(), Is.EqualTo(false));
@@ -114,7 +116,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(null, false)] // timeout is not set, i.e. default = 30 sec is used
         [TestCase(null, true)]
         [Category("general")]
-        public void WithTimeout(int? timeout, bool async)
+        public void WithTimeout(int? timeout, bool runAsync)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
@@ -125,7 +127,7 @@ namespace FireboltDotNetSdk.Tests
                 command.CommandTimeout = (int)timeout;
             }
 
-            if (async)
+            if (runAsync)
             {
                 var aggEx = Assert.ThrowsAsync<AggregateException>(command.ExecuteReaderAsync);
                 Assert.That(aggEx?.InnerException, Is.InstanceOf<FireboltTimeoutException>());
@@ -138,20 +140,20 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase(true)]
         [TestCase(false)]
-        public async Task WithZeroTimeout(bool async)
+        public void WithZeroTimeout(bool runAsync)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SELECT checksum(*) FROM GENERATE_SERIES(1, 3000000000)";
             command.CommandTimeout = 0;
-            if (async)
+            if (runAsync)
             {
-                await command.ExecuteReaderAsync(); // works
+                Assert.DoesNotThrowAsync(() => command.ExecuteReaderAsync());
             }
             else
             {
-                command.ExecuteReader(); // works
+                Assert.DoesNotThrow(() => command.ExecuteReader());
             }
         }
 
@@ -162,7 +164,7 @@ namespace FireboltDotNetSdk.Tests
             conn.Open();
             DbCommand command = conn.CreateCommand();
             command.CommandText = LONG_QUERY;
-            CancellationTokenSource source = new CancellationTokenSource();
+            using var source = new CancellationTokenSource();
             CancellationToken token = source.Token;
             var task = command.ExecuteReaderAsync(token);
             source.Cancel();
@@ -194,8 +196,11 @@ namespace FireboltDotNetSdk.Tests
             CancellationToken cancellationToken = source.Token;
             Task<DbDataReader> task = command.ExecuteReaderAsync(cancellationToken);
             source.Cancel();
-            Assert.True(cancellationToken.IsCancellationRequested);
-            Assert.True(command.IsCancelCalled);
+            Assert.Multiple(() =>
+            {
+                Assert.That(cancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(command.IsCancelCalled, Is.True);
+            });
         }
 
         [TestCase("select 1", 1)]
@@ -228,13 +233,16 @@ namespace FireboltDotNetSdk.Tests
             ExecuteTestInvalidCredentials(SYSTEM_WRONG_CREDENTIALS2);
         }
 
-        private void ExecuteTestInvalidCredentials(string connectionString)
+        private static void ExecuteTestInvalidCredentials(string connectionString)
         {
             using var conn = new FireboltConnection(connectionString);
             FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => conn.Open());
-            Assert.NotNull(exception);
-            Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
-            Assert.That(exception.ToString(), Does.Contain("FireboltDotNetSdk.Exception.FireboltException: The operation is unauthorized\nStatus: 401"));
+            Assert.That(exception, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.Contain("The operation is unauthorized\nStatus: 401"));
+                Assert.That(exception.ToString(), Does.Contain("FireboltDotNetSdk.Exception.FireboltException: The operation is unauthorized\nStatus: 401"));
+            });
         }
 
         [Test]
@@ -244,7 +252,7 @@ namespace FireboltDotNetSdk.Tests
             ExecuteDateTimeTest(
                 USER_CONNECTION_STRING,
                 "SELECT '2022-05-10 23:01:02.123455'::timestampntz",
-                new string[0],
+                Array.Empty<string>(),
                 new DateTime(2022, 5, 10, 23, 1, 2, 0).AddTicks(1234550));
         }
 
@@ -255,7 +263,7 @@ namespace FireboltDotNetSdk.Tests
             ExecuteDateTimeTest(
                 USER_CONNECTION_STRING,
                 "SELECT '2022-05-10'::pgdate",
-                new string[0],
+                Array.Empty<string>(),
                 new DateTime(2022, 5, 10, 0, 0, 0),
                 new DateTime(2022, 5, 10, 0, 0, 0));
         }
@@ -269,7 +277,7 @@ namespace FireboltDotNetSdk.Tests
             ExecuteDateTimeTest(
                 USER_CONNECTION_STRING,
                 "SELECT '2022-05-10 23:01:02.123456 Europe/Berlin'::timestamptz",
-                new string[0],
+                Array.Empty<string>(),
                 DateTime.Parse("2022-05-10 21:01:02.123456Z"));
         }
 
@@ -302,16 +310,16 @@ namespace FireboltDotNetSdk.Tests
             ExecuteDateTimeTest(
                 USER_CONNECTION_STRING,
                 "SELECT '2022-05-01 12:01:02.123456'::timestamptz",
-                new string[0],
+                Array.Empty<string>(),
                 DateTime.Parse("2022-05-01 12:01:02.123456Z"));
         }
 
-        private void ExecuteDateTimeTest(string connString, string commandText, string[] additionalCommands, DateTime expectedDateTime)
+        private static void ExecuteDateTimeTest(string connString, string commandText, string[] additionalCommands, DateTime expectedDateTime)
         {
             ExecuteDateTimeTest(connString, commandText, additionalCommands, expectedDateTime, expectedDateTime);
         }
 
-        private void ExecuteDateTimeTest(string connString, string commandText, string[] additionalCommands, DateTime expectedDateTime, object expectedValue)
+        private static void ExecuteDateTimeTest(string connString, string commandText, string[] additionalCommands, DateTime expectedDateTime, object expectedValue)
         {
             using var conn = new FireboltConnection(connString);
             conn.Open();
@@ -322,11 +330,14 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandText = commandText;
             DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
-            Assert.That(reader.Read(), Is.EqualTo(true));
-            Assert.That(reader.GetDateTime(0), Is.EqualTo(expectedDateTime));
-            Assert.That(reader.GetValue(0), Is.EqualTo(expectedValue));
-            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(DateTime)));
+            Assert.That(reader, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetDateTime(0), Is.EqualTo(expectedDateTime));
+                Assert.That(reader.GetValue(0), Is.EqualTo(expectedValue));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(DateTime)));
+            });
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
         }
@@ -356,7 +367,7 @@ namespace FireboltDotNetSdk.Tests
             command.CommandText = "SET foo=bar";
             AggregateException? outerException = (AggregateException?)Assert.Throws(Is.InstanceOf<AggregateException>(), () => command.ExecuteNonQuery());
             FireboltException? exception = (FireboltException?)outerException!.InnerExceptions[0].InnerException;
-            Assert.NotNull(exception);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
             Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
             conn.Close();
@@ -377,10 +388,13 @@ namespace FireboltDotNetSdk.Tests
             command.CommandText = "SET foo=bar";
             AggregateException? outerException = (AggregateException?)Assert.Throws(Is.InstanceOf<AggregateException>(), () => command.ExecuteNonQuery());
             FireboltException? exception = (FireboltException?)outerException!.InnerExceptions[0].InnerException;
-            Assert.NotNull(exception);
-            Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
-            Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
-            Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
+            Assert.That(exception, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.Response?.Trim(), Does.Contain("not allowed"));
+                Assert.That(exception.Response?.Trim(), Does.Contain("foo"));
+                Assert.That(conn.SetParamList, Is.EqualTo(expectedParamerters));
+            });
             conn.Close();
         }
 
@@ -393,12 +407,15 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SELECT true, false";
             DbDataReader reader = command.ExecuteReader();
-            Assert.IsTrue(reader.Read());
-            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(bool)));
-            Assert.That(reader.GetBoolean(0), Is.EqualTo(true));
-            Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(bool)));
-            Assert.That(reader.GetBoolean(1), Is.EqualTo(false));
-            Assert.IsFalse(reader.Read());
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(bool)));
+                Assert.That(reader.GetBoolean(0), Is.EqualTo(true));
+                Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(bool)));
+                Assert.That(reader.GetBoolean(1), Is.EqualTo(false));
+            });
+            Assert.That(reader.Read(), Is.False);
         }
 
         [Test]
@@ -410,8 +427,11 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = conn.CreateCommand();
             command.CommandText = "SELECT 1";
             DbDataReader reader = command.ExecuteReader();
-            Assert.That(reader.Read(), Is.EqualTo(true));
-            Assert.That(reader.GetInt16(0), Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt16(0), Is.EqualTo(1));
+            });
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
         }
@@ -457,7 +477,7 @@ namespace FireboltDotNetSdk.Tests
                     }
                 }
                 tableNames.Add(name!);
-                Assert.That(name!.Length, Is.EqualTo(length!));
+                Assert.That(name!, Has.Length.EqualTo(length!));
             }
         }
 
@@ -476,12 +496,12 @@ namespace FireboltDotNetSdk.Tests
             ExecuteServiceAccountLoginWithInvalidCredentials(SYSTEM_WRONG_CREDENTIALS2);
         }
 
-        private void ExecuteServiceAccountLoginWithInvalidCredentials(string connectionString)
+        private static void ExecuteServiceAccountLoginWithInvalidCredentials(string connectionString)
         {
             using var conn = new FireboltConnection(connectionString);
             FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => conn.Open());
-            Assert.NotNull(exception);
-            Assert.IsTrue(exception!.Message.Contains("401"), $"Expected Unauthorized (401) error message but was {exception!.Message}");
+            Assert.That(exception, Is.Not.Null);
+            Assert.That(exception!.Message, Does.Contain("401"), $"Expected Unauthorized (401) error message but was {exception!.Message}");
         }
 
         [TestCase(nameof(Password), Category = "v1")]
@@ -490,41 +510,76 @@ namespace FireboltDotNetSdk.Tests
         {
             var connString = ConnectionString(new Tuple<string, string?>(nameof(Engine), null), new Tuple<string, string?>(secretField, ""));
             FireboltException? exception = (FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => new FireboltConnection(connString));
-            Assert.NotNull(exception);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception!.Message, Is.EqualTo("Configuration error: either Password or ClientSecret must be provided but not both"));
+        }
+
+        [Test]
+        [Category("general")]
+        public void ExecuteSelectArrayNullable()
+        {
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,NULL,3]", new int?[] { 1, null, 3 }, typeof(int?[]));
+        }
+
+        [Test]
+        [Category("general")]
+        public void ExecuteSelectTwoDimensionalArrayNullable()
+        {
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,NULL,3]]", new int?[1][] { new int?[] { 1, null, 3 } }, typeof(int?[][]));
         }
 
         [Test]
         [Category("general")]
         public void ExecuteSelectArray()
         {
-            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,NULL,3]", new int?[] { 1, null, 3 }, typeof(int[]));
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [1,3]", new int?[] { 1, 3 }, typeof(int[]));
         }
 
         [Test]
         [Category("general")]
         public void ExecuteSelectTwoDimensionalArray()
         {
-            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,NULL,3]]", new int?[1][] { new int?[] { 1, null, 3 } }, typeof(int[][]));
+            ExecuteTest(SYSTEM_CONNECTION_STRING, "select [[1,3]]", new int?[1][] { new int?[] { 1, 3 } }, typeof(int[][]));
         }
 
-        private void ExecuteTest(string connString, string commandText, object expectedValue, Type expectedType)
+        [TestCase("select array_agg(arr) from (select array_agg(n) arr from (SELECT n FROM GENERATE_SERIES(1, 10, 1) s(n) ) group by n / 2)", typeof(int[][]))]
+        [TestCase("select array_agg(n) arr from (SELECT n FROM GENERATE_SERIES(1, 10, 1) s(n) ) group by n / 2", typeof(int[]))]
+        [TestCase("SELECT n FROM GENERATE_SERIES(1, 10, 1) s(n)", typeof(int))]
+        [Category("engine-v2")]
+        public void ExecuteDifferentArrays(string commandText, Type expectedType)
+        {
+            DbConnection connection = new FireboltConnection(USER_CONNECTION_STRING);
+            connection.Open();
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            var reader = command.ExecuteReader();
+            var type = reader.GetFieldType(0);
+            reader.Read();
+            var value = reader.GetValue(0);
+            Assert.That(value.GetType(), Is.EqualTo(type));
+            Assert.That(value.GetType(), Is.EqualTo(expectedType));
+        }
+
+        private static void ExecuteTest(string connString, string commandText, object expectedValue, Type expectedType)
         {
             var conn = new FireboltConnection(connString);
             conn.Open();
-            DbDataReader reader = ExecuteTest(conn, commandText, expectedValue, null); //TODO: improve type discovery and send expectedType here
+            DbDataReader reader = ExecuteTest(conn, commandText, expectedValue, expectedType);
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
         }
 
-        private DbDataReader ExecuteTest(DbConnection conn, string commandText, object expectedValue, Type? expectedType)
+        private static DbDataReader ExecuteTest(DbConnection conn, string commandText, object expectedValue, Type? expectedType)
         {
             DbCommand command = conn.CreateCommand();
             command.CommandText = commandText;
             DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
-            Assert.That(reader.Read(), Is.EqualTo(true));
-            Assert.That(reader.GetValue(0), Is.EqualTo(expectedValue));
+            Assert.That(reader, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetValue(0), Is.EqualTo(expectedValue));
+            });
             if (expectedType != null)
             {
                 Assert.That(reader.GetFieldType(0), Is.EqualTo(expectedType));
@@ -578,7 +633,7 @@ namespace FireboltDotNetSdk.Tests
             WrongQuery(USER_CONNECTION_STRING);
         }
 
-        private void WrongQuery(string connString)
+        private static void WrongQuery(string connString)
         {
             using (var conn = new FireboltConnection(connString))
             {
@@ -599,11 +654,14 @@ namespace FireboltDotNetSdk.Tests
             var conn = new FireboltConnection(USER_CONNECTION_STRING);
             conn.Open();
             DbDataReader reader = ExecuteTest(conn, query, doubleExpected, expectedType);
-            Assert.That(reader.GetDouble(0), Is.EqualTo(doubleExpected));
-            Assert.That(reader.GetFloat(0), Is.EqualTo(floatExpected));
-            Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
-            Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
-            Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.GetDouble(0), Is.EqualTo(doubleExpected));
+                Assert.That(reader.GetFloat(0), Is.EqualTo(floatExpected));
+                Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
+                Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
+                Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
+            });
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
         }
@@ -616,11 +674,17 @@ namespace FireboltDotNetSdk.Tests
         {
             var conn = new FireboltConnection(USER_CONNECTION_STRING); conn.Open();
             DbDataReader reader = ExecuteTest(conn, query, double.NaN, expectedType);
-            Assert.That(double.IsNaN(reader.GetDouble(0)), Is.True);
-            Assert.That(float.IsNaN(reader.GetFloat(0)), Is.True);
-            Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
-            Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
-            Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
+            Assert.Multiple(() =>
+            {
+                Assert.That(double.IsNaN(reader.GetDouble(0)), Is.True);
+                Assert.That(float.IsNaN(reader.GetFloat(0)), Is.True);
+            });
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<InvalidCastException>(() => reader.GetInt16(0));
+                Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
+                Assert.Throws<InvalidCastException>(() => reader.GetInt64(0));
+            });
             Assert.That(reader.Read(), Is.EqualTo(false));
             conn.Close();
         }
@@ -653,9 +717,9 @@ namespace FireboltDotNetSdk.Tests
                 DbCommand selectAll = CreateCommand(conn, SELECT_ALL_SIMPLE);
                 Type[] expectedTypes = new Type[]
                 {
-                    typeof(int), typeof(decimal), typeof(long), typeof(float), typeof(decimal), typeof(double),
-                    typeof(string), typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(bool),
-                    typeof(byte[])
+                    typeof(int?), typeof(decimal?), typeof(long?), typeof(float?), typeof(decimal?), typeof(double?),
+                    typeof(string), typeof(DateTime?), typeof(DateTime?), typeof(DateTime?), typeof(bool?),
+                    typeof(byte?[])
                 };
 
                 using (DbDataReader reader = selectAll.ExecuteReader())
@@ -671,23 +735,29 @@ namespace FireboltDotNetSdk.Tests
 
                     while (reader.Read())
                     {
-                        Assert.That(reader.GetInt32(0), Is.EqualTo(1));
-                        Assert.That(reader.GetDecimal(1), Is.EqualTo(2));
-                        Assert.That(reader.GetInt64(2), Is.EqualTo(1234567890L));
-                        Assert.True(Math.Abs(reader.GetFloat(3) - 3.14) <= 0.001);
-                        Assert.True(Math.Abs(reader.GetDecimal(4) - 6.02M) <= 0.001M);
-                        Assert.True(Math.Abs(reader.GetDouble(5) - 2.718281828) <= 0.001);
-                        Assert.That(reader.GetString(6), Is.EqualTo("hello"));
-                        Assert.That(reader.GetDateTime(7), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18")));
-                        Assert.That(reader.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
-                        Assert.That(reader.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
-                        Assert.That(reader.GetBoolean(10), Is.EqualTo(true));
-                        // byte array
-                        Assert.That(reader.GetValue(11), Is.EqualTo(bytes));
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                            Assert.That(reader.GetDecimal(1), Is.EqualTo(2));
+                            Assert.That(reader.GetInt64(2), Is.EqualTo(1234567890L));
+                            Assert.That(Math.Abs(reader.GetFloat(3) - 3.14), Is.LessThanOrEqualTo(0.001));
+                            Assert.That(Math.Abs(reader.GetDecimal(4) - 6.02M), Is.LessThanOrEqualTo(0.001M));
+                            Assert.That(Math.Abs(reader.GetDouble(5) - 2.718281828), Is.LessThanOrEqualTo(0.001));
+                            Assert.That(reader.GetString(6), Is.EqualTo("hello"));
+                            Assert.That(reader.GetDateTime(7), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18")));
+                            Assert.That(reader.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
+                            Assert.That(reader.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
+                            Assert.That(reader.GetBoolean(10), Is.EqualTo(true));
+                            // byte array
+                            Assert.That(reader.GetValue(11), Is.EqualTo(bytes));
+                        });
                         byte[] buffer = new byte[bytes.Length];
                         long length = reader.GetBytes(11, 0, buffer, 0, buffer.Length);
-                        Assert.That(length, Is.EqualTo(buffer.Length));
-                        Assert.That(buffer, Is.EqualTo(bytes));
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(length, Is.EqualTo(buffer.Length));
+                            Assert.That(buffer, Is.EqualTo(bytes));
+                        });
                     }
                 }
 
@@ -707,29 +777,37 @@ namespace FireboltDotNetSdk.Tests
                                 $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {record.GetFieldType(i)}");
                         }
 
-                        Assert.That(record.GetInt32(0), Is.EqualTo(1));
-                        Assert.That(record.GetDecimal(1), Is.EqualTo(2));
-                        Assert.That(record.GetInt64(2), Is.EqualTo(1234567890L));
-                        Assert.True(Math.Abs(record.GetFloat(3) - 3.14) <= 0.001);
-                        Assert.True(Math.Abs(record.GetDecimal(4) - 6.02M) <= 0.001M);
-                        Assert.True(Math.Abs(record.GetDouble(5) - 2.718281828) <= 0.001);
-                        Assert.That(record.GetString(6), Is.EqualTo("hello"));
-                        Assert.That(record.GetDateTime(7), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18")));
-                        Assert.That(record.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
-                        Assert.That(record.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
-                        Assert.That(record.GetBoolean(10), Is.EqualTo(true));
-                        // byte array
-                        Assert.That(record.GetValue(11), Is.EqualTo(bytes));
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(record.GetInt32(0), Is.EqualTo(1));
+                            Assert.That(record.GetDecimal(1), Is.EqualTo(2));
+                            Assert.That(record.GetInt64(2), Is.EqualTo(1234567890L));
+                            Assert.That(Math.Abs(record.GetFloat(3) - 3.14), Is.LessThanOrEqualTo(0.001));
+                            Assert.That(Math.Abs(record.GetDecimal(4) - 6.02M), Is.LessThanOrEqualTo(0.001M));
+                            Assert.That(Math.Abs(record.GetDouble(5) - 2.718281828), Is.LessThanOrEqualTo(0.001));
+                            Assert.That(record.GetString(6), Is.EqualTo("hello"));
+                            Assert.That(record.GetDateTime(7), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18")));
+                            Assert.That(record.GetDateTime(8), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456")));
+                            Assert.That(record.GetDateTime(9), Is.EqualTo(TypesConverter.ParseDateTime("2023-10-18 17:30:20.123456+02")));
+                            Assert.That(record.GetBoolean(10), Is.EqualTo(true));
+                            // byte array
+                            Assert.That(record.GetValue(11), Is.EqualTo(bytes));
+                        });
                         byte[] buffer = new byte[bytes.Length];
                         long length = record.GetBytes(11, 0, buffer, 0, buffer.Length);
-                        Assert.That(length, Is.EqualTo(buffer.Length));
-                        Assert.That(buffer, Is.EqualTo(bytes));
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(length, Is.EqualTo(buffer.Length));
+                            Assert.That(buffer, Is.EqualTo(bytes));
+                        });
                     }
                 }
 
-                Assert.True(selectOneRow(conn, 1));
-                Assert.False(selectOneRow(conn, 0));
-
+                Assert.Multiple(() =>
+                {
+                    Assert.That(selectOneRow(conn, 1), Is.True);
+                    Assert.That(selectOneRow(conn, 0), Is.False);
+                });
                 CreateCommand(conn, DROP_SIMPLE_TABLE).ExecuteNonQuery();
             }
         }
@@ -738,14 +816,14 @@ namespace FireboltDotNetSdk.Tests
         [Category("general")]
         public void CreateDropFillTableWithEmptyArrays()
         {
-            CreateDropFillTableWithArrays("int", new int[0], typeof(int[]), "int", new int[0][], typeof(int[][]), "int", new int[0][][], typeof(int[][][]));
+            CreateDropFillTableWithArrays("int", Array.Empty<int>(), typeof(int?[]), "int", Array.Empty<int[]>(), typeof(int?[][]), "int", Array.Empty<int[][]>(), typeof(int?[][][]));
         }
 
         [Test]
         [Category("general")]
         public void CreateDropFillTableWithNullArrays()
         {
-            CreateDropFillTableWithArrays("int", null, typeof(int[]), "int", null, typeof(int[][]), "int", null, typeof(int[][][]));
+            CreateDropFillTableWithArrays("int", null, typeof(int?[]), "int", null, typeof(int?[][]), "int", null, typeof(int?[][][]));
         }
 
         [Test]
@@ -753,9 +831,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithSingetonArrays()
         {
             CreateDropFillTableWithArrays(
-                "int", new int[] { 1 }, typeof(int[]),
-                "int", new int[][] { new int[] { 22 } }, typeof(int[][]),
-                "int", new int[][][] { new int[][] { new int[] { 333 } } }, typeof(int[][][]));
+                "int", new int[] { 1 }, typeof(int?[]),
+                "int", new int[][] { new int[] { 22 } }, typeof(int?[][]),
+                "int", new int[][][] { new int[][] { new int[] { 333 } } }, typeof(int?[][][]));
         }
 
         [Test]
@@ -763,9 +841,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithFullArrays()
         {
             CreateDropFillTableWithArrays(
-                "int", new int[] { 1, 2, 3 }, typeof(int[]),
-                "int", new int[][] { new int[] { 21, 22, 23 }, new int[] { 31, 32, 33 } }, typeof(int[][]),
-                "int", new int[][][] { new int[][] { new int[] { 333, 334, 335, 336 }, new int[] { 1, 2 } } }, typeof(int[][][])
+                "int", new int[] { 1, 2, 3 }, typeof(int?[]),
+                "int", new int[][] { new int[] { 21, 22, 23 }, new int[] { 31, 32, 33 } }, typeof(int?[][]),
+                "int", new int[][][] { new int[][] { new int[] { 333, 334, 335, 336 }, new int[] { 1, 2 } } }, typeof(int?[][][])
             );
         }
 
@@ -774,9 +852,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithArraysOfDifferentTypes()
         {
             CreateDropFillTableWithArrays(
-                "long", new long[] { 1, 2 }, typeof(long[]),
-                "float", new float[][] { new float[] { 2.7F, 3.14F } }, typeof(float[][]),
-                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
+                "long", new long[] { 1, 2 }, typeof(long?[]),
+                "float", new float[][] { new float[] { 2.7F, 3.14F } }, typeof(float?[][]),
+                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double?[][][]));
         }
 
         [Test]
@@ -785,9 +863,9 @@ namespace FireboltDotNetSdk.Tests
         public void CreateDropFillTableWithArraysOfDifferentTypesV2()
         {
             CreateDropFillTableWithArrays(
-                "long", new long[] { 1, 2 }, typeof(long[]),
-                "float", new double[][] { new double[] { 2.7, 3.14 } }, typeof(double[][]), // float is alias to double in engine V2
-                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double[][][]));
+                "long", new long[] { 1, 2 }, typeof(long?[]),
+                "float", new double[][] { new double[] { 2.7, 3.14 } }, typeof(double?[][]), // float is alias to double in engine V2
+                "double", new double[][][] { new double[][] { new double[] { 3.1415926 } } }, typeof(double?[][][]));
         }
 
         [Test]
@@ -828,9 +906,12 @@ namespace FireboltDotNetSdk.Tests
             DbCommand select = CreateCommand(conn, selectQuery);
             using (DbDataReader reader = select.ExecuteReader())
             {
-                Assert.That(reader.Read(), Is.EqualTo(true));
-                Assert.That(reader.GetString(0), Is.EqualTo(pointHex));
-                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(string)));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.EqualTo(true));
+                    Assert.That(reader.GetString(0), Is.EqualTo(pointHex));
+                    Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(string)));
+                });
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
         }
@@ -867,12 +948,17 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(type, Is.EqualTo(typeof(Dictionary<string, object>)));
 
                 Dictionary<string, object> s = (Dictionary<string, object>)reader.GetValue(0);
-                Assert.That(s["id"], Is.EqualTo(1));
-                Assert.That(s["s"], Is.InstanceOf<Dictionary<string, object>>());
+                Assert.Multiple(() =>
+                {
+                    Assert.That(s["id"], Is.EqualTo(1));
+                    Assert.That(s["s"], Is.InstanceOf<Dictionary<string, object>>());
+                });
                 Dictionary<string, object> s2 = (Dictionary<string, object>)s["s"];
-                Assert.That(s2["a"], Is.EqualTo(new[] { 1, 2 }));
-                Assert.That(s2["b"], Is.EqualTo(TypesConverter.ParseDateTime("2019-07-31 01:01:01")));
-
+                Assert.Multiple(() =>
+                {
+                    Assert.That(s2["a"], Is.EqualTo(new[] { 1, 2 }));
+                    Assert.That(s2["b"], Is.EqualTo(TypesConverter.ParseDateTime("2019-07-31 01:01:01")));
+                });
             }
         }
 
@@ -887,13 +973,16 @@ namespace FireboltDotNetSdk.Tests
                 DbCommand command = conn.CreateCommand();
                 command.CommandText = sql;
                 DbDataReader reader = command.ExecuteReader();
-                Assert.That(reader.Read(), Is.EqualTo(true));
-                Assert.That(reader.GetDecimal(0), Is.EqualTo(12345678901234567890123456789.123456789M));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.EqualTo(true));
+                    Assert.That(reader.GetDecimal(0), Is.EqualTo(12345678901234567890123456789.123456789M));
+                });
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
         }
 
-        private void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)
+        private static void CreateDropFillTableWithArrays(string type1, Array? inta1, Type expType1, string type2, Array? inta2, Type expType2, string type3, Array? inta3, Type expType3)
         {
             using (var conn = new FireboltConnection(USER_CONNECTION_STRING))
             {
@@ -938,12 +1027,16 @@ namespace FireboltDotNetSdk.Tests
                         int rowsCount = 0;
                         while (reader.Read())
                         {
-                            Assert.That(reader.GetInt32(0), Is.EqualTo(id));
-                            Assert.That(reader.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
-                            Assert.That(reader.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
-                            Assert.That(reader.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                            Assert.Multiple(() =>
+                            {
+                                Assert.That(reader.GetInt32(0), Is.EqualTo(id));
+                                Assert.That(reader.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
+                                Assert.That(reader.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
+                                Assert.That(reader.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                            });
                             rowsCount++;
                         }
+
                         Assert.That(rowsCount, Is.EqualTo(1));
                     }
 
@@ -964,13 +1057,16 @@ namespace FireboltDotNetSdk.Tests
                                     $"Wrong data type of column {i}: expected {expectedTypes[i]} but was {record.GetFieldType(i)}");
                             }
 
-                            Assert.That(record.GetInt32(0), Is.EqualTo(id));
-                            Assert.That(record.GetInt32(0), Is.EqualTo(1));
-                            Assert.That(record.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
-                            Assert.That(record.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
-                            Assert.That(record.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                            Assert.Multiple(() =>
+                            {
+                                Assert.That(record.GetInt32(0), Is.EqualTo(id));
+                                Assert.That(record.GetValue(1), Is.EqualTo(inta1 == null ? DBNull.Value : inta1));
+                                Assert.That(record.GetValue(2), Is.EqualTo(inta2 == null ? DBNull.Value : inta2));
+                                Assert.That(record.GetValue(3), Is.EqualTo(inta3 == null ? DBNull.Value : inta3));
+                            });
                             rowsCount++;
                         }
+
                         Assert.That(rowsCount, Is.EqualTo(1));
                     }
                 }
@@ -982,7 +1078,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         // Executes select ... where i = ? and returns true if at least one record is found and false otherwise. 
-        private bool selectOneRow(DbConnection conn, int id)
+        private static bool selectOneRow(DbConnection conn, int id)
         {
             DbCommand selectWhere1 = CreateCommand(conn, SELECT_WHERE_SIMPLE);
             selectWhere1.Prepare();
@@ -999,14 +1095,14 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        private DbCommand CreateCommand(DbConnection conn, string query)
+        private static DbCommand CreateCommand(DbConnection conn, string query)
         {
             DbCommand command = conn.CreateCommand();
             command.CommandText = query;
             return command;
         }
 
-        private DbParameter CreateParameter(DbCommand command, string name, object? value)
+        private static DbParameter CreateParameter(DbCommand command, string name, object? value)
         {
             DbParameter parameter = command.CreateParameter();
             parameter.ParameterName = name;
