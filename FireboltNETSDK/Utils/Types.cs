@@ -25,19 +25,22 @@ namespace FireboltDoNetSdk.Utils
         //Regex that matches the string Nullable(<type>), where type is the type that we need to capture.
         private const string NullableTypePattern = @"Nullable\(([^)]+)\)";
         private const int matchTimeoutSeconds = 60;
-        internal static IDictionary<string, double> doubleInfinity = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+
+        private static readonly IDictionary<string, double> DoubleInfinity = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
         {
             { "inf", double.PositiveInfinity },
             { "+inf", double.PositiveInfinity },
             { "-inf", double.NegativeInfinity },
         };
-        internal static IDictionary<string, float> floatInfinity = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+
+        private static readonly IDictionary<string, float> FloatInfinity = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
         {
             { "inf", float.PositiveInfinity },
             { "+inf", float.PositiveInfinity },
             { "-inf", float.NegativeInfinity },
         };
-        internal static ISet<object> infinityValues = new HashSet<object>()
+
+        private static readonly ISet<object> InfinityValues = new HashSet<object>()
         {
             double.PositiveInfinity, double.NegativeInfinity, float.PositiveInfinity, float.NegativeInfinity
         };
@@ -184,7 +187,7 @@ namespace FireboltDoNetSdk.Utils
         {
             return val switch
             {
-                string str when doubleInfinity.ContainsKey(str) => doubleInfinity[str],
+                string str when DoubleInfinity.ContainsKey(str) => DoubleInfinity[str],
                 double d => d,
                 _ => Convert.ToDouble(val)
             };
@@ -194,7 +197,7 @@ namespace FireboltDoNetSdk.Utils
         {
             return val switch
             {
-                string str when floatInfinity.ContainsKey(str) => floatInfinity[str],
+                string str when FloatInfinity.ContainsKey(str) => FloatInfinity[str],
                 float f => f,
                 _ => Convert.ToSingle(val)
             };
@@ -284,7 +287,7 @@ namespace FireboltDoNetSdk.Utils
 
         public static bool isInfinity(object value)
         {
-            return infinityValues.Contains(value);
+            return InfinityValues.Contains(value);
         }
 
         public static bool isNaN(object value)
