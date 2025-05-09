@@ -100,6 +100,11 @@ namespace FireboltDotNetSdk.Client
             get => _connectionState.Settings?.TokenStorageType ?? TokenStorageType.Memory;
         }
 
+        internal PreparedStatementParamStyleType PreparedStatementParamStyle
+        {
+            get => _connectionState.Settings?.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
+        }
+
         internal string? EngineName
         {
             get;

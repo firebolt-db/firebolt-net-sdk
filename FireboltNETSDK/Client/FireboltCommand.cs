@@ -223,11 +223,25 @@ namespace FireboltDotNetSdk.Client
                 return await Task.FromResult<string?>(null);
             }
             string newCommandText = commandText;
+            var paramList = SetParamList;
             if (Parameters.Any())
             {
-                newCommandText = GetParamQuery(commandText);
+                if (Connection!.PreparedStatementParamStyle == PreparedStatementParamStyleType.FbNumeric)
+                {
+                    var queryParameters = JsonConvert.SerializeObject(Parameters.Select(parameter =>
+                        new
+                        {
+                            name = parameter.ParameterName,
+                            value = parameter.Value
+                        })
+                    );
+                    paramList.Add("query_parameters=" + queryParameters);
+                }
+                else
+                {
+                    newCommandText = GetParamQuery(commandText);
+                }
             }
-            var paramList = SetParamList;
             // Need to tell the backend we are running async
             if (isServerAsync)
             {
@@ -279,6 +293,11 @@ namespace FireboltDotNetSdk.Client
             {
                 foreach (var parameter in Parameters.ToList())
                 {
+                    //need to validate parameters are of native type
+                    if (!parameter.ParameterName.StartsWith('@'))
+                    {
+                        throw new FireboltException("Parameter name should start with '@' when using native PreparedStatementParamStyle");
+                    }
                     string pattern = string.Format(@"\{0}\b", parameter.ParameterName);
                     string verifyParameters = GetParamValue(parameter.Value);
                     commandText = Regex.Replace(commandText, pattern, verifyParameters, RegexOptions.IgnoreCase, regexTimeout);

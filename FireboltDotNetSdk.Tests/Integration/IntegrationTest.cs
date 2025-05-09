@@ -33,6 +33,7 @@ namespace FireboltDotNetSdk.Tests
         protected static string? ClientSecret;
         protected static string? UserName;
         protected static string? Password;
+        protected static string? PreparedStatementParamStyle;
 
         protected static string ConnectionString(params Tuple<string, string?>[] more)
         {
@@ -73,6 +74,7 @@ namespace FireboltDotNetSdk.Tests
             ClientSecret = GetEnvironmentVariable("FIREBOLT_CLIENT_SECRET");
             UserName = GetEnvironmentVariable("FIREBOLT_USERNAME");
             Password = GetEnvironmentVariable("FIREBOLT_PASSWORD");
+            PreparedStatementParamStyle = "Native";
             configuration = new Dictionary<string, string?>()
             {
                 {nameof(Database).ToLower(), Database},
@@ -84,6 +86,7 @@ namespace FireboltDotNetSdk.Tests
                 {nameof(ClientSecret).ToLower(), ClientSecret},
                 {nameof(UserName).ToLower(), UserName},
                 {nameof(Password).ToLower(), Password},
+                {nameof(PreparedStatementParamStyle).ToLower(), PreparedStatementParamStyle},
             };
         }
 
