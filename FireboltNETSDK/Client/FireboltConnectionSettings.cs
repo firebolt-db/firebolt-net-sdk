@@ -60,12 +60,14 @@ namespace FireboltDotNetSdk.Client
         public string? Env { get; }
         public string? ConnectionString { get; }
         public TokenStorageType TokenStorageType { get; }
+        public PreparedStatementParamStyleType PreparedStatementParamStyle { get; }
 
         internal FireboltConnectionSettings()
         {
             Principal = string.Empty;
             Secret = string.Empty;
             TokenStorageType = TokenStorageType.Memory;
+            PreparedStatementParamStyle = PreparedStatementParamStyleType.Native;
         }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
@@ -79,6 +81,7 @@ namespace FireboltDotNetSdk.Client
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
             (Endpoint, Env) = ResolveEndpointAndEnv(builder);
             TokenStorageType = builder.TokenStorage ?? TokenStorageType.Memory;
+            PreparedStatementParamStyle = builder.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
         }
 
         static string? ExtractEndpointEnv(string endpoint)

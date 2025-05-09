@@ -1,4 +1,5 @@
-﻿using FireboltDotNetSdk.Exception;
+﻿using System.Data.Common;
+using FireboltDotNetSdk.Exception;
 using static System.Environment;
 
 namespace FireboltDotNetSdk.Tests
@@ -32,6 +33,7 @@ namespace FireboltDotNetSdk.Tests
         protected static string? ClientSecret;
         protected static string? UserName;
         protected static string? Password;
+        protected static string? PreparedStatementParamStyle;
 
         protected static string ConnectionString(params Tuple<string, string?>[] more)
         {
@@ -72,6 +74,7 @@ namespace FireboltDotNetSdk.Tests
             ClientSecret = GetEnvironmentVariable("FIREBOLT_CLIENT_SECRET");
             UserName = GetEnvironmentVariable("FIREBOLT_USERNAME");
             Password = GetEnvironmentVariable("FIREBOLT_PASSWORD");
+            PreparedStatementParamStyle = "Native";
             configuration = new Dictionary<string, string?>()
             {
                 {nameof(Database).ToLower(), Database},
@@ -83,7 +86,16 @@ namespace FireboltDotNetSdk.Tests
                 {nameof(ClientSecret).ToLower(), ClientSecret},
                 {nameof(UserName).ToLower(), UserName},
                 {nameof(Password).ToLower(), Password},
+                {nameof(PreparedStatementParamStyle).ToLower(), PreparedStatementParamStyle},
             };
+        }
+        
+        protected static DbParameter CreateParameter(DbCommand command, string name, object? value)
+        {
+            DbParameter parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value;
+            return parameter;
         }
     }
 }

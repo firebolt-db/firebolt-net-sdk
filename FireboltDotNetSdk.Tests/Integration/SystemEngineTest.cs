@@ -366,14 +366,6 @@ namespace FireboltDotNetSdk.Tests
             return (string?)command.ExecuteScalar();
         }
 
-        private DbParameter CreateParameter(DbCommand command, string name, object? value)
-        {
-            DbParameter parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value;
-            return parameter;
-        }
-
         private DbCommand CreateCommand(string sql)
         {
             DbCommand command = Connection.CreateCommand();
