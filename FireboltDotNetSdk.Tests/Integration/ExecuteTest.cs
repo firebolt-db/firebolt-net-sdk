@@ -1102,14 +1102,6 @@ namespace FireboltDotNetSdk.Tests
             return command;
         }
 
-        private static DbParameter CreateParameter(DbCommand command, string name, object? value)
-        {
-            DbParameter parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value;
-            return parameter;
-        }
-
         class FireboltCancelTestCommand : FireboltCommand
         {
             internal bool IsCancelCalled { get; private set; }

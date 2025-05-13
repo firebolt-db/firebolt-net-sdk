@@ -9,7 +9,7 @@ namespace FireboltDotNetSdk.Client
     /// </summary>
     public sealed class FireboltParameterCollection : DbParameterCollection, IList<DbParameter>, IReadOnlyList<DbParameter>
     {
-        private IList<DbParameter> _parameters = new List<DbParameter>();
+        private readonly IList<DbParameter> _parameters = new List<DbParameter>();
 
         public FireboltParameterCollection()
         {
@@ -33,7 +33,7 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override int Add(object value)
         {
-            DbParameter parameter = typeof(DbParameter).IsAssignableFrom(value.GetType()) ? (DbParameter)value : new FireboltParameter(FireboltParameter.defaultParameterName, value);
+            DbParameter parameter = value as DbParameter ?? new FireboltParameter(FireboltParameter.defaultParameterName, value);
             Add(parameter);
             return _parameters.Count - 1;
         }
@@ -56,37 +56,42 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <inheritdoc/>
+        public override bool Contains(object value)
+        {
+            if (value is DbParameter dbParameter)
+            {
+                return Contains(dbParameter);
+            }
+            return _parameters.Any(p => Equals(p.Value, value));
+        }
+
+        /// <inheritdoc/>
+        public override bool Contains(string value)
+        {
+            return _parameters.Any(p => Equals(p.ParameterName, value));
+        }
+
+        /// <inheritdoc/>
         public void CopyTo(DbParameter[] array, int arrayIndex)
         {
             _parameters.CopyTo(array, arrayIndex);
         }
 
         /// <inheritdoc/>
-        public override bool Contains(object value)
+        public override void CopyTo(Array array, int index)
         {
-            if (typeof(DbParameter).IsAssignableFrom(value.GetType()))
-            {
-                return Contains((DbParameter)value);
-            }
-            foreach (DbParameter parameter in _parameters)
-            {
-                if (object.Equals(parameter.Value, value))
-                {
-                    return true;
-                }
-            }
-            return false;
+            _parameters.CopyTo((DbParameter[])array, index);
         }
 
         /// <inheritdoc/>
         public override int IndexOf(object value)
         {
-            if (typeof(DbParameter).IsAssignableFrom(value.GetType()))
+            if (value is DbParameter dbParameter)
             {
-                return IndexOf((DbParameter)value);
+                return IndexOf(dbParameter);
             }
 
-            for (int i = 0; i < _parameters.Count(); i++)
+            for (int i = 0; i < _parameters.Count; i++)
             {
                 if (_parameters[i].Value?.Equals(value) ?? false)
                 {
@@ -99,6 +104,19 @@ namespace FireboltDotNetSdk.Client
         public int IndexOf(DbParameter parameter)
         {
             return parameter.Value == null ? -1 : IndexOf(parameter.Value);
+        }
+
+        /// <inheritdoc/>
+        public override int IndexOf(string parameterName)
+        {
+            for (int i = 0; i < _parameters.Count; i++)
+            {
+                if (Equals(_parameters[i].ParameterName, parameterName))
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         /// <inheritdoc/>
@@ -176,38 +194,6 @@ namespace FireboltDotNetSdk.Client
             {
                 _parameters[index] = value;
             }
-        }
-
-        /// <inheritdoc/>
-        public override int IndexOf(string parameterName)
-        {
-            for (int i = 0; i < _parameters.Count(); i++)
-            {
-                if (object.Equals(_parameters[i].ParameterName, parameterName))
-                {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        /// <inheritdoc/>
-        public override bool Contains(string value)
-        {
-            foreach (DbParameter parameter in _parameters)
-            {
-                if (object.Equals(parameter.ParameterName, value))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public override void CopyTo(Array array, int index)
-        {
-            _parameters.CopyTo((DbParameter[])array, index);
         }
 
         /// <inheritdoc/>

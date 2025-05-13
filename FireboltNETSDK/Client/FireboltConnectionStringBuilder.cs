@@ -126,7 +126,6 @@ namespace FireboltDotNetSdk.Client
             set => this[nameof(TokenStorage)] = value;
         }
 
-
         public int Version
         {
             get;
@@ -199,7 +198,7 @@ namespace FireboltDotNetSdk.Client
                 Version = 2;
                 return;
             }
-            Version = BuildSettings().Principal.Contains("@") ? 1 : 2;
+            Version = BuildSettings().Principal.Contains('@') ? 1 : 2;
         }
 
         /// <summary>
@@ -208,9 +207,7 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The connection string</returns>
         public string ToConnectionString()
         {
-            ICollection<string> x = (ICollection<string>)Keys;
-            x.Select(n => "");
-            return string.Join(';', ((ICollection<string>)Keys).Select(key => $"{key}={this[key]}"));
+            return string.Join(';', (Keys as ICollection<string>)!.Select(key => $"{key}={this[key]}"));
         }
     }
 }

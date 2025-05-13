@@ -6,7 +6,6 @@ using System.Data.Common;
 using System.Data;
 using Moq;
 using FireboltDoNetSdk.Utils;
-using System.Runtime.CompilerServices;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -116,7 +115,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteReaderNullResponseTest()
         {
-            var cs = createCommand("select 1", null);
+            var cs = CreateCommand("select 1", null);
             DbDataReader reader = cs.ExecuteReader();
             Assert.That(reader.Read(), Is.False);
         }
@@ -126,7 +125,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("select 1", "null", "No result produced")] // produces null QueryResult
         public void ExecuteRederInvalidQuery(string? query, string? response, string expectedErrorMessage)
         {
-            var cs = createCommand(query, response);
+            var cs = CreateCommand(query, response);
             Assert.That(Assert.Throws<InvalidOperationException>(() => cs.ExecuteReader())?.Message, Is.EqualTo(expectedErrorMessage));
         }
 
@@ -136,21 +135,24 @@ namespace FireboltDotNetSdk.Tests
             string response =
             "{\"query\":{\"query_id\": \"16FDB86662938757\"},\"meta\":[{\"name\": \"uint8\",\"type\": \"int\"}, {\"name\": \"dinf\",\"type\": \"double\"}],\"data\":[[1, \"inf\"]],\"rows\": 1,\"statistics\":{\"elapsed\": 0.000620069,\"rows_read\": 1,\"bytes_read\": 1,\"time_before_execution\": 0.000409657,\"time_to_execute\": 0.000208377,\"scanned_bytes_cache\": 0,\"scanned_bytes_storage\": 0}}";
 
-            var cs = createCommand("select 1", response);
+            var cs = CreateCommand("select 1", response);
             DbDataReader reader = cs.ExecuteReader();
-            Assert.That(reader.Read(), Is.True);
-            Assert.That(reader.GetInt16(0), Is.EqualTo(1));
-            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
-            Assert.That(reader.GetDouble(1), Is.EqualTo(double.PositiveInfinity));
-            Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(double)));
-            Assert.That(reader.Read(), Is.False);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(reader.GetInt16(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+                Assert.That(reader.GetDouble(1), Is.EqualTo(double.PositiveInfinity));
+                Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(double)));
+                Assert.That(reader.Read(), Is.False);
+            });
         }
 
         [Test]
         public void GetBadJsonDataTest()
         {
             string response = "not a json";
-            var cs = createCommand("select 1", response);
+            var cs = CreateCommand("select 1", response);
             string? message = ((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => cs.ExecuteReader()))?.Message;
             Assert.That(message, Does.Contain("Failed to execute a query"));
         }
@@ -163,11 +165,17 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltCommand(connection, commandText, new FireboltParameterCollection());
 
             cs.ExecuteNonQuery();
-            Assert.That(cs.SetParamList, Is.Not.Empty);
-            Assert.That(connection.SetParamList, Is.Not.Empty);
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.SetParamList, Is.Not.Empty);
+                Assert.That(connection.SetParamList, Is.Not.Empty);
+            });
             cs.ClearSetList();
-            Assert.That(cs.SetParamList, Is.Empty);
-            Assert.That(connection.SetParamList, Is.Empty);
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.SetParamList, Is.Empty);
+                Assert.That(connection.SetParamList, Is.Empty);
+            });
         }
 
         [Test]
@@ -217,7 +225,7 @@ namespace FireboltDotNetSdk.Tests
             SetParamTest(new List<string>(), "[]");
             SetParamTest(new List<object?>(), "[]");
             SetParamTest(new List<object?>() { "a", 1, null }, "['a',1,NULL]");
-            SetParamTest(new int[0], "[]");
+            SetParamTest(Array.Empty<int>(), "[]");
             SetParamTest(new long[] { 1, 2, 3 }, "[1,2,3]");
             SetParamTest(new double[][] { new double[] { 2.718282, 3.1415926 }, new double[] { 6.022, 1.6 } }, "[[2.718282,3.1415926],[6.022,1.6]]");
         }
@@ -294,7 +302,7 @@ namespace FireboltDotNetSdk.Tests
             TimestampTest(type, timestamp, expType, new DateTime(year, month, day, hour, minute, second, millisecond).AddTicks(ticks));
         }
 
-        private void TimestampTest(string type, string timestamp, string expType, DateTime expectedTimestamp)
+        private static void TimestampTest(string type, string timestamp, string expType, DateTime expectedTimestamp)
         {
             var json = "{\"query\":{\"query_id\": \"173B1C44D6EB9C33\"},\"meta\":[{\"name\": \"test\",\"type\": \"" + type + "\"}],\"data\":[[\"" + timestamp + "\"]],\"rows\": 1}";
             QueryResult res = TypesConverter.ParseJsonResponse(json)!;
@@ -419,7 +427,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string response =
             "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"name\": \"x\",\"type\": \"" + type + "\"}], \"data\":" + data + ",\"rows\": " + rows + "}";
-            var cs = createCommand(query, response);
+            var cs = CreateCommand(query, response);
             Assert.That(cs.ExecuteScalar(), Is.EqualTo(expectedValue));
         }
 
@@ -428,7 +436,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string query = "SELECT 1";
             string response = "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"name\": \"x\",\"type\": \"int\"}], \"data\":[[1]],\"rows\": 1}";
-            SelectWithAdapter(new FireboltDataAdapter(createCommand(query, response)));
+            SelectWithAdapter(new FireboltDataAdapter(CreateCommand(query, response)));
         }
 
         [Test]
@@ -436,17 +444,18 @@ namespace FireboltDotNetSdk.Tests
         {
             string query = "SELECT 1";
             string response = "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"name\": \"x\",\"type\": \"int\"}], \"data\":[[1]],\"rows\": 1}";
-            SelectWithAdapter(new FireboltDataAdapter(query, createConnection(response)));
+            SelectWithAdapter(new FireboltDataAdapter(query, CreateConnection(response)));
         }
 
-        private void SelectWithAdapter(DbDataAdapter adapter)
+        private static void SelectWithAdapter(DbDataAdapter adapter)
         {
             DataTable table = new();
             adapter.Fill(table);
-
-            Assert.That(table.Rows.Count, Is.EqualTo(1));
-            Assert.That(table.Columns.Count, Is.EqualTo(1));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(table.Rows, Has.Count.EqualTo(1));
+                Assert.That(table.Columns, Has.Count.EqualTo(1));
+            });
             foreach (DataRow row in table.Rows)
             {
                 foreach (DataColumn column in table.Columns)
@@ -468,22 +477,22 @@ namespace FireboltDotNetSdk.Tests
         {
             DbCommand command = new FireboltCommand();
             Assert.That(command.Connection, Is.Null);
-            FireboltConnection connection = createConnection(null);
+            FireboltConnection connection = CreateConnection(null);
             command.Connection = connection;
             Assert.That(command.Connection, Is.SameAs(connection));
         }
 
-        private FireboltCommand createCommand(string? query, string? response)
+        private FireboltCommand CreateCommand(string? query, string? response)
         {
-            return new FireboltCommand(createConnection(response), query, new FireboltParameterCollection());
+            return new FireboltCommand(CreateConnection(response), query, new FireboltParameterCollection());
         }
 
-        private FireboltConnection createConnection(string? response)
+        private FireboltConnection CreateConnection(string? response)
         {
             return new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
         }
 
-        private void AssertQueryResult(QueryResult result, object? expectedValue, string expectedType, int line = 0, int column = 0)
+        private static void AssertQueryResult(QueryResult result, object? expectedValue, string expectedType, int line = 0, int column = 0)
         {
             var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
             var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
@@ -500,9 +509,11 @@ namespace FireboltDotNetSdk.Tests
             var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
 
             int result = command.ExecuteServerSideAsyncNonQuery();
-
-            Assert.That(result, Is.EqualTo(0));
-            Assert.That(command.AsyncToken, Is.EqualTo(expectedToken));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.EqualTo(0));
+                Assert.That(command.AsyncToken, Is.EqualTo(expectedToken));
+            });
         }
 
         [Test]
@@ -556,9 +567,11 @@ namespace FireboltDotNetSdk.Tests
             var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
 
             command.ExecuteServerSideAsyncNonQuery();
-
-            Assert.That(mockClient.Query, Is.EqualTo("SELECT 1"));
-            Assert.That(mockClient.CapturedSetParamList, Contains.Item("async=true"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(mockClient.Query, Is.EqualTo("SELECT 1"));
+                Assert.That(mockClient.CapturedSetParamList, Contains.Item("async=true"));
+            });
         }
 
         [Test]
