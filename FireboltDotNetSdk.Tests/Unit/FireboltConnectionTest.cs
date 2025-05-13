@@ -5,8 +5,7 @@ using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Moq;
-using Org.BouncyCastle.Utilities;
-using static NUnit.Framework.Assert;
+using NUnit.Framework;
 using Times = Moq.Times;
 
 namespace FireboltDotNetSdk.Tests
@@ -51,8 +50,11 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs = new FireboltConnection(connectionString);
             cs.AccountId = "a123";
-            Assert.That(cs.AccountId, Is.EqualTo("a123"));
-            Assert.That(cs.InfraVersion, Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.AccountId, Is.EqualTo("a123"));
+                Assert.That(cs.InfraVersion, Is.EqualTo(1));
+            });
         }
 
         [Test]
@@ -60,9 +62,12 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs = new MockFireboltConnection(connectionString);
-            cs.CleanupCache();
-            Assert.Null(cs.AccountId); // retrieving account ID initializes the InfraVersion that is 1 by default
-            Assert.That(cs.InfraVersion, Is.EqualTo(1));
+            FireboltConnection.CleanupCache();
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.AccountId, Is.Null); // retrieving account ID initializes the InfraVersion that is 1 by default
+                Assert.That(cs.InfraVersion, Is.EqualTo(1));
+            });
             // now let's change the InfraVersion
             cs.InfraVersion = 5;
             Assert.That(cs.InfraVersion, Is.EqualTo(5));
@@ -80,18 +85,18 @@ namespace FireboltDotNetSdk.Tests
         public void UpdateConnectionSettings()
         {
             var cs = new FireboltConnection("database=db1;clientid=id;clientsecret=secret;account=a1;engine=e1");
-            Multiple(() =>
+            Assert.Multiple(() =>
             {
-                That(cs.Database, Is.EqualTo("db1"));
-                That(cs.DataSource, Is.EqualTo("db1"));
-                That(cs.EngineName, Is.EqualTo("e1"));
+                Assert.That(cs.Database, Is.EqualTo("db1"));
+                Assert.That(cs.DataSource, Is.EqualTo("db1"));
+                Assert.That(cs.EngineName, Is.EqualTo("e1"));
             });
             cs.UpdateConnectionSettings(new FireboltConnectionStringBuilder("database=db2;username=usr;password=pwd;account=a2;engine=e2"), CancellationToken.None);
-            Multiple(() =>
+            Assert.Multiple(() =>
             {
-                That(cs.Database, Is.EqualTo("db2"));
-                That(cs.DataSource, Is.EqualTo("db2"));
-                That(cs.EngineName, Is.EqualTo("e2"));
+                Assert.That(cs.Database, Is.EqualTo("db2"));
+                Assert.That(cs.DataSource, Is.EqualTo("db2"));
+                Assert.That(cs.EngineName, Is.EqualTo("e2"));
             });
         }
 
@@ -100,15 +105,15 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io";
             var cs = new FireboltConnection(connectionString);
-            Multiple(() =>
+            Assert.Multiple(() =>
             {
-                That(cs.Endpoint, Is.EqualTo("api.mock.firebolt.io"));
-                That(cs.Env, Is.EqualTo("mock"));
-                That(cs.Database, Is.EqualTo("testdb.ib"));
-                That(cs.DataSource, Is.EqualTo("testdb.ib"));
-                That(cs.Account, Is.EqualTo("accountname"));
-                That(cs.Secret, Is.EqualTo("testpwd"));
-                That(cs.Principal, Is.EqualTo("testuser"));
+                Assert.That(cs.Endpoint, Is.EqualTo("api.mock.firebolt.io"));
+                Assert.That(cs.Env, Is.EqualTo("mock"));
+                Assert.That(cs.Database, Is.EqualTo("testdb.ib"));
+                Assert.That(cs.DataSource, Is.EqualTo("testdb.ib"));
+                Assert.That(cs.Account, Is.EqualTo("accountname"));
+                Assert.That(cs.Secret, Is.EqualTo("testpwd"));
+                Assert.That(cs.Principal, Is.EqualTo("testuser"));
             });
         }
 
@@ -117,14 +122,14 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname;endpoint=some.weird.endpoint;env=mock";
             var cs = new FireboltConnection(connectionString);
-            Multiple(() =>
+            Assert.Multiple(() =>
             {
-                That(cs.Endpoint, Is.EqualTo("some.weird.endpoint"));
-                That(cs.Env, Is.EqualTo("mock"));
-                That(cs.Database, Is.EqualTo("testdb.ib"));
-                That(cs.Account, Is.EqualTo("accountname"));
-                That(cs.Secret, Is.EqualTo("testpwd"));
-                That(cs.Principal, Is.EqualTo("testuser"));
+                Assert.That(cs.Endpoint, Is.EqualTo("some.weird.endpoint"));
+                Assert.That(cs.Env, Is.EqualTo("mock"));
+                Assert.That(cs.Database, Is.EqualTo("testdb.ib"));
+                Assert.That(cs.Account, Is.EqualTo("accountname"));
+                Assert.That(cs.Secret, Is.EqualTo("testpwd"));
+                Assert.That(cs.Principal, Is.EqualTo("testuser"));
             });
         }
 
@@ -133,13 +138,13 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
             var cs = new FireboltConnection(connectionString);
-            Multiple(() =>
+            Assert.Multiple(() =>
             {
-                That(cs.Endpoint, Is.EqualTo(Constant.DEFAULT_ENDPOINT));
-                That(cs.Env, Is.EqualTo(Constant.DEFAULT_ENV));
-                That(cs.Account, Is.EqualTo("accountname"));
-                That(cs.Secret, Is.EqualTo("testpwd"));
-                That(cs.Principal, Is.EqualTo("testuser"));
+                Assert.That(cs.Endpoint, Is.EqualTo(Constant.DEFAULT_ENDPOINT));
+                Assert.That(cs.Env, Is.EqualTo(Constant.DEFAULT_ENV));
+                Assert.That(cs.Account, Is.EqualTo("accountname"));
+                Assert.That(cs.Secret, Is.EqualTo("testpwd"));
+                Assert.That(cs.Principal, Is.EqualTo("testuser"));
             });
         }
 
@@ -167,17 +172,17 @@ namespace FireboltDotNetSdk.Tests
             ParsingWrongConnectionStringTestV2(connectionString, "Account parameter is missing in the connection string");
         }
 
-        public void ParsingWrongConnectionStringTestV2(string connectionString, string expectedErrorMessage)
+        private static void ParsingWrongConnectionStringTestV2(string connectionString, string expectedErrorMessage)
         {
-            var ex = Throws<FireboltException>(delegate { new FireboltConnection(connectionString); });
-            That(ex?.Message, Is.EqualTo(expectedErrorMessage));
+            var ex = Assert.Throws<FireboltException>(delegate { new FireboltConnection(connectionString); });
+            Assert.That(ex?.Message, Is.EqualTo(expectedErrorMessage));
         }
 
         [TestCase("database=testdb.ib;username=testuser@domain.com;password=testpwd;account=;endpoint=api.mock.firebolt.io")]
         [TestCase("database=testdb.ib;username=testuser@domain.com;password=testpwd;endpoint=api.mock.firebolt.io")]
         public void ParsingMissAccountConnectionStringTestV1(string connectionString)
         {
-            IsNotNull(new FireboltConnection(connectionString)); // V1 does not require account and should succeed
+            Assert.That(new FireboltConnection(connectionString), Is.Not.Null); // V1 does not require account and should succeed
             // IsNotNull is always true here and needed just to satisfy Sonar.
         }
 
@@ -186,13 +191,13 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "database=testdb.ib;clientid=test_user;clientsecret=test_pwd;account=account_name;endpoint=api.mock.firebolt.io";
             var cs = new FireboltConnection(connectionString);
-            Multiple(() =>
+            Assert.Multiple(() =>
             {
-                That(cs.Endpoint, Is.EqualTo("api.mock.firebolt.io"));
-                That(cs.Database, Is.EqualTo("testdb.ib"));
-                That(cs.Account, Is.EqualTo("account_name"));
-                That(cs.Secret, Is.EqualTo("test_pwd"));
-                That(cs.Principal, Is.EqualTo("test_user"));
+                Assert.That(cs.Endpoint, Is.EqualTo("api.mock.firebolt.io"));
+                Assert.That(cs.Database, Is.EqualTo("testdb.ib"));
+                Assert.That(cs.Account, Is.EqualTo("account_name"));
+                Assert.That(cs.Secret, Is.EqualTo("test_pwd"));
+                Assert.That(cs.Principal, Is.EqualTo("test_user"));
             });
         }
 
@@ -200,9 +205,9 @@ namespace FireboltDotNetSdk.Tests
         public void ParsingIncompatibleEndpointAndEnvTest()
         {
             const string connectionString = "database=testdb.ib;clientid=test_user;clientsecret=test_pwd;account=account_name;endpoint=api.mock.firebolt.io;env=mock2";
-            var ex = Throws<FireboltException>(
+            var ex = Assert.Throws<FireboltException>(
                     delegate { new FireboltConnection(connectionString); });
-            That(ex?.Message, Is.EqualTo("Configuration error: environment mock2 and endpoint api.mock.firebolt.io are incompatible"));
+            Assert.That(ex?.Message, Is.EqualTo("Configuration error: environment mock2 and endpoint api.mock.firebolt.io are incompatible"));
         }
 
         [Test]
@@ -211,7 +216,7 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=testpwd;account=accountname;endpoint=api.mock.firebolt.io";
             var cs = new FireboltConnection(connectionString);
             cs.OnSessionEstablished();
-            That(cs.State, Is.EqualTo(ConnectionState.Open));
+            Assert.That(cs.State, Is.EqualTo(ConnectionState.Open));
         }
 
         [Test]
@@ -222,10 +227,13 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
             cs.Client = client;
-            That(client, Is.SameAs(cs.Client));
+            Assert.That(client, Is.SameAs(cs.Client));
             cs.Close();
-            That(cs.State, Is.EqualTo(ConnectionState.Closed));
-            That(cs.Client, Is.EqualTo(null));
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.State, Is.EqualTo(ConnectionState.Closed));
+                Assert.That(cs.Client, Is.EqualTo(null));
+            });
         }
 
         [TestCase("test")]
@@ -233,7 +241,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var ConnectionString = $"database={hostname}:test.ib;clientid=user;clientid=testuser;clientsecret=password;account=accountname;endpoint=api.mock.firebolt.io";
             var cs = new FireboltConnection(ConnectionString);
-            That(cs.Database, Is.EqualTo("test:test.ib"));
+            Assert.That(cs.Database, Is.EqualTo("test:test.ib"));
         }
 
         [Test]
@@ -242,7 +250,9 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "database=testdb.ib;clientid=testuser;clientsecret=passwordtest;account=accountname;endpoint=api.mock.firebolt.io;";
             var cs = new FireboltConnection(connectionString);
             var command = cs.CreateCommand();
-            Equals("testdb.ib", command.Connection?.Database);
+            Assert.That(command, Is.Not.Null);
+            Assert.That(command.Connection, Is.Not.Null);
+            Assert.That(command.Connection.Database, Is.EqualTo("testdb.ib"));
         }
 
         [TestCase("Select 1")]
@@ -252,14 +262,14 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltConnection(connectionString);
             var command = cs.CreateCommand();
             command.CommandText = commandText;
-            That(command.CommandText, Is.EqualTo("Select 1"));
+            Assert.That(command.CommandText, Is.EqualTo("Select 1"));
         }
 
         [Test]
         public void CreateConnectionWithNullConnectionString()
         {
             var cs = new FireboltConnection("clientid=testuser;clientsecret=testpwd;account=accountname;engine=my");
-            Throws<ArgumentNullException>(() => cs.ConnectionString = null);
+            Assert.Throws<ArgumentNullException>(() => cs.ConnectionString = null);
         }
 
         [Test]
@@ -267,19 +277,23 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=my";
             var cs = new MockFireboltConnection(connectionString);
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
             cs.Open();
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Reset();
 
             cs.ConnectionString = connectionString;
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Close();
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+            Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
         }
 
         [Test]
@@ -287,17 +301,22 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString1 = "clientid=testuser;clientsecret=testpwd;account=account1;engine=diesel";
             var cs = new MockFireboltConnection(connectionString1);
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
             cs.Open();
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString1));
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString1));
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            });
             const string connectionString2 = "clientid=testuser;clientsecret=testpwd;account=account2;engine=benzene";
 
             cs.ConnectionString = connectionString2;
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString1));
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
-            That(cs.Account, Is.EqualTo("account2"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString1));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
+                Assert.That(cs.Account, Is.EqualTo("account2"));
+            });
         }
 
         [Test]
@@ -305,16 +324,21 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString1 = "clientid=testuser;clientsecret=testpwd;account=account1;engine=diesel;database=db;env=test";
             var cs = new MockFireboltConnection(connectionString1);
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
             cs.Open();
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString1));
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString1));
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            });
             const string connectionString2 = "account=account1;engine=diesel;database=db;env=test;clientid=testuser;clientsecret=testpwd";
             cs.ConnectionString = connectionString2;
-            // The connection was not re-opened
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString1));
+            Assert.Multiple(() =>
+            {
+                // The connection was not re-opened
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString1));
+            });
         }
 
         [Test]
@@ -322,19 +346,23 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;database=db";
             var cs = new MockFireboltConnection(connectionString);
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
             cs.Open();
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Reset();
 
             cs.ChangeDatabase("db");
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Close();
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+            Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
         }
 
         [Test]
@@ -342,20 +370,24 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;database=one";
             var cs = new MockFireboltConnection(connectionString);
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
             cs.Open();
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Reset();
 
             cs.ChangeDatabase("two");
             string connectionString2 = "clientid=testuser;clientsecret=testpwd;account=accountname;database=two";
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
+            });
             cs.Close();
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString2));
+            Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString2));
         }
 
         [Test]
@@ -363,19 +395,23 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;database=db";
             var cs = new MockFireboltConnection(connectionString);
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
             cs.Open();
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Reset();
 
             await cs.ChangeDatabaseAsync("db");
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Close();
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+            Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
         }
 
         [Test]
@@ -383,20 +419,24 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;database=one";
             var cs = new MockFireboltConnection(connectionString);
-            That(cs.OpenedWithConnectionString, Is.EqualTo(null));
+            Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(null));
             cs.Open();
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
-            That(cs.ClosedWithConnectionString, Is.EqualTo(null));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString));
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(null));
+            });
             cs.Reset();
 
             cs.ChangeDatabaseAsync("two");
             string connectionString2 = "clientid=testuser;clientsecret=testpwd;account=accountname;database=two";
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
-            That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(connectionString2));
+            });
             cs.Close();
-            That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString2));
+            Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(connectionString2));
         }
 
         [Test]
@@ -405,12 +445,15 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
             var cs = new FireboltConnection(connectionString);
             DbTransaction transaction = cs.BeginTransaction();
-            NotNull(transaction);
-            False(transaction.SupportsSavepoints);
-            That(transaction.Connection, Is.SameAs(cs));
-            That(transaction.IsolationLevel, Is.EqualTo(IsolationLevel.Unspecified));
+            Assert.That(transaction, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(transaction.SupportsSavepoints, Is.False);
+                Assert.That(transaction.Connection, Is.SameAs(cs));
+                Assert.That(transaction.IsolationLevel, Is.EqualTo(IsolationLevel.Unspecified));
+            });
             transaction.Commit();
-            Throws<NotImplementedException>(() => transaction.Rollback());
+            Assert.Throws<NotImplementedException>(() => transaction.Rollback());
         }
 
         [Test]
@@ -418,11 +461,11 @@ namespace FireboltDotNetSdk.Tests
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
             var cs = new FireboltConnection(connectionString);
-            Throws<NotSupportedException>(() => cs.EnlistTransaction(null));
-            Throws<NotSupportedException>(() => cs.EnlistTransaction(new Mock<System.Transactions.Transaction>().Object));
-            Throws<NotImplementedException>(() => cs.GetSchema());
-            Throws<NotImplementedException>(() => cs.GetSchema("collection"));
-            Throws<NotImplementedException>(() => cs.GetSchema("collection", new string[0]));
+            Assert.Throws<NotSupportedException>(() => cs.EnlistTransaction(null));
+            Assert.Throws<NotSupportedException>(() => cs.EnlistTransaction(new Mock<System.Transactions.Transaction>().Object));
+            Assert.Throws<NotImplementedException>(() => cs.GetSchema());
+            Assert.Throws<NotImplementedException>(() => cs.GetSchema("collection"));
+            Assert.Throws<NotImplementedException>(() => cs.GetSchema("collection", Array.Empty<string>()));
         }
 
         [Test]
@@ -434,10 +477,10 @@ namespace FireboltDotNetSdk.Tests
             var cs = new FireboltConnection(connectionString);
             var client = new FireboltClient2(cs, "wrong", "wrong", "", "test", "account", httpClientMock.Object);
             cs.Client = client;
-            Throws<HttpRequestException>(() => cs.Open());
+            Assert.Throws<HttpRequestException>(() => cs.Open());
             // Restore client since connection.Close() is called on error
             cs.Client = client;
-            ThrowsAsync<HttpRequestException>(async () => await cs.OpenAsync());
+            Assert.ThrowsAsync<HttpRequestException>(async () => await cs.OpenAsync());
         }
 
         [Test]
@@ -456,7 +499,7 @@ namespace FireboltDotNetSdk.Tests
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             ;
-            cs.CleanupCache();
+            FireboltConnection.CleanupCache();
             client.CleanupCache();
             cs.Open(); // should succeed
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
@@ -473,7 +516,7 @@ namespace FireboltDotNetSdk.Tests
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs1 = new FireboltConnection(connectionString);
             FireboltClient client1 = new FireboltClient2(cs1, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock1.Object);
-            cs1.CleanupCache();
+            FireboltConnection.CleanupCache();
             client1.CleanupCache();
 
             cs1.Client = client1;
@@ -527,10 +570,10 @@ namespace FireboltDotNetSdk.Tests
             ;
 
             cs.Client = client;
-            cs.CleanupCache();
+            FireboltConnection.CleanupCache();
             client.CleanupCache();
             cs.Open(); // should succeed
-            That(cs.ServerVersion, Is.EqualTo("1.2.3"));
+            Assert.That(cs.ServerVersion, Is.EqualTo("1.2.3"));
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
         }
 
@@ -539,7 +582,7 @@ namespace FireboltDotNetSdk.Tests
         /// </summary>
         /// <param name="additionalResponses">Optional list of HttpResponseMessage objects to append after initial authentication</param>
         /// <returns>A tuple containing the FireboltConnection, Mock<HttpClient>, and FireboltClient</returns>
-        private (FireboltConnection connection, Mock<HttpClient> httpClientMock, FireboltClient client) SetupFireboltConnection(params HttpResponseMessage[] additionalResponses)
+        private static (FireboltConnection connection, Mock<HttpClient> httpClientMock, FireboltClient client) SetupFireboltConnection(params HttpResponseMessage[] additionalResponses)
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
@@ -561,7 +604,7 @@ namespace FireboltDotNetSdk.Tests
                 setupSequence.ReturnsAsync(response);
             }
 
-            connection.CleanupCache();
+            FireboltConnection.CleanupCache();
             client.CleanupCache();
             connection.Open();
 
@@ -582,7 +625,7 @@ namespace FireboltDotNetSdk.Tests
 
             bool result = connection.IsServerSideAsyncQueryRunning("test-token");
 
-            That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected));
         }
 
         [TestCase("RUNNING", true)]
@@ -598,7 +641,7 @@ namespace FireboltDotNetSdk.Tests
 
             bool result = await connection.IsServerSideAsyncQueryRunningAsync("test-token");
 
-            That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected));
         }
 
         [TestCase("RUNNING", null)]
@@ -614,7 +657,7 @@ namespace FireboltDotNetSdk.Tests
 
             bool? result = connection.IsServerSideAsyncQuerySuccessful("test-token");
 
-            That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected));
         }
 
         [TestCase("RUNNING", null)]
@@ -630,7 +673,7 @@ namespace FireboltDotNetSdk.Tests
 
             bool? result = await connection.IsServerSideAsyncQuerySuccessfulAsync("test-token");
 
-            That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected));
         }
 
         [Test]
@@ -645,7 +688,7 @@ namespace FireboltDotNetSdk.Tests
 
             bool result = connection.CancelServerSideAsyncQuery("test-token");
 
-            That(result, Is.True);
+            Assert.That(result, Is.True);
         }
 
         [Test]
@@ -660,25 +703,25 @@ namespace FireboltDotNetSdk.Tests
 
             bool result = await connection.CancelServerSideAsyncQueryAsync("test-token");
 
-            That(result, Is.True);
+            Assert.That(result, Is.True);
         }
 
         [Test]
         public void GetAsyncQueryStatus_EmptyToken_ThrowsArgumentNullException()
         {
             var (connection, _, _) = SetupFireboltConnection();
-            var ex = Throws<ArgumentNullException>(() => connection.IsServerSideAsyncQueryRunning(""));
-            That(ex, Is.Not.Null);
-            That(ex!.ParamName, Is.EqualTo("token"));
+            var ex = Assert.Throws<ArgumentNullException>(() => connection.IsServerSideAsyncQueryRunning(""));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex!.ParamName, Is.EqualTo("token"));
         }
 
         [Test]
         public void CancelServerSideAsyncQuery_EmptyToken_ThrowsArgumentNullException()
         {
             var (connection, _, _) = SetupFireboltConnection();
-            var ex = Throws<ArgumentNullException>(() => connection.CancelServerSideAsyncQuery(""));
-            That(ex, Is.Not.Null);
-            That(ex!.ParamName, Is.EqualTo("token"));
+            var ex = Assert.Throws<ArgumentNullException>(() => connection.CancelServerSideAsyncQuery(""));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex!.ParamName, Is.EqualTo("token"));
         }
     }
 }

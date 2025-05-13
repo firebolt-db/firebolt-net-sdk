@@ -61,6 +61,7 @@ namespace FireboltDotNetSdk.Client
         public string? ConnectionString { get; }
         public TokenStorageType TokenStorageType { get; }
         public PreparedStatementParamStyleType PreparedStatementParamStyle { get; }
+        private const int RegexTimeoutSeconds = 60;
 
         internal FireboltConnectionSettings()
         {
@@ -86,12 +87,12 @@ namespace FireboltDotNetSdk.Client
 
         static string? ExtractEndpointEnv(string endpoint)
         {
-            var pattern = new Regex(@"(\w*://)?api\.(?<env>\w+)\.firebolt\.io");
+            var pattern = new Regex(@"(\w*://)?api\.(?<env>\w+)\.firebolt\.io", RegexOptions.None, TimeSpan.FromSeconds(RegexTimeoutSeconds));
             var match = pattern.Match(endpoint);
             return match.Success ? match.Groups["env"].Value : null;
         }
 
-        (string, string) ResolveEndpointAndEnv(FireboltConnectionStringBuilder builder)
+        private static (string, string) ResolveEndpointAndEnv(FireboltConnectionStringBuilder builder)
         {
             var endpoint = string.IsNullOrEmpty(builder.Endpoint) ? null : builder.Endpoint;
             var env = string.IsNullOrEmpty(builder.Env) ? null : builder.Env;
@@ -108,17 +109,17 @@ namespace FireboltDotNetSdk.Client
             return (endpoint ?? Constant.DEFAULT_ENDPOINT, env ?? Constant.DEFAULT_ENV);
         }
 
-        private string GetNotNullValue(string? firstValue, string? secondValue)
+        private static string GetNotNullValue(string? firstValue, string? secondValue)
         {
             return GetNotNullValues(firstValue, secondValue)[0];
         }
 
-        private string[] GetNotNullValues(string? firstValue, string? secondValue)
+        private static string[] GetNotNullValues(string? firstValue, string? secondValue)
         {
             return new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray();
         }
 
-        private void ValidateValues(FireboltConnectionStringBuilder builder)
+        private static void ValidateValues(FireboltConnectionStringBuilder builder)
         {
             if (AreBothProvided(builder.UserName, builder.ClientId) || AreBothMissing(builder.UserName, builder.ClientId))
             {
@@ -134,12 +135,12 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private bool AreBothMissing(string? firstValue, string? secondValue)
+        private static bool AreBothMissing(string? firstValue, string? secondValue)
         {
             return string.IsNullOrEmpty(firstValue) && string.IsNullOrEmpty(secondValue);
         }
 
-        private bool AreBothProvided(string? firstValue, string? secondValue)
+        private static bool AreBothProvided(string? firstValue, string? secondValue)
         {
             return !string.IsNullOrEmpty(firstValue) && !string.IsNullOrEmpty(secondValue);
         }

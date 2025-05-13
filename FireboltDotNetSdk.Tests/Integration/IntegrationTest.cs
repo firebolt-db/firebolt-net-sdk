@@ -10,7 +10,7 @@ namespace FireboltDotNetSdk.Tests
     [Parallelizable]
     internal class IntegrationTest
     {
-        public static string EnvWithDefault(string env_var, string? default_value = null)
+        private static string EnvWithDefault(string env_var, string? default_value = null)
         {
             string? env_value = GetEnvironmentVariable(env_var);
             if (env_value != null)
@@ -89,7 +89,7 @@ namespace FireboltDotNetSdk.Tests
                 {nameof(PreparedStatementParamStyle).ToLower(), PreparedStatementParamStyle},
             };
         }
-        
+
         protected static DbParameter CreateParameter(DbCommand command, string name, object? value)
         {
             DbParameter parameter = command.CreateParameter();

@@ -70,7 +70,6 @@ namespace FireboltDotNetSdk.Client
         private object? _value;
         private int? _size;
         private bool _nullable = true;
-        private bool _sourceColumnNullable = true;
         private DbType? _dbType;
         private DbType? _initialDbType;
         private string? _sourceColumn;
@@ -112,11 +111,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets or sets the name of the parameter.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         [AllowNull]
         public sealed override string ParameterName
         {
             get => _parameterName;
-            set => _parameterName = value ?? throw new ArgumentNullException();
+            set => _parameterName = value ?? throw new ArgumentNullException(nameof(ParameterName));
         }
 
         /// <inheritdoc/>
@@ -149,7 +149,7 @@ namespace FireboltDotNetSdk.Client
             get => _nullable;
             set
             {
-                if (value && !_sourceColumnNullable)
+                if (value && !SourceColumnNullMapping)
                 {
                     throw new ArgumentException($"Parameter {_parameterName} cannot be null because it is mapped to not nullable column");
                 }
@@ -171,7 +171,7 @@ namespace FireboltDotNetSdk.Client
         public override int Size { get => _size ?? 0; set => _size = value; }
 
         /// <inheritdoc/>
-        public override bool SourceColumnNullMapping { get => _sourceColumnNullable; set => _sourceColumnNullable = value; }
+        public override bool SourceColumnNullMapping { get; set; } = true;
 
         /// <summary>
         /// Initializes a new instance of <see cref="FireboltParameter"/> with the default name.
@@ -189,7 +189,7 @@ namespace FireboltDotNetSdk.Client
             _parameterName = parameterName;
             if (dbType != null)
             {
-                DbType = dbType ?? throw new InvalidOperationException();
+                DbType = dbType.Value;
                 _initialDbType = DbType;
             }
             else if (value != null)
