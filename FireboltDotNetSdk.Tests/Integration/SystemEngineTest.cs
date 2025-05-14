@@ -107,40 +107,29 @@ namespace FireboltDotNetSdk.Tests
             DbCommand command = Connection.CreateCommand();
             command.CommandText = "SHOW DATABASES";
             DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
-            Assert.That(readData(reader), Has.Exactly(1).EqualTo(newDatabaseName));
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader, Is.Not.Null);
+                Assert.That(ReadData(reader), Has.Exactly(1).EqualTo(newDatabaseName));
+            });
         }
 
-        private void CheckEngineExistsWithDB(DbCommand command, string engineName, string dbName)
+        private static void VerifyEngineSpec(DbCommand command, string engineName, string spec)
         {
             command.CommandText = "SHOW ENGINES";
             DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
-            Assert.That(readData(reader), Has.Exactly(1).EqualTo(newDatabaseName));
-
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader, Is.Not.Null);
+                Assert.That(ReadData(reader), Has.Exactly(1).EqualTo(engineName));
+            });
             reader = command.ExecuteReader();
             Assert.That(
-                readItems(reader, 0, 5),
-                Has.Exactly(1).EqualTo(new object[] { engineName, dbName }),
-                $"Engine {engineName} doesn't have {dbName} database attached in SHOW ENGINES"
-            );
-        }
-
-        private void VerifyEngineSpec(DbCommand command, string engineName, string spec)
-        {
-            command.CommandText = "SHOW ENGINES";
-            DbDataReader reader = command.ExecuteReader();
-            Assert.NotNull(reader);
-            Assert.That(readData(reader), Has.Exactly(1).EqualTo(engineName));
-
-            reader = command.ExecuteReader();
-            Assert.That(
-                readItems(reader, 0, 2),
+                ReadItems(reader, 0, 2),
                 Has.Exactly(1).EqualTo(new object[] { newEngineName, spec }),
                 $"Engine {engineName} should have {spec} spec in SHOW ENGINES"
             );
         }
-
 
         [Test]
         [Category("v2-engine")]
@@ -170,15 +159,18 @@ namespace FireboltDotNetSdk.Tests
             try
             {
                 CreateCommand($"use {entityType} {Database}").ExecuteNonQuery(); // use current DB; shouldn't have any effect
-                Assert.IsNull(GetTableDbName(table1)); // the table does not exist yet
+                Assert.That(GetTableDbName(table1), Is.Null); // the table does not exist yet
                 CreateCommand($"CREATE TABLE {table1} ( id LONG)").ExecuteNonQuery(); // create table1 in current DB
                 Assert.That(GetTableDbName(table1), Is.EqualTo(Database)); // now table t1 exists
                 Assert.Throws(Is.InstanceOf<FireboltException>(), () => CreateCommand($"use {entityType} {databaseName}").ExecuteNonQuery()); // DB does not exist
                 CreateCommand($"CREATE DATABASE IF NOT EXISTS {databaseName}").ExecuteNonQuery(); // create DB
                 CreateCommand($"use {entityType} {databaseName}").ExecuteNonQuery(); // Now this should succeed            
                 CreateCommand($"CREATE TABLE {table2} ( id LONG)").ExecuteNonQuery(); // create table2 in other DB
-                Assert.IsNull(GetTableDbName(table1)); // table1 does not exist here
-                Assert.That(GetTableDbName(table2), Is.EqualTo(databaseName)); // but table2 does exist
+                Assert.Multiple(() =>
+                {
+                    Assert.That(GetTableDbName(table1), Is.Null); // table1 does not exist here
+                    Assert.That(GetTableDbName(table2), Is.EqualTo(databaseName)); // but table2 does exist
+                });
             }
             finally
             {
@@ -338,7 +330,7 @@ namespace FireboltDotNetSdk.Tests
             {
                 CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = 'Ecosytem test with no user'").ExecuteNonQuery();
                 DbDataReader reader = CreateCommand($"CALL fb_GENERATESERVICEACCOUNTKEY('{sa_account_name}')").ExecuteReader();
-                Assert.IsTrue(reader.Read());
+                Assert.That(reader.Read(), Is.True);
 
                 string clientId = reader.GetString(1);
                 string clientSecret = reader.GetString(2);
@@ -348,7 +340,7 @@ namespace FireboltDotNetSdk.Tests
                     Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
                 });
                 var badConnection = new FireboltConnection(connectionString);
-                badConnection.CleanupCache();
+                FireboltConnection.CleanupCache();
 
                 Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => badConnection.Open()))?.Message, Does.Contain("not authorized"));
             }
@@ -366,14 +358,6 @@ namespace FireboltDotNetSdk.Tests
             return (string?)command.ExecuteScalar();
         }
 
-        private DbParameter CreateParameter(DbCommand command, string name, object? value)
-        {
-            DbParameter parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value;
-            return parameter;
-        }
-
         private DbCommand CreateCommand(string sql)
         {
             DbCommand command = Connection.CreateCommand();
@@ -381,7 +365,7 @@ namespace FireboltDotNetSdk.Tests
             return command;
         }
 
-        private List<string> readData(DbDataReader reader)
+        private static List<string> ReadData(DbDataReader reader)
         {
             List<string> databases = new List<string>();
             while (reader.Read())
@@ -391,7 +375,7 @@ namespace FireboltDotNetSdk.Tests
             return databases;
         }
 
-        private List<object[]> readItems(DbDataReader reader, params int[] indexes)
+        private static List<object[]> ReadItems(DbDataReader reader, params int[] indexes)
         {
             List<object[]> rows = new List<object[]>();
             while (reader.Read())

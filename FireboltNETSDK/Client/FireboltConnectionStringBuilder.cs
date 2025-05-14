@@ -126,11 +126,20 @@ namespace FireboltDotNetSdk.Client
             set => this[nameof(TokenStorage)] = value;
         }
 
-
         public int Version
         {
             get;
             private set;
+        }
+
+        public PreparedStatementParamStyleType? PreparedStatementParamStyle
+        {
+            get
+            {
+                var s = GetString(nameof(PreparedStatementParamStyle));
+                return s == null ? null : Enum.Parse<PreparedStatementParamStyleType>(s);
+            }
+            set => this[nameof(PreparedStatementParamStyle)] = value;
         }
 
         static FireboltConnectionStringBuilder()
@@ -147,6 +156,7 @@ namespace FireboltDotNetSdk.Client
                 nameof(Engine),
                 nameof(Env),
                 nameof(TokenStorage),
+                nameof(PreparedStatementParamStyle)
             };
         }
 
@@ -155,7 +165,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnectionStringBuilder"/> with the settings specified in the connection string.
+        /// Initializes a new instance of <see cref="FireboltConnectionStringBuilder"/> with the settings specified in the connection string.
         /// </summary>
         /// <param name="connectionString">The connection string.</param>
         public FireboltConnectionStringBuilder(string connectionString)
@@ -199,7 +209,7 @@ namespace FireboltDotNetSdk.Client
                 Version = 2;
                 return;
             }
-            Version = BuildSettings().Principal.Contains("@") ? 1 : 2;
+            Version = BuildSettings().Principal.Contains('@') ? 1 : 2;
         }
 
         /// <summary>
@@ -208,9 +218,7 @@ namespace FireboltDotNetSdk.Client
         /// <returns>The connection string</returns>
         public string ToConnectionString()
         {
-            ICollection<string> x = (ICollection<string>)Keys;
-            x.Select(n => "");
-            return string.Join(';', ((ICollection<string>)Keys).Select(key => $"{key}={this[key]}"));
+            return string.Join(';', (Keys as ICollection<string>)!.Select(key => $"{key}={this[key]}"));
         }
     }
 }

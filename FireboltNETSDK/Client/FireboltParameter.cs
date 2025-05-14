@@ -1,8 +1,6 @@
 ﻿using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Collections;
 
 namespace FireboltDotNetSdk.Client
@@ -13,7 +11,6 @@ namespace FireboltDotNetSdk.Client
     public sealed class FireboltParameter : DbParameter
     {
         internal const string defaultParameterName = "parameter";
-        private static readonly Regex ParameterNameRegex = new Regex("^[a-zA-Z_][0-9a-zA-Z_]*$");
         private static ISet<DbType> unsupportedTypes = new HashSet<DbType>()
         {
             DbType.Currency, DbType.VarNumeric, DbType.AnsiStringFixedLength, DbType.StringFixedLength, DbType.Xml, DbType.DateTime2, DbType.Single
@@ -73,17 +70,9 @@ namespace FireboltDotNetSdk.Client
         private object? _value;
         private int? _size;
         private bool _nullable = true;
-        private bool _sourceColumnNullable = true;
         private DbType? _dbType;
         private DbType? _initialDbType;
         private string? _sourceColumn;
-        internal string Id { get; private set; }
-
-        /// <summary>
-        /// Gets the collection to which this parameter is attached.
-        /// </summary>
-        public FireboltParameterCollection? Collection { get; internal set; }
-
         /// <summary>
         /// Gets or sets the <see cref="DbType"/> of the parameter.
         /// </summary>
@@ -122,15 +111,12 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets or sets the name of the parameter.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         [AllowNull]
         public sealed override string ParameterName
         {
             get => _parameterName;
-            set
-            {
-                _parameterName = value ?? throw new ArgumentNullException();
-                Id = GetId(value);
-            }
+            set => _parameterName = value ?? throw new ArgumentNullException(nameof(ParameterName));
         }
 
         /// <inheritdoc/>
@@ -156,11 +142,6 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        /// <summary>
-        /// Gets or sets the encoding that will be used when writing a string value to the database.
-        /// </summary>
-        public Encoding? StringEncoding { get; set; }
-
         /// <inheritdoc/>
         /// <exception cref="ArgumentException">When attempting to make value of not nullable type nullable.</exception>
         public override bool IsNullable
@@ -168,7 +149,7 @@ namespace FireboltDotNetSdk.Client
             get => _nullable;
             set
             {
-                if (value && !_sourceColumnNullable)
+                if (value && !SourceColumnNullMapping)
                 {
                     throw new ArgumentException($"Parameter {_parameterName} cannot be null because it is mapped to not nullable column");
                 }
@@ -190,7 +171,7 @@ namespace FireboltDotNetSdk.Client
         public override int Size { get => _size ?? 0; set => _size = value; }
 
         /// <inheritdoc/>
-        public override bool SourceColumnNullMapping { get => _sourceColumnNullable; set => _sourceColumnNullable = value; }
+        public override bool SourceColumnNullMapping { get; set; } = true;
 
         /// <summary>
         /// Initializes a new instance of <see cref="FireboltParameter"/> with the default name.
@@ -205,11 +186,10 @@ namespace FireboltDotNetSdk.Client
 
         public FireboltParameter(string parameterName, DbType? dbType, object? value)
         {
-            Id = GetId(parameterName);
             _parameterName = parameterName;
             if (dbType != null)
             {
-                DbType = dbType ?? throw new InvalidOperationException();
+                DbType = dbType.Value;
                 _initialDbType = DbType;
             }
             else if (value != null)
@@ -224,41 +204,6 @@ namespace FireboltDotNetSdk.Client
         public override void ResetDbType()
         {
             _dbType = _initialDbType;
-        }
-
-        private static string GetId(string? parameterName)
-        {
-            if (!ValidateParameterName(parameterName, out var id))
-                throw new ArgumentException("The name of the parameter must be a valid Firebolt identifier.", nameof(parameterName));
-
-            return id;
-        }
-
-        private static bool ValidateParameterName(string? parameterName, [MaybeNullWhen(false)] out string id)
-        {
-            if (string.IsNullOrWhiteSpace(parameterName))
-            {
-                id = null;
-                return false;
-            }
-
-            id = TrimParameterName(parameterName);
-            return ParameterNameRegex.IsMatch(id);
-        }
-
-        internal static string TrimParameterName(string parameterName)
-        {
-            if (parameterName.Length > 0)
-            {
-                if (parameterName[0] == '{' && parameterName[^1] == '}')
-                    return parameterName[1..^1];
-
-                // MSSQL-style parameter name
-                if (parameterName[0] == '@')
-                    return parameterName[1..];
-            }
-
-            return parameterName;
         }
 
         private static int GetSize(object? value)
