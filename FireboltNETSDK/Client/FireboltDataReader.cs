@@ -470,20 +470,15 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override bool IsDBNull(int ordinal)
         {
-            return GetValueSafely(ordinal) == DBNull.Value;
+            ValidateRowIndex();
+            var row = GetRow(ordinal);
+            return row != null && row[ordinal] == null;
         }
 
         private object? GetValueSafely(int ordinal)
         {
-            if (_currentRowIndex == -1)
-            {
-                throw new InvalidOperationException("Read() must be called before fetching values");
-            }
-            List<object?>? row = _queryResult.Data[_currentRowIndex];
-            if (ordinal < 0 || ordinal > row?.Count - 1)
-            {
-                throw new InvalidOperationException($"Column ${ordinal} does not exist");
-            }
+            ValidateRowIndex();
+            var row = GetRow(ordinal);
             if (row == null)
             {
                 return null;
@@ -495,6 +490,25 @@ namespace FireboltDotNetSdk.Client
             }
             var columnType = GetColumnType(ordinal);
             return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
+        }
+
+        private List<object?>? GetRow(int ordinal)
+        {
+            List<object?>? row = _queryResult.Data[_currentRowIndex];
+            if (ordinal < 0 || ordinal > row?.Count - 1)
+            {
+                throw new InvalidOperationException($"Column ${ordinal} does not exist");
+            }
+
+            return row;
+        }
+
+        private void ValidateRowIndex()
+        {
+            if (_currentRowIndex == -1)
+            {
+                throw new InvalidOperationException("Read() must be called before fetching values");
+            }
         }
 
         private ColumnType GetColumnType(int ordinal)
