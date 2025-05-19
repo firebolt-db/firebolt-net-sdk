@@ -319,63 +319,56 @@ namespace FireboltDotNetSdk.Client
                 { "'", "\\'" }
             };
             var verifyParameters = value?.ToString() ?? "";
-            if (value is string && value != null)
+            switch (value)
             {
-                string? sourceText = value.ToString();
-                if (sourceText == null)
-                    throw new FireboltException("Unexpected error: Unable to cast string value to string.");
-                foreach (var item1 in escapeChars)
-                {
-                    sourceText = sourceText.Replace(item1.Key, item1.Value);
-                }
-
-                verifyParameters = "'" + sourceText + "'";
-            }
-            else if (value is DateTime)
-            {
-                DateTime dt = (DateTime)value;
-                string format = dt.Hour == 0 && dt.Minute == 0 && dt.Second == 0 ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm:ss";
-                verifyParameters = "'" + dt.ToString(format) + "'";
-            }
-            else if (value is DateTimeOffset)
-            {
-                verifyParameters = "'" + ((DateTimeOffset)value).ToString("yyyy-MM-dd HH:mm:ss.FFFFFFz") + "'";
-            }
-            else if (value is DateOnly)
-            {
-                verifyParameters = new string("'" + ((DateOnly)value).ToString("yyyy-MM-dd") + "'");
-            }
-            else if (value is null || value.ToString() == string.Empty)
-            {
-                verifyParameters = "NULL";
-            }
-            else if (value is byte[])
-            {
-                verifyParameters = "E'" + BYTE_ARRAY_PREFIX + BitConverter.ToString((byte[])value).Replace("-", BYTE_ARRAY_PREFIX) + "'::BYTEA";
-            }
-            else if (typeof(IList).IsAssignableFrom(value.GetType())) // works for lists and arrays
-            {
-                IList list = (IList)value;
-                StringBuilder sb = new StringBuilder("[");
-                for (int i = 0; i < list.Count; i++)
-                {
-                    sb.Append(GetParamValue(list[i]));
-                    if (i < list.Count - 1)
+                case null:
+                    verifyParameters = "NULL";
+                    break;
+                case string sourceText:
                     {
-                        sb.Append(",");
+                        foreach (var escapedPair in escapeChars)
+                        {
+                            sourceText = sourceText.Replace(escapedPair.Key, escapedPair.Value);
+                        }
+                        verifyParameters = "'" + sourceText + "'";
+                        break;
                     }
-                }
-                sb.Append("]");
-                verifyParameters = sb.ToString();
-            }
-            else if (value is IConvertible)
-            {
-                // IConvertable is s a common interface for many numeric types, boolean and others.
-                // String representation of numbers (result of ToString()) depends on the current locale. 
-                // Some locales use comma instead or period to separate integer from the fractional part of number, 
-                // so making this representation portable requires replacing comma by dot in string. 
-                // The easier solution is to specify "standard" locale e.g. en_US.
-                verifyParameters = ((IConvertible)value).ToString(new CultureInfo("en-US", false));
+                case DateTime dateTime:
+                    {
+                        string format = dateTime is { Hour: 0, Minute: 0, Second: 0 } ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm:ss";
+                        verifyParameters = "'" + dateTime.ToString(format) + "'";
+                        break;
+                    }
+                case DateTimeOffset offset:
+                    verifyParameters = "'" + offset.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFz") + "'";
+                    break;
+                case DateOnly dateOnly:
+                    verifyParameters = new string("'" + dateOnly.ToString("yyyy-MM-dd") + "'");
+                    break;
+                case byte[] bytes:
+                    verifyParameters = "E'" + BYTE_ARRAY_PREFIX + BitConverter.ToString(bytes).Replace("-", BYTE_ARRAY_PREFIX) + "'::BYTEA";
+                    break;
+                case IList list:
+                    StringBuilder sb = new StringBuilder("[");
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        sb.Append(GetParamValue(list[i]));
+                        if (i < list.Count - 1)
+                        {
+                            sb.Append(',');
+                        }
+                    }
+                    sb.Append(']');
+                    verifyParameters = sb.ToString();
+                    break;
+                case IConvertible convertible:
+                    // IConvertable is s a common interface for many numeric types, boolean and others.
+                    // String representation of numbers (result of ToString()) depends on the current locale. 
+                    // Some locales use comma instead or period to separate integer from the fractional part of number, 
+                    // so making this representation portable requires replacing comma by dot in string. 
+                    // The easier solution is to specify "standard" locale e.g. en_US.
+                    verifyParameters = convertible.ToString(new CultureInfo("en-US", false));
+                    break;
             }
             return verifyParameters;
         }
