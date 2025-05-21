@@ -131,7 +131,7 @@ namespace FireboltDotNetSdk.Client
             get;
             private set;
         }
-        
+
         public PreparedStatementParamStyleType? PreparedStatementParamStyle
         {
             get

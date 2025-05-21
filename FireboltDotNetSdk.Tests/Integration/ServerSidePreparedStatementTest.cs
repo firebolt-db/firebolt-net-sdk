@@ -61,7 +61,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
         }
-        
+
         [Test]
         [Category("engine-v2")]
         public void ExecutePreparedStatementWithVariousDataTypes()
@@ -77,7 +77,7 @@ namespace FireboltDotNetSdk.Tests
             command.Parameters.Add(CreateParameter(command, "$3", 12345.6789m));
             command.Parameters.Add(CreateParameter(command, "$4", 3.14f));
             command.Parameters.Add(CreateParameter(command, "$5", 2.718281828459045));
-            command.Parameters.Add(CreateParameter(command, "$6", new[] {1, 2, 3}));
+            command.Parameters.Add(CreateParameter(command, "$6", new[] { 1, 2, 3 }));
             command.Parameters.Add(CreateParameter(command, "$7", now));
             command.Parameters.Add(CreateParameter(command, "$8", "Hello Firebolt!"));
 
@@ -97,7 +97,7 @@ namespace FireboltDotNetSdk.Tests
                     Assert.That(reader.GetFieldType(3), Is.EqualTo(typeof(float)));
                     Assert.That(reader.GetDouble(4), Is.EqualTo(2.718281828459045));
                     Assert.That(reader.GetFieldType(4), Is.EqualTo(typeof(double)));
-                    Assert.That(reader.GetFieldValue<int?[]>(5), Is.EqualTo(new[] {1, 2, 3}));
+                    Assert.That(reader.GetFieldValue<int?[]>(5), Is.EqualTo(new[] { 1, 2, 3 }));
                     Assert.That(reader.GetFieldType(5), Is.EqualTo(typeof(int?[])));
                     Assert.That(reader.GetDateTime(6), Is.EqualTo(now));
                     Assert.That(reader.GetFieldType(6), Is.EqualTo(typeof(DateTime)));
@@ -107,7 +107,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
         }
-        
+
         [Test]
         [Category("engine-v2")]
         public void ExecutePreparedStatementWithMoreParametersProvided()
@@ -135,7 +135,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
         }
-        
+
         [Test]
         [Category("engine-v2")]
         public void ExecutePreparedStatementWithRandomParametersIndexProvided()
@@ -162,7 +162,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
         }
-        
+
         [Test]
         [Category("engine-v2")]
         public void FailWhenNotEnoughParametersProvided()
@@ -178,7 +178,7 @@ namespace FireboltDotNetSdk.Tests
             var fireboltException = Assert.Throws<FireboltStructuredException>(() => command.ExecuteReader());
             Assert.That(fireboltException.Message, Does.Contain("Line 1, Column 12: Query referenced positional parameter $2, but it was not set"));
         }
-        
+
         [Test]
         [Category("engine-v2")]
         public void FailWhenIncorrectParameterProvided()

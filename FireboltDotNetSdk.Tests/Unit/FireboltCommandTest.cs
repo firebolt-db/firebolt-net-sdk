@@ -566,7 +566,7 @@ namespace FireboltDotNetSdk.Tests
             var ex = Assert.Throws<InvalidOperationException>(() => command.ExecuteServerSideAsyncNonQuery());
             Assert.That(ex.Message, Does.Contain("SET command"));
         }
-        
+
         [Test]
         public void ExecuteServerSidePreparedStatement_ReturnsExpectedResult()
         {
