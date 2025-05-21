@@ -48,10 +48,7 @@ namespace FireboltDotNetSdk.Client
         private static readonly TimeSpan regexTimeout = TimeSpan.FromSeconds(5);
         internal static readonly string BYTE_ARRAY_PREFIX = "\\x";
 
-        private FireboltConnection? _connection;
         private string? _commandText;
-        private bool _designTimeVisible = true;
-        private DbParameterCollection _parameters;
 
         public HashSet<string> SetParamList { get; private set; }
 
@@ -67,10 +64,9 @@ namespace FireboltDotNetSdk.Client
 
         public FireboltCommand(FireboltConnection? connection, string? commandText, DbParameterCollection parameters)
         {
-            _connection = connection;
+            Connection = connection;
             _commandText = commandText;
-            _parameters = parameters;
-            SetParamList = _connection?.SetParamList ?? new();
+            SetParamList = Connection?.SetParamList ?? new();
             // as it is defined for MS SQL server https://learn.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlcommand.commandtimeout?view=dotnet-plat-ext-7.0#remarks
             CommandTimeoutMillis = 30000;
         }
@@ -108,11 +104,7 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets or sets the <see cref="FireboltConnection"/> used by this command.
         /// </summary>
-        public new FireboltConnection? Connection
-        {
-            get => _connection;
-            set => _connection = value;
-        }
+        public new FireboltConnection? Connection { get; set; }
 
         /// <summary>
         /// Gets or sets the connection within which the command executes. Always returns <b>null</b>.
@@ -121,8 +113,8 @@ namespace FireboltDotNetSdk.Client
         /// <exception cref="NotSupportedException">The value set is not <b>null</b>.</exception>
         protected override DbConnection? DbConnection
         {
-            get => _connection;
-            set => _connection = value == null ? null : (FireboltConnection)value;
+            get => Connection;
+            set => Connection = value == null ? null : (FireboltConnection)value;
         }
 
         /// <summary>
@@ -155,12 +147,12 @@ namespace FireboltDotNetSdk.Client
             return CreateQueryResult(ExecuteCommandAsyncWithCommandTimeout(commandText, CancellationToken.None).GetAwaiter().GetResult());
         }
 
-        private QueryResult? CreateQueryResult(string? response)
+        private static QueryResult? CreateQueryResult(string? response)
         {
             return response == null ? new QueryResult() : GetOriginalJsonData(response);
         }
 
-        private DbDataReader CreateDbDataReader(QueryResult? queryResult)
+        private static DbDataReader CreateDbDataReader(QueryResult? queryResult)
         {
             return queryResult != null ? new FireboltDataReader(null, queryResult, 0) : throw new InvalidOperationException("No result produced");
         }
@@ -247,7 +239,7 @@ namespace FireboltDotNetSdk.Client
 
             var database = Connection?.Database != string.Empty ? Connection?.Database : null;
 
-            Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection?.AccountId, newCommandText, paramList, cancellationToken);
+            Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection.AccountId, newCommandText, paramList, cancellationToken);
             return await t;
         }
 
@@ -299,9 +291,9 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private string GetParamValue(object? value)
+        private static string GetParamValue(object? value)
         {
-            var escape_chars = new Dictionary<string, string>
+            var escapeChars = new Dictionary<string, string>
             {
                 { "\0", "\\0" },
                 { "\\", "\\\\" },
@@ -313,7 +305,7 @@ namespace FireboltDotNetSdk.Client
                 string? sourceText = value.ToString();
                 if (sourceText == null)
                     throw new FireboltException("Unexpected error: Unable to cast string value to string.");
-                foreach (var item1 in escape_chars)
+                foreach (var item1 in escapeChars)
                 {
                     sourceText = sourceText.Replace(item1.Key, item1.Value);
                 }
@@ -373,12 +365,12 @@ namespace FireboltDotNetSdk.Client
         /// Gets original data in JSON format for further manipulation.
         /// </summary>
         /// <returns>The data in JSON format</returns>
-        private QueryResult? GetOriginalJsonData(string? Response)
+        private static QueryResult? GetOriginalJsonData(string? response)
         {
-            if (Response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
+            if (response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
             try
             {
-                var prettyJson = JToken.Parse(Response).ToString(Formatting.Indented);
+                var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
                 return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
             }
             catch (JsonReaderException e)
@@ -389,7 +381,7 @@ namespace FireboltDotNetSdk.Client
 
         public void ClearSetList()
         {
-            _connection?.SetParamList.Clear();
+            Connection?.SetParamList.Clear();
         }
 
         public override void Cancel()
@@ -408,11 +400,7 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Gets or sets a value indicating whether the command object should be visible in a customized interface control.
         /// </summary>
-        public override bool DesignTimeVisible
-        {
-            get => _designTimeVisible;
-            set => _designTimeVisible = value;
-        }
+        public override bool DesignTimeVisible { get; set; } = true;
 
         /// <summary>
         /// Executes the command that should retrieve data against the connection
@@ -453,7 +441,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private object? CreateScalar(DbDataReader reader)
+        private static object? CreateScalar(DbDataReader reader)
         {
             if (reader.Read() && reader.FieldCount > 0)
             {

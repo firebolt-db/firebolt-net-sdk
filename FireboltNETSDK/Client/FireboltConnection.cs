@@ -36,7 +36,7 @@ namespace FireboltDotNetSdk.Client
     public class FireboltConnection : DbConnection
     {
         internal readonly static string SYSTEM_ENGINE = "system";
-        private FireboltConnectionState _connectionState;
+        private readonly FireboltConnectionState _connectionState;
 
         public FireboltClient Client
         {
@@ -53,7 +53,6 @@ namespace FireboltDotNetSdk.Client
         private string _connectionString;
         private string? _serverVersion;
         private FireboltClient? _fireboltClient;
-        private int _infraVersion = 0;
         public HashSet<string> SetParamList { get; private set; } = new HashSet<string>();
         private static IDictionary<string, GetAccountIdByNameResponse> accountCache = new ConcurrentDictionary<string, GetAccountIdByNameResponse>();
 
@@ -126,22 +125,18 @@ namespace FireboltDotNetSdk.Client
                         accountCache[cacheKey] = account;
                     }
                     _accountId = account.id;
-                    _infraVersion = account.infraVersion;
+                    InfraVersion = account.infraVersion;
                 }
-                else if (_infraVersion == 0)
+                else if (InfraVersion == 0)
                 {
-                    _infraVersion = 1; // older versions of DB does not supply infra version, so we assume 1
+                    InfraVersion = 1; // older versions of DB does not supply infra version, so we assume 1
                 }
                 return _accountId;
             }
             set => _accountId = value;
         }
 
-        internal int InfraVersion
-        {
-            get => _infraVersion;
-            set => _infraVersion = value;
-        }
+        internal int InfraVersion { get; set; } = 0;
 
         /// <summary>
         /// Gets the state of the connection.
@@ -277,11 +272,7 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc cref="ChangeDatabase(string)"/>
         public override Task ChangeDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
         {
-            if (ChangeDatabaseImpl(databaseName))
-            {
-                return OpenAsync();
-            }
-            return Task.CompletedTask;
+            return ChangeDatabaseImpl(databaseName) ? OpenAsync(cancellationToken) : Task.CompletedTask;
         }
 
         /// <summary>
@@ -418,7 +409,7 @@ namespace FireboltDotNetSdk.Client
             return new FireboltTransaction(this);
         }
 
-        private string EditConnectionString(string orig, string name, string value)
+        private static string EditConnectionString(string orig, string name, string value)
         {
             string newKeyValue = $"{name}={value}";
             string[] elements = orig.Split(';');
@@ -426,13 +417,10 @@ namespace FireboltDotNetSdk.Client
             for (int i = 0; i < elements.Length; i++)
             {
                 string[] kv = elements[i].Split('=');
-                if (kv[0] == name)
+                if (kv[0] == name && kv[1] != value)
                 {
-                    if (kv[1] != value)
-                    {
-                        elements[i] = newKeyValue;
-                        append = false;
-                    }
+                    elements[i] = newKeyValue;
+                    append = false;
                 }
             }
             return append ? $"{orig};{newKeyValue}" : string.Join(';', elements);
@@ -460,11 +448,11 @@ namespace FireboltDotNetSdk.Client
             _connectionString = builder.ToConnectionString();
             FireboltConnectionSettings settings = builder.BuildSettings();
             _database = settings.Database ?? string.Empty;
-            EngineName = settings?.Engine;
+            EngineName = settings.Engine;
             _isSystem = EngineName == null || SYSTEM_ENGINE.Equals(EngineName);
         }
 
-        internal void CleanupCache()
+        internal static void CleanupCache()
         {
             accountCache.Clear();
         }
@@ -526,16 +514,6 @@ namespace FireboltDotNetSdk.Client
 
             // Return true if the query completed successfully
             return status == QueryStatusEndedSuccessfully;
-        }
-
-        /// <summary>
-        /// Gets the status of an async query.
-        /// </summary>
-        /// <param name="token">The token of the async query.</param>
-        /// <returns>A dictionary containing status information for the async query.</returns>
-        private Dictionary<string, string> GetAsyncQueryStatus(string token)
-        {
-            return GetAsyncQueryInfoAsync(token).GetAwaiter().GetResult();
         }
 
         /// <summary>
