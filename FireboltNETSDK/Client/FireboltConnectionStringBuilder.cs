@@ -132,6 +132,16 @@ namespace FireboltDotNetSdk.Client
             private set;
         }
 
+        public PreparedStatementParamStyleType? PreparedStatementParamStyle
+        {
+            get
+            {
+                var s = GetString(nameof(PreparedStatementParamStyle));
+                return s == null ? null : Enum.Parse<PreparedStatementParamStyleType>(s);
+            }
+            set => this[nameof(PreparedStatementParamStyle)] = value;
+        }
+
         static FireboltConnectionStringBuilder()
         {
             AllProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -146,6 +156,7 @@ namespace FireboltDotNetSdk.Client
                 nameof(Engine),
                 nameof(Env),
                 nameof(TokenStorage),
+                nameof(PreparedStatementParamStyle)
             };
         }
 
@@ -154,7 +165,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Initializes a new instance of <see cref="FireBoltConnectionStringBuilder"/> with the settings specified in the connection string.
+        /// Initializes a new instance of <see cref="FireboltConnectionStringBuilder"/> with the settings specified in the connection string.
         /// </summary>
         /// <param name="connectionString">The connection string.</param>
         public FireboltConnectionStringBuilder(string connectionString)

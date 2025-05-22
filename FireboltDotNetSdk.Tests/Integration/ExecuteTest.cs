@@ -964,6 +964,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2")]
+        [Category("engine-v2")]
         public void TestSelectLargeDecimal()
         {
             string sql = "SELECT 12345678901234567890123456789.123456789::decimal(38, 9)";

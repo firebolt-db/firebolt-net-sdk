@@ -65,6 +65,7 @@ namespace FireboltDotNetSdk.Tests
     public class FireboltCommandTest
     {
         private const string mockConnectionString = $"database=db;clientid=id;clientsecret=secret;endpoint=ep;account=a;env=mock";
+        private const string mockFbNumericConnectionString = $"database=db;clientid=id;clientsecret=secret;endpoint=ep;account=a;env=mock;preparedStatementParamStyle=FbNumeric";
 
         [TestCase("SET param=1")]
         [TestCase("SET param=1,param=2")]
@@ -482,24 +483,6 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(command.Connection, Is.SameAs(connection));
         }
 
-        private FireboltCommand CreateCommand(string? query, string? response)
-        {
-            return new FireboltCommand(CreateConnection(response), query, new FireboltParameterCollection());
-        }
-
-        private FireboltConnection CreateConnection(string? response)
-        {
-            return new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
-        }
-
-        private static void AssertQueryResult(QueryResult result, object? expectedValue, string expectedType, int line = 0, int column = 0)
-        {
-            var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
-            var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
-            Assert.That(convertedValue, Is.EqualTo(expectedValue));
-            Assert.That(columnType.Type.ToString, Is.EqualTo(expectedType));
-        }
-
         [Test]
         public void ExecuteServerSideAsyncNonQuery_ReturnsZero_SetsTokenProperty()
         {
@@ -582,6 +565,44 @@ namespace FireboltDotNetSdk.Tests
 
             var ex = Assert.Throws<InvalidOperationException>(() => command.ExecuteServerSideAsyncNonQuery());
             Assert.That(ex.Message, Does.Contain("SET command"));
+        }
+
+        [Test]
+        public void ExecuteServerSidePreparedStatement_ReturnsExpectedResult()
+        {
+            string response = "{\"meta\":[{\"name\":\"?column?\",\"type\":\"int\"},{\"name\":\"?column?\",\"type\":\"long\"}],\"data\":[[1,\"2\"]]}";
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT $1::int, $2::long";
+            command.Parameters.Add(new FireboltParameter("$1", 1));
+            command.Parameters.Add(new FireboltParameter("$2", 2));
+
+            using (var reader = command.ExecuteReader())
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+                Assert.That(reader.GetInt64(1), Is.EqualTo(2));
+                Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(long)));
+            }
+        }
+
+        private FireboltCommand CreateCommand(string? query, string? response)
+        {
+            return new FireboltCommand(CreateConnection(response), query, new FireboltParameterCollection());
+        }
+
+        private FireboltConnection CreateConnection(string? response)
+        {
+            return new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+        }
+
+        private static void AssertQueryResult(QueryResult result, object? expectedValue, string expectedType, int line = 0, int column = 0)
+        {
+            var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
+            var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
+            Assert.That(convertedValue, Is.EqualTo(expectedValue));
+            Assert.That(columnType.Type.ToString, Is.EqualTo(expectedType));
         }
     }
 }
