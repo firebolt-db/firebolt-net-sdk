@@ -18,7 +18,7 @@ namespace FireboltDotNetSdk.Tests
             private string? _openedWithConnectionString;
             private string? _closedWithConnectionString;
 
-            public MockFireboltConnection(string connectionString) : base(connectionString) { Client = new MockClient(null); }
+            public MockFireboltConnection(string connectionString) : base(connectionString) { Client = new MockClient(""); }
 
             public string? OpenedWithConnectionString { get => _openedWithConnectionString; }
             public string? ClosedWithConnectionString { get => _closedWithConnectionString; }

@@ -33,7 +33,7 @@ public abstract class FireboltClient
 {
 
     private readonly Lazy<JsonSerializerSettings> _settings;
-    private readonly HttpMessageInvoker _httpClient;
+    private readonly HttpClient _httpClient;
 
     private string? _token;
     protected readonly string _endpoint;
@@ -53,7 +53,7 @@ public abstract class FireboltClient
     private IDictionary<string, string> queryParameters = new Dictionary<string, string>();
     internal readonly TokenStorage _tokenStorage;
 
-    public FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpMessageInvoker httpClient)
+    protected FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpClient httpClient)
     {
         _httpClient = httpClient;
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
@@ -77,7 +77,7 @@ public abstract class FireboltClient
     /// <param name="databaseName">Database name</param>
     /// <param name="query">SQL query to execute</param>
     /// <returns>A successful response.</returns>
-    public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, string query)
+    public Task<string> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, string query)
     {
         return ExecuteQuery(engineEndpoint, databaseName, accountId, new HashSet<string>(), query);
     }
@@ -90,9 +90,9 @@ public abstract class FireboltClient
     /// <param name="setParamList">parameters</param>
     /// <param name="query">SQL query to execute</param>
     /// <returns>A successful response.</returns>
-    public virtual Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
+    public virtual Task<string> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
     {
-        return ExecuteQueryAsync(engineEndpoint, databaseName, accountId, query,
+        return ExecuteQueryAsync<string>(engineEndpoint, databaseName, accountId, query,
                  setParamList, CancellationToken.None);
     }
 
@@ -109,13 +109,20 @@ public abstract class FireboltClient
     /// </summary>
     /// <returns>A successful response.</returns>
     /// <exception cref="FireboltException">A server side error occurred.</exception>
-    public virtual async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
+    public virtual async Task<T> ExecuteQueryAsync<T>(string? engineEndpoint, string? databaseName, string? accountId,
                          string query, HashSet<string> setParamList, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(query))
             throw new FireboltException(
                 $"Some parameters are null or empty: engineEndpoint: {engineEndpoint} or query: {query}");
 
+        var url = GetUrl(engineEndpoint, databaseName, accountId, setParamList);
+
+        return await SendAsync<T>(HttpMethod.Post, url, query, _textContentType, needsAccessToken: true, retryUnauthorized: true, cancellationToken);
+    }
+
+    private string GetUrl(string engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList)
+    {
         var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
         var urlBuilder = new UriBuilder(engineEndpoint)
         {
@@ -123,7 +130,17 @@ public abstract class FireboltClient
             Port = -1
         };
 
-        var parameters = new Dictionary<string, string>() { { "output_format", "JSON_Compact" } };
+        var queryStr = GetQueryString(databaseName, accountId);
+        if (setParams.Length > 0)
+            queryStr.Append('&').Append(setParams);
+        urlBuilder.Query = queryStr.ToString();
+        var url = urlBuilder.Uri.ToString();
+        return url;
+    }
+
+    private StringBuilder GetQueryString(string? databaseName, string? accountId, string outputFormat = "JSON_Compact")
+    {
+        var parameters = new Dictionary<string, string>() { { "output_format", outputFormat } };
         if (databaseName != null)
         {
             parameters["database"] = databaseName;
@@ -145,24 +162,19 @@ public abstract class FireboltClient
             parameters[item.Key] = item.Value;
         }
         var queryStr = parameters.Aggregate(new StringBuilder(),
-                  (q, param) => q.AppendFormat("{0}{1}={2}",
-                               q.Length > 0 ? "&" : "", param.Key, param.Value));
-        if (setParams.Length > 0)
-            queryStr.Append("&").Append(setParams);
-        urlBuilder.Query = queryStr.ToString();
-        var url = urlBuilder.Uri.ToString();
-
-        return await SendAsync<string>(HttpMethod.Post, url, query, _textContentType, needsAccessToken: true, cancellationToken, retryUnauthorized: true);
+            (q, param) => q.AppendFormat("{0}{1}={2}",
+                q.Length > 0 ? "&" : "", param.Key, param.Value));
+        return queryStr;
     }
 
-    private async Task<ObjectResponseResult<T?>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
+    private async Task<ObjectResponseResult<T>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
         IReadOnlyDictionary<string, IEnumerable<string>> headers, bool readResponseAsString, CancellationToken cancellationToken)
     {
-        if (response == null) return new ObjectResponseResult<T?>(default, string.Empty);
+        if (response == null) return new ObjectResponseResult<T>(default, string.Empty);
         if (typeof(T) == typeof(string))
         {
             var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return new ObjectResponseResult<T?>((T)(object)text, text);
+            return new ObjectResponseResult<T>((T)(object)text, text);
         }
 
         if (readResponseAsString)
@@ -171,7 +183,7 @@ public abstract class FireboltClient
             try
             {
                 var typedBody = JsonConvert.DeserializeObject<T>(responseText, JsonSerializerSettings);
-                return new ObjectResponseResult<T?>(typedBody, responseText);
+                return new ObjectResponseResult<T>(typedBody, responseText);
             }
             catch (JsonException exception)
             {
@@ -179,23 +191,21 @@ public abstract class FireboltClient
                 throw new FireboltException(message, response.StatusCode, responseText, headers, exception);
             }
         }
-        else
+
+        try
         {
-            try
-            {
-                await using var responseStream =
-                    await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-                using var streamReader = new StreamReader(responseStream);
-                using var jsonTextReader = new JsonTextReader(streamReader);
-                var serializer = JsonSerializer.Create(JsonSerializerSettings);
-                var typedBody = serializer.Deserialize<T>(jsonTextReader);
-                return new ObjectResponseResult<T?>(typedBody, string.Empty);
-            }
-            catch (JsonException exception)
-            {
-                var message = "Could not deserialize the response body stream as " + typeof(T).FullName + ".";
-                throw new FireboltException(message, response.StatusCode, string.Empty, headers, exception);
-            }
+            await using var responseStream =
+                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            using var streamReader = new StreamReader(responseStream);
+            using var jsonTextReader = new JsonTextReader(streamReader);
+            var serializer = JsonSerializer.Create(JsonSerializerSettings);
+            var typedBody = serializer.Deserialize<T>(jsonTextReader);
+            return new ObjectResponseResult<T>(typedBody, string.Empty);
+        }
+        catch (JsonException exception)
+        {
+            var message = "Could not deserialize the response body stream as " + typeof(T).FullName + ".";
+            throw new FireboltException(message, response.StatusCode, string.Empty, headers, exception);
         }
     }
 
@@ -214,38 +224,24 @@ public abstract class FireboltClient
     protected async Task<T> GetJsonResponseAsync<T>(HttpMethod method, string uri, string? body, bool requiresAuth,
         CancellationToken cancellationToken)
     {
-        return await SendAsync<T>(method, uri, body, _jsonContentType, requiresAuth, cancellationToken, retryUnauthorized: true);
+        return await SendAsync<T>(method, uri, body, _jsonContentType, requiresAuth, retryUnauthorized: true, cancellationToken);
     }
 
     protected async Task<T> SendAsync<T>(HttpMethod method, string uri, string? body, string bodyType,
-        bool needsAccessToken, CancellationToken cancellationToken, bool retryUnauthorized)
+        bool needsAccessToken, bool retryUnauthorized, CancellationToken cancellationToken)
     {
         if (body != null)
         {
             var content = new StringContent(body);
             content.Headers.ContentType = MediaTypeHeaderValue.Parse(bodyType);
-            return await SendAsync<T>(method, uri, content, needsAccessToken, cancellationToken, retryUnauthorized);
+            return await SendAsync<T>(method, uri, content, needsAccessToken, retryUnauthorized, cancellationToken);
         }
-        return await SendAsync<T>(method, uri, content: null, needsAccessToken, cancellationToken, retryUnauthorized);
+        return await SendAsync<T>(method, uri, content: null, needsAccessToken, retryUnauthorized, cancellationToken);
     }
 
-    protected async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, CancellationToken cancellationToken, bool retryUnauthorized)
+    protected async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, bool retryUnauthorized, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage();
-        request.Method = method;
-        request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(_jsonContentType));
-        if (_protocolVersion != null)
-        {
-            request.Headers.Add(HEADER_PROTOCOL_VERSION, _protocolVersion);
-        }
-        request.Content = content;
-        request.RequestUri = new Uri(uri, UriKind.RelativeOrAbsolute);
-
-        //Add access token only when it is required for the request
-        if (needsAccessToken)
-        {
-            await AddAccessToken(request);
-        }
+        using var request = await GetHttpRequest(method, uri, content, needsAccessToken);
 
         var response = await _httpClient
             .SendAsync(request, cancellationToken)
@@ -258,62 +254,103 @@ public abstract class FireboltClient
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
 
-            try
-            {
-                var anyResponse = await ReadObjectResponseAsync<JsonErrorQueryResult>(response, headers, readResponseAsString: true, cancellationToken).ConfigureAwait(false);
-                if (anyResponse.Object?.Errors != null)
-                {
-                    throw new FireboltStructuredException(anyResponse.Object.Errors);
-                }
-            }
-            catch (FireboltStructuredException)
-            {
-                throw;
-            }
-            catch (System.Exception)
-            {
-                // Ignore any other parsing exceptions, we will handle them later.
-            }
+            await ThrowIfErroredResponse(response, headers, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 var objectResponse = await ReadObjectResponseAsync<T>(response, headers, readResponseAsString: false, cancellationToken).ConfigureAwait(false);
-                if (objectResponse.Object == null)
-                    throw new FireboltException("Response was null which was not expected.", HttpStatusCode.OK,
-                        objectResponse.Text, headers, null);
 
-                return objectResponse.Object;
+                return objectResponse.Object ?? throw new FireboltException("Response was null which was not expected.",
+                    HttpStatusCode.OK,
+                    objectResponse.Text, headers, null);
             }
             else
             {
-                if (needsAccessToken && response.StatusCode == HttpStatusCode.Unauthorized && retryUnauthorized)
-                {
-                    //If we need an access token and the token is invalid (401), we try to re-establish the connection once.
-                    await EstablishConnection(forceTokenRefresh: true);
-                    return await SendAsync<T>(method, uri, content, needsAccessToken, cancellationToken, retryUnauthorized: false);
-                }
-                string? errorResponse = null;
-                try
-                {
-                    errorResponse = (await ReadObjectResponseAsync<ResponseError?>(response, headers, readResponseAsString: true, cancellationToken)
-                        .ConfigureAwait(false)).Object?.message;
-                }
-                catch (FireboltException exception)
-                {
-                    if (exception.GetBaseException().GetType() == typeof(JsonReaderException))
-                    {
-                        errorResponse = exception.Response;
-                    }
-                }
-                throw new FireboltException(response.StatusCode, errorResponse);
+                if (!needsAccessToken || response.StatusCode != HttpStatusCode.Unauthorized || !retryUnauthorized)
+                    throw new FireboltException(response.StatusCode,
+                        await GetErrorMessage(response, headers, cancellationToken));
+
+                //If we need an access token and the token is invalid (401), we try to re-establish the connection once.
+                await EstablishConnection(forceTokenRefresh: true);
+                return await SendAsync<T>(method, uri, content, needsAccessToken, retryUnauthorized: false, cancellationToken);
             }
         }
         finally
         {
-            if (response != null)
+            response.Dispose();
+        }
+    }
+
+    private async Task<string?> GetErrorMessage(HttpResponseMessage response,
+        Dictionary<string, IEnumerable<string>> headers, CancellationToken cancellationToken)
+    {
+        string? errorResponse = null;
+        try
+        {
+            errorResponse = (await ReadObjectResponseAsync<ResponseError>(response, headers, readResponseAsString: true, cancellationToken)
+                .ConfigureAwait(false)).Object?.message;
+        }
+        catch (FireboltException exception)
+        {
+            if (exception.GetBaseException().GetType() == typeof(JsonReaderException))
             {
-                response.Dispose();
+                errorResponse = exception.Response;
             }
+        }
+        return errorResponse;
+    }
+
+    private async Task ThrowIfErroredResponse(HttpResponseMessage response,
+        Dictionary<string, IEnumerable<string>> headers,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var anyResponse = await ReadObjectResponseAsync<JsonErrorQueryResult>(response, headers, readResponseAsString: true, cancellationToken).ConfigureAwait(false);
+            if (anyResponse.Object?.Errors != null)
+            {
+                throw new FireboltStructuredException(anyResponse.Object.Errors);
+            }
+        }
+        catch (FireboltStructuredException)
+        {
+            throw;
+        }
+        catch (System.Exception)
+        {
+            // Ignore any other parsing exceptions, we will handle them later.
+        }
+    }
+
+    private async Task<HttpRequestMessage> GetHttpRequest(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken)
+    {
+        HttpRequestMessage? request = null;
+        try
+        {
+            request = new HttpRequestMessage();
+            request.Method = method;
+            request.Headers.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(_jsonContentType));
+            if (_protocolVersion != null)
+            {
+                request.Headers.Add(HEADER_PROTOCOL_VERSION, _protocolVersion);
+            }
+            request.Content = content;
+            request.RequestUri = new Uri(uri, UriKind.RelativeOrAbsolute);
+            //Add access token only when it is required for the request
+            if (needsAccessToken)
+            {
+                if (string.IsNullOrEmpty(_token))
+                {
+                    _token = await EstablishConnection();
+                }
+                request.Headers.Add("Authorization", "Bearer " + _token);
+            }
+            return request;
+        }
+        catch
+        {
+            request?.Dispose();
+            throw;
         }
     }
 
@@ -414,15 +451,6 @@ public abstract class FireboltClient
             }
         }
         return shouldUpdateConnection;
-    }
-
-    private async Task AddAccessToken(HttpRequestMessage request)
-    {
-        if (string.IsNullOrEmpty(_token))
-        {
-            _token = await EstablishConnection();
-        }
-        request.Headers.Add("Authorization", "Bearer " + _token);
     }
 
     private struct ObjectResponseResult<T>

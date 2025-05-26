@@ -35,7 +35,7 @@ public class FireboltClient2 : FireboltClient
     private static IDictionary<string, string> systemEngineUrlCache = new ConcurrentDictionary<string, string>();
     private static string DB_QUERY = "SELECT * FROM information_schema.{0}s WHERE {0}_name=@Name";
 
-    public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, "2.0", httpClient)
+    public FireboltClient2(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpClient httpClient) : base(connection, id, secret, endpoint, env, "2.0", httpClient)
     {
         _account = account;
     }
@@ -49,7 +49,7 @@ public class FireboltClient2 : FireboltClient
     protected override Task<LoginResponse> Login(string id, string secret, string env)
     {
         var credentials = new ServiceAccountLoginRequest(id, secret);
-        return SendAsync<LoginResponse>(HttpMethod.Post, $"https://id.{env}.firebolt.io{AUTH_SERVICE_ACCOUNT_URL}", credentials.GetFormUrlEncodedContent(), false, CancellationToken.None, false);
+        return SendAsync<LoginResponse>(HttpMethod.Post, $"https://id.{env}.firebolt.io{AUTH_SERVICE_ACCOUNT_URL}", credentials.GetFormUrlEncodedContent(), false, false, CancellationToken.None);
     }
 
     /// <summary>

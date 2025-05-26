@@ -20,9 +20,9 @@ namespace FireboltDotNetSdk.Tests
             Mock<HttpClient> httpClientMock = new();
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
-            FireboltException? exception = Assert.ThrowsAsync<FireboltException>(() => client.ExecuteQueryAsync("", "databaseName", null, "commandText", new HashSet<string>(), CancellationToken.None));
+            FireboltException? exception = Assert.ThrowsAsync<FireboltException>(() => client.ExecuteQueryAsync<string>("", "databaseName", null, "commandText", new HashSet<string>(), CancellationToken.None));
 
-            Assert.NotNull(exception);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception!.Message, Is.EqualTo("Some parameters are null or empty: engineEndpoint:  or query: commandText"));
         }
 
@@ -68,7 +68,7 @@ namespace FireboltDotNetSdk.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
                 .ReturnsAsync(GetResponseMessage("1", HttpStatusCode.OK));
-            Assert.That(await client.ExecuteQueryAsync("endpoint_url", "DBName", "account", "Select 1", new HashSet<string>(),
+            Assert.That(await client.ExecuteQueryAsync<string>("endpoint_url", "DBName", "account", "Select 1", new HashSet<string>(),
                 CancellationToken.None), Is.EqualTo("1"));
 
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(),
@@ -94,7 +94,7 @@ namespace FireboltDotNetSdk.Tests
                 .ReturnsAsync(GetResponseMessage(HttpStatusCode.Unauthorized))
                 .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
                 .ReturnsAsync(GetResponseMessage("1", HttpStatusCode.OK));
-            Assert.That(await client.ExecuteQueryAsync("endpoint_url", "DBName", "account", "Select 1", new HashSet<string>(),
+            Assert.That(await client.ExecuteQueryAsync<string>("endpoint_url", "DBName", "account", "Select 1", new HashSet<string>(),
                 CancellationToken.None), Is.EqualTo("1"));
 
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(),
@@ -116,7 +116,7 @@ namespace FireboltDotNetSdk.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
                 .ReturnsAsync(GetResponseMessage(jsonErrorMessage, HttpStatusCode.OK)); // despite the error, the response is OK
-            var exception = Assert.ThrowsAsync<FireboltStructuredException>(() => client.ExecuteQueryAsync("endpoint_url", "DBName", "account", "SELECT 1", new HashSet<string>(), CancellationToken.None));
+            var exception = Assert.ThrowsAsync<FireboltStructuredException>(() => client.ExecuteQueryAsync<string>("endpoint_url", "DBName", "account", "SELECT 1", new HashSet<string>(), CancellationToken.None));
             Assert.That(exception!.Message, Does.Contain("Error: Bad Request (400) - Firebolt, Invalid query, resolution: Check the query and try again"));
         }
 
@@ -140,7 +140,7 @@ namespace FireboltDotNetSdk.Tests
                 .ReturnsAsync(GetResponseMessage(HttpStatusCode.Unauthorized))
                 .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
                 .ReturnsAsync(GetResponseMessage(HttpStatusCode.Unauthorized));
-            var exception = Assert.ThrowsAsync<FireboltException>(() => client.ExecuteQueryAsync("endpoint_url", "DBName", "account", "SELECT 1", new HashSet<string>(), CancellationToken.None));
+            var exception = Assert.ThrowsAsync<FireboltException>(() => client.ExecuteQueryAsync<string>("endpoint_url", "DBName", "account", "SELECT 1", new HashSet<string>(), CancellationToken.None));
             Assert.IsTrue(exception!.Message.Contains("The operation is unauthorized"));
         }
 

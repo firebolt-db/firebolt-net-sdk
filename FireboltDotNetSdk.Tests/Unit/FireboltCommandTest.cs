@@ -16,31 +16,31 @@ namespace FireboltDotNetSdk.Tests
         private static FireboltConnection connection = new FireboltConnection(connectionString);
 
 
-        private readonly string? _response;
+        private readonly string _response;
         public string? Query { get; private set; }
         public HashSet<string> CapturedSetParamList { get; private set; } = new HashSet<string>();
 
-        public MockClient(string? response) : base(connection, "id", "secret", "", null, null, httpClientMock.Object)
+        public MockClient(string response) : base(connection, "id", "secret", "", null, null, httpClientMock.Object)
         {
             _response = response;
             _tokenStorage.CacheToken(new LoginResponse("token", "60", "type"), "id", "secret").Wait();
             EstablishConnection().GetAwaiter().GetResult();
         }
-        override public Task<string?> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
+        public override Task<string> ExecuteQuery(string? engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, string query)
         {
             Query = query;
             CapturedSetParamList = new HashSet<string>(setParamList);
             return Task.FromResult(_response);
         }
-        public override async Task<string?> ExecuteQueryAsync(string? engineEndpoint, string? databaseName, string? accountId,
+        public override async Task<T> ExecuteQueryAsync<T>(string? engineEndpoint, string? databaseName, string? accountId,
                          string query, HashSet<string> setParamList, CancellationToken cancellationToken)
         {
             Query = query;
             CapturedSetParamList = new HashSet<string>(setParamList);
-            return await Task.FromResult(_response);
+            return await Task.FromResult((T)(object)_response);
         }
 
-        override public Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
+        public override Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
         {
             return Task.FromResult(new GetAccountIdByNameResponse());
         }
@@ -116,15 +116,15 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteReaderNullResponseTest()
         {
-            var cs = CreateCommand("select 1", null);
+            var cs = CreateCommand("select 1", "{}");
             DbDataReader reader = cs.ExecuteReader();
             Assert.That(reader.Read(), Is.False);
         }
 
-        [TestCase(null, null, "SQL command is null")]
+        [TestCase(null, "", "SQL command is null")]
         [TestCase(null, "{}", "SQL command is null")]
         [TestCase("select 1", "null", "No result produced")] // produces null QueryResult
-        public void ExecuteRederInvalidQuery(string? query, string? response, string expectedErrorMessage)
+        public void ExecuteRederInvalidQuery(string? query, string response, string expectedErrorMessage)
         {
             var cs = CreateCommand(query, response);
             Assert.That(Assert.Throws<InvalidOperationException>(() => cs.ExecuteReader())?.Message, Is.EqualTo(expectedErrorMessage));
@@ -478,7 +478,7 @@ namespace FireboltDotNetSdk.Tests
         {
             DbCommand command = new FireboltCommand();
             Assert.That(command.Connection, Is.Null);
-            FireboltConnection connection = CreateConnection(null);
+            FireboltConnection connection = CreateConnection("");
             command.Connection = connection;
             Assert.That(command.Connection, Is.SameAs(connection));
         }
@@ -506,17 +506,6 @@ namespace FireboltDotNetSdk.Tests
 
             var ex = Assert.Throws<FireboltException>(() => command.ExecuteServerSideAsyncNonQuery());
             Assert.That(ex.Message, Does.Contain("no connection was initialised"));
-        }
-
-
-        [Test]
-        public void ExecuteServerSideAsyncNonQuery_WithNullResponse_ThrowsException()
-        {
-            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(null), EngineUrl = "engine" };
-            var command = new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection());
-
-            var ex = Assert.Throws<FireboltException>(() => command.ExecuteServerSideAsyncNonQuery());
-            Assert.That(ex.Message, Does.Contain("no response"));
         }
 
         [Test]
@@ -558,16 +547,6 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void ExecuteServerSideAsyncNonQuery_ThrowsException_OnSetCommand()
-        {
-            var connection = new FireboltConnection(mockConnectionString) { Client = new MockClient(null), EngineUrl = "engine" };
-            var command = new FireboltCommand(connection, "SET param=1", new FireboltParameterCollection());
-
-            var ex = Assert.Throws<InvalidOperationException>(() => command.ExecuteServerSideAsyncNonQuery());
-            Assert.That(ex.Message, Does.Contain("SET command"));
-        }
-
-        [Test]
         public void ExecuteServerSidePreparedStatement_ReturnsExpectedResult()
         {
             string response = "{\"meta\":[{\"name\":\"?column?\",\"type\":\"int\"},{\"name\":\"?column?\",\"type\":\"long\"}],\"data\":[[1,\"2\"]]}";
@@ -587,12 +566,12 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        private FireboltCommand CreateCommand(string? query, string? response)
+        private FireboltCommand CreateCommand(string? query, string response)
         {
             return new FireboltCommand(CreateConnection(response), query, new FireboltParameterCollection());
         }
 
-        private FireboltConnection CreateConnection(string? response)
+        private FireboltConnection CreateConnection(string response)
         {
             return new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
         }

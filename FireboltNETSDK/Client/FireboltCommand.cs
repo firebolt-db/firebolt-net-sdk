@@ -178,7 +178,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private void verifyConnection()
+        private void VerifyConnection()
         {
             if (Connection == null)
             {
@@ -190,9 +190,13 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
+        private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken, bool isServerAsync = false)
         {
-            verifyConnection();
+            if (isServerAsync)
+            {
+                throw new InvalidOperationException("SET commands are not supported by the server-side async");
+            }
+            VerifyConnection();
             commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
             SetParamList.Add(commandText);
             try
@@ -208,34 +212,23 @@ namespace FireboltDotNetSdk.Client
 
         private async Task<string?> ExecuteCommandAsync(string commandText, CancellationToken cancellationToken, bool isServerAsync = false)
         {
-            verifyConnection();
+            VerifyConnection();
             var engineUrl = Connection!.EngineUrl;
             // If the command is a SET command, process it and return null
             // SET commands are not supported by the server-side async
-            var isSetCommand = commandText.Trim().ToUpper().StartsWith("SET");
-            if (isSetCommand && isServerAsync)
-            {
-                throw new InvalidOperationException("SET commands are not supported by the server-side async");
-            }
+            var isSetCommand = IsSetCommand(commandText);
             if (isSetCommand)
             {
-                await ProcessSetCommand(commandText, cancellationToken);
+                await ProcessSetCommand(commandText, cancellationToken, isServerAsync);
                 return await Task.FromResult<string?>(null);
             }
-            string newCommandText = commandText;
+            var newCommandText = commandText;
             var paramList = SetParamList;
             if (Parameters.Any())
             {
                 if (Connection!.PreparedStatementParamStyle == PreparedStatementParamStyleType.FbNumeric)
                 {
-                    var queryParameters = JsonConvert.SerializeObject(Parameters.Select(parameter =>
-                        new
-                        {
-                            name = parameter.ParameterName,
-                            value = parameter.Value
-                        })
-                    );
-                    paramList.Add("query_parameters=" + queryParameters);
+                    paramList.Add("query_parameters=" + GetServerSideQueryParameters());
                 }
                 else
                 {
@@ -251,11 +244,30 @@ namespace FireboltDotNetSdk.Client
                 };
             }
 
-            var database = Connection?.Database != string.Empty ? Connection?.Database : null;
-
-            Task<string?> t = Connection!.Client.ExecuteQueryAsync(engineUrl, database, Connection.AccountId, newCommandText, paramList, cancellationToken);
-            return await t;
+            return await Connection!.Client.ExecuteQueryAsync<string>(engineUrl, GetDatabase(), Connection.AccountId, newCommandText, paramList, cancellationToken);
         }
+
+        private static bool IsSetCommand(string commandText)
+        {
+            return commandText.Trim().ToUpper().StartsWith("SET");
+        }
+
+        private string? GetDatabase()
+        {
+            return Connection?.Database != string.Empty ? Connection?.Database : null;
+        }
+
+        private string GetServerSideQueryParameters()
+        {
+            return JsonConvert.SerializeObject(Parameters.Select(parameter =>
+                new
+                {
+                    name = parameter.ParameterName,
+                    value = parameter.Value
+                })
+            );
+        }
+
 
         private string ValidateSetCommand(string setCommand)
         {
@@ -275,12 +287,12 @@ namespace FireboltDotNetSdk.Client
                 cancellationToken.Register(Cancel);
             }
             return ExecuteCommandAsyncWithCommandTimeout(StrictCommandText, cancellationToken).ContinueWith(
-                result => CreateDbDataReader(CreateQueryResult(result.Result)));
+                result => CreateDbDataReader(CreateQueryResult(result.Result)), cancellationToken);
         }
 
         public override Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken)
         {
-            return ExecuteDbDataReaderAsync(CommandBehavior.Default, cancellationToken).ContinueWith(r => CreateScalar(r.Result));
+            return ExecuteDbDataReaderAsync(CommandBehavior.Default, cancellationToken).ContinueWith(r => CreateScalar(r.Result), cancellationToken);
         }
 
         /// <summary>
@@ -298,7 +310,7 @@ namespace FireboltDotNetSdk.Client
                     {
                         throw new FireboltException("Parameter name should start with '@' when using native PreparedStatementParamStyle");
                     }
-                    string pattern = string.Format(@"\{0}\b", parameter.ParameterName);
+                    string pattern = $@"\{parameter.ParameterName}\b";
                     string verifyParameters = GetParamValue(parameter.Value);
                     commandText = Regex.Replace(commandText, pattern, verifyParameters, RegexOptions.IgnoreCase, regexTimeout);
                 }
@@ -501,7 +513,7 @@ namespace FireboltDotNetSdk.Client
         public async Task<int> ExecuteServerSideAsyncNonQueryAsync(CancellationToken cancellationToken = default)
         {
             // Execute the query with the async parameter
-            string? response = await ExecuteCommandAsync(StrictCommandText, cancellationToken, true);
+            var response = await ExecuteCommandAsync(StrictCommandText, cancellationToken, true);
             if (response == null)
             {
                 throw new FireboltException("Failed to execute async query: no response received");

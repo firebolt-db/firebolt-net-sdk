@@ -168,8 +168,7 @@ namespace FireboltDotNetSdk.Tests
             CancellationToken token = source.Token;
             var task = command.ExecuteReaderAsync(token);
             source.Cancel();
-            var aggEx = Assert.ThrowsAsync<AggregateException>(async () => await task);
-            Assert.That(aggEx?.InnerException, Is.InstanceOf<TaskCanceledException>());
+            Assert.ThrowsAsync<TaskCanceledException>(async () => await task);
         }
 
         [Test]
