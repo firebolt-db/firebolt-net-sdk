@@ -41,7 +41,7 @@ public abstract class FireboltClient
     protected readonly string _id;
     protected readonly string _secret;
     protected readonly string _env;
-    public string? _protocolVersion;
+    protected string? _protocolVersion;
 
     protected readonly string _jsonContentType = "application/json";
     private readonly string _textContentType = "text/plain";
@@ -50,7 +50,7 @@ public abstract class FireboltClient
     private readonly string HEADER_UPDATE_ENDPOINT = "Firebolt-Update-Endpoint";
     private readonly string HEADER_RESET_SESSION = "Firebolt-Reset-Session";
 
-    private IDictionary<string, string> queryParameters = new Dictionary<string, string>();
+    private readonly IDictionary<string, string> _queryParameters = new Dictionary<string, string>();
     internal readonly TokenStorage _tokenStorage;
 
     protected FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpClient httpClient)
@@ -157,7 +157,7 @@ public abstract class FireboltClient
         {
             parameters["query_label"] = Guid.NewGuid().ToString();
         }
-        foreach (var item in queryParameters)
+        foreach (var item in _queryParameters)
         {
             parameters[item.Key] = item.Value;
         }
@@ -370,9 +370,9 @@ public abstract class FireboltClient
 
     private bool ProcessResetSession(HttpResponseHeaders headers)
     {
-        if (queryParameters.Count() > 0 && headers.Contains(HEADER_RESET_SESSION))
+        if (_queryParameters.Any() && headers.Contains(HEADER_RESET_SESSION))
         {
-            queryParameters.Clear();
+            _queryParameters.Clear();
             return true;
         }
         return false;
@@ -405,18 +405,18 @@ public abstract class FireboltClient
         return shouldUpdateConnection;
     }
 
-    protected List<string[]> ExtractParameters(string queryString)
+    protected static List<string[]> ExtractParameters(string queryString)
     {
         return queryString.Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList();
     }
 
     protected bool ProcessParameters(FireboltConnectionStringBuilder connectionBuilder, List<string[]> parameters, bool shouldUpdateConnection)
     {
-        foreach (string[] kv in parameters)
+        foreach (var kv in parameters)
         {
             if (kv.Length == 1 || "".Equals(kv[1]))
             {
-                queryParameters.Remove(kv[0]);
+                _queryParameters.Remove(kv[0]);
                 shouldUpdateConnection = true;
             }
             else
@@ -441,9 +441,9 @@ public abstract class FireboltClient
                         _connection.AccountId = kv[1];
                         break;
                     default:
-                        if (!kv[1].Equals(queryParameters[kv[0]]))
+                        if (!kv[1].Equals(_queryParameters[kv[0]]))
                         {
-                            queryParameters[kv[0]] = kv[1];
+                            _queryParameters[kv[0]] = kv[1];
                             shouldUpdateConnection = true;
                         }
                         break;

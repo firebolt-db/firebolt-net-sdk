@@ -558,20 +558,23 @@ namespace FireboltDotNetSdk.Tests
 
             using (var reader = command.ExecuteReader())
             {
-                Assert.That(reader.Read(), Is.EqualTo(true));
-                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
-                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
-                Assert.That(reader.GetInt64(1), Is.EqualTo(2));
-                Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(long)));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.EqualTo(true));
+                    Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                    Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+                    Assert.That(reader.GetInt64(1), Is.EqualTo(2));
+                    Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(long)));
+                });
             }
         }
 
-        private FireboltCommand CreateCommand(string? query, string response)
+        private static FireboltCommand CreateCommand(string? query, string response)
         {
             return new FireboltCommand(CreateConnection(response), query, new FireboltParameterCollection());
         }
 
-        private FireboltConnection CreateConnection(string response)
+        private static FireboltConnection CreateConnection(string response)
         {
             return new FireboltConnection(mockConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
         }
@@ -580,8 +583,11 @@ namespace FireboltDotNetSdk.Tests
         {
             var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
             var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column]?.ToString(), columnType);
-            Assert.That(convertedValue, Is.EqualTo(expectedValue));
-            Assert.That(columnType.Type.ToString, Is.EqualTo(expectedType));
+            Assert.Multiple(() =>
+            {
+                Assert.That(convertedValue, Is.EqualTo(expectedValue));
+                Assert.That(columnType.Type.ToString, Is.EqualTo(expectedType));
+            });
         }
     }
 }

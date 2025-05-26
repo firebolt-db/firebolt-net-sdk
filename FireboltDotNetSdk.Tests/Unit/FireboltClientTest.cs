@@ -33,7 +33,7 @@ namespace FireboltDotNetSdk.Tests
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, "any", "any", "test.api.firebolt.io", null, "account", httpClientMock.Object);
             var tokenField = typeof(FireboltClient).GetField("_token", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.NotNull(tokenField);
+            Assert.That(tokenField, Is.Not.Null);
             tokenField!.SetValue(client, "abc");
             httpClientMock.Setup(c => c.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).Throws<HttpRequestException>();
             Assert.ThrowsAsync<HttpRequestException>(() => client.ExecuteQuery("DBName", "EngineURL", "null", "Select 1"));
@@ -46,7 +46,7 @@ namespace FireboltDotNetSdk.Tests
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClientMock.Object);
             var tokenField = typeof(FireboltClient).GetField("_token", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.NotNull(tokenField);
+            Assert.That(tokenField, Is.Not.Null);
             tokenField!.SetValue(client, "abc");
             HttpResponseMessage okHttpResponse = GetResponseMessage("1", HttpStatusCode.OK);
             httpClientMock.Setup(c => c.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(okHttpResponse);
@@ -103,7 +103,7 @@ namespace FireboltDotNetSdk.Tests
 
 
         [Test]
-        public void ExecuteQueryWithJSONErrorReturned()
+        public void ExecuteQueryWithJsonErrorReturned()
         {
             Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
             var connection = new FireboltConnection(connectionString);
@@ -141,7 +141,7 @@ namespace FireboltDotNetSdk.Tests
                 .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK))
                 .ReturnsAsync(GetResponseMessage(HttpStatusCode.Unauthorized));
             var exception = Assert.ThrowsAsync<FireboltException>(() => client.ExecuteQueryAsync<string>("endpoint_url", "DBName", "account", "SELECT 1", new HashSet<string>(), CancellationToken.None));
-            Assert.IsTrue(exception!.Message.Contains("The operation is unauthorized"));
+            Assert.That(exception!.Message, Does.Contain("The operation is unauthorized"));
         }
 
         [TestCase(connectionString, true)]
@@ -194,8 +194,11 @@ namespace FireboltDotNetSdk.Tests
             string errorMessage = "login failed";
             httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>())).ReturnsAsync(GetResponseMessage(errorMessage, HttpStatusCode.Unauthorized));
             string actualErrorMessage = Assert.ThrowsAsync<FireboltException>(() => client.EstablishConnection())?.Message ?? "";
-            Assert.IsTrue(actualErrorMessage.Contains("The operation is unauthorized"));
-            Assert.IsTrue(actualErrorMessage.Contains(errorMessage));
+            Assert.Multiple(() =>
+            {
+                Assert.That(actualErrorMessage, Does.Contain("The operation is unauthorized"));
+                Assert.That(actualErrorMessage, Does.Contain(errorMessage));
+            });
             httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         }
 
@@ -219,9 +222,9 @@ namespace FireboltDotNetSdk.Tests
         internal static HttpResponseMessage GetResponseMessage(object responseObject, HttpStatusCode httpStatusCode)
         {
             HttpResponseMessage response = GetResponseMessage(httpStatusCode);
-            if (responseObject is string)
+            if (responseObject is string responseAsString)
             {
-                response.Content = new StringContent((string)responseObject);
+                response.Content = new StringContent(responseAsString);
             }
             else
             {
