@@ -30,7 +30,7 @@ namespace FireboltDotNetSdk;
 public class FireboltClient2 : FireboltClient
 {
     private const string PROTOCOL_VERSION = "2.3";
-    private ISet<string> engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
+    private readonly ISet<string> _engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
     private readonly string _account;
     private static IDictionary<string, string> systemEngineUrlCache = new ConcurrentDictionary<string, string>();
     private static string DB_QUERY = "SELECT * FROM information_schema.{0}s WHERE {0}_name=@Name";
@@ -115,13 +115,13 @@ public class FireboltClient2 : FireboltClient
         }
         if (engineName == null || FireboltConnection.SYSTEM_ENGINE.Equals(engineName))
         {
-            return await ConnectToSystemEngine(_connection.InfraVersion, database);
+            return await ConnectToSystemEngine(database);
         }
         // Engine is specified
         return await ConnectToCustomEngine(_connection.InfraVersion, engineName, database);
     }
 
-    private async Task<ConnectionResponse> ConnectToSystemEngine(int infraVersion, string database)
+    private async Task<ConnectionResponse> ConnectToSystemEngine(string database)
     {
         await Execute("select 1"); // needed to get the InfraVersion back
         if (_connection.InfraVersion == 2)
@@ -175,7 +175,7 @@ public class FireboltClient2 : FireboltClient
         {
             throw new FireboltException($"Engine {engineName} is not attached to {database}");
         }
-        if (!engineStatusesRunning.Contains(reader.GetString(3)))
+        if (!_engineStatusesRunning.Contains(reader.GetString(3)))
         {
             throw new FireboltException($"Engine {engineName} is not running");
         }

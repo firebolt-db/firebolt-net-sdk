@@ -42,7 +42,7 @@ public class FireboltClient1 : FireboltClient
         _account = account;
     }
 
-    public override async Task<ConnectionResponse> ConnectAsync(string? engineName, string databaseName, CancellationToken cancellationToken)
+    public override async Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken)
     {
         try
         {
@@ -70,25 +70,25 @@ public class FireboltClient1 : FireboltClient
             {
                 engineUrl = await GetEngineUrlByEngineName(accountId, engineName!, cancellationToken);
             }
-            else if (databaseName != null)
+            else if (database != null)
             {
-                engineUrl = await GetDefaultEngineUrl(accountId, databaseName, cancellationToken);
+                engineUrl = await GetDefaultEngineUrl(accountId, database, cancellationToken);
             }
             if (engineUrl == null)
             {
-                throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {databaseName} database");
+                throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {database} database");
             }
-            return new ConnectionResponse(engineUrl!, databaseName!, FireboltConnection.SYSTEM_ENGINE.Equals(engineName));
+            return new ConnectionResponse(engineUrl!, database!, FireboltConnection.SYSTEM_ENGINE.Equals(engineName));
         }
         catch (System.Exception ex)
         {
-            throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {databaseName} database", ex);
+            throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {database} database", ex);
         }
     }
 
-    protected override Task<LoginResponse> Login(string username, string password, string env)
+    protected override Task<LoginResponse> Login(string id, string secret, string env)
     {
-        var credentials = new UsernamePasswordLoginRequest(username, password);
+        var credentials = new UsernamePasswordLoginRequest(id, secret);
         return SendAsync<LoginResponse>(HttpMethod.Post, $"https://{_endpoint}{AUTH_USERNAME_PASSWORD_URL}", JsonConvert.SerializeObject(credentials, _settings.Value), _jsonContentType, false, false, CancellationToken.None);
     }
 
@@ -126,13 +126,13 @@ public class FireboltClient1 : FireboltClient
         return $"https://{_endpoint}/core/v1/account{accountPath}{suffix}";
     }
 
-    public override async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string accountName, CancellationToken cancellationToken)
+    public override async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
     {
-        if (accountName == string.Empty)
+        if (account == string.Empty)
         {
             return await Task.FromResult(new GetAccountIdByNameResponse() { id = null });
         }
-        string url = $"https://{_endpoint}/iam/v2/accounts:getIdByName?accountName={accountName}";
+        string url = $"https://{_endpoint}/iam/v2/accounts:getIdByName?accountName={account}";
         return await GetJsonResponseAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, null, requiresAuth: true, cancellationToken);
     }
 
