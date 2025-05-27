@@ -5,7 +5,7 @@ using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Moq;
-using NUnit.Framework;
+using Moq.Protected;
 using Times = Moq.Times;
 
 namespace FireboltDotNetSdk.Tests
@@ -486,15 +486,19 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void SuccessfulLogin()
         {
-            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+            var httpClient = new HttpClient(handlerMock.Object);
+
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs = new FireboltConnection(connectionString);
-            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
+            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClient);
             cs.Client = client;
-            FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
-            FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
-            FireResponse.GetAccountIdByNameResponse accountIdResponse = new FireResponse.GetAccountIdByNameResponse() { id = "account_id" };
-            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
+            var loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
+            var systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
+
+            handlerMock.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
@@ -505,25 +509,33 @@ namespace FireboltDotNetSdk.Tests
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
             // 1. to retrive token
             // 2. to retrieve system engine URL
-            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            handlerMock.Protected().Verify(
+                "SendAsync",
+                Times.Exactly(3),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
         }
 
         [Test]
         public void SuccessfulLoginTwice()
         {
             // Simulate the first connection. Calls of CleanupCache() guarnatee that the global caches are empty
-            Mock<HttpClient> httpClientMock1 = new Mock<HttpClient>();
+            var handlerMock1 = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+            var httpClient1 = new HttpClient(handlerMock1.Object);
+
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs1 = new FireboltConnection(connectionString);
-            FireboltClient client1 = new FireboltClient2(cs1, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock1.Object);
+            FireboltClient client1 = new FireboltClient2(cs1, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClient1);
             FireboltConnection.CleanupCache();
             client1.CleanupCache();
 
             cs1.Client = client1;
-            FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
-            FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
-            FireResponse.GetAccountIdByNameResponse accountIdResponse = new FireResponse.GetAccountIdByNameResponse() { id = "account_id" };
-            httpClientMock1.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
+            var loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
+            var systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
+
+            handlerMock1.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
@@ -532,21 +544,32 @@ namespace FireboltDotNetSdk.Tests
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
             // 1. to retrive token
             // 2. to retrieve system engine URL
-            httpClientMock1.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            handlerMock1.Protected().Verify(
+                "SendAsync",
+                Times.Exactly(3),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
             cs1.Close();
 
             // Now create the new connection. Due to caches are full we do not expect getting system engine URL and account ID. 
             var cs2 = new FireboltConnection(connectionString);
-            Mock<HttpClient> httpClientMock2 = new Mock<HttpClient>();
-            FireboltClient client2 = new FireboltClient2(cs2, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock2.Object);
+            var handlerMock2 = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+            var httpClient2 = new HttpClient(handlerMock2.Object);
+            FireboltClient client2 = new FireboltClient2(cs2, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClient2);
             cs2.Client = client2;
 
-            httpClientMock2.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
+            handlerMock2.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
             .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             ;
             cs2.Open(); // should succeed
-            httpClientMock2.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            handlerMock2.Protected().Verify(
+                "SendAsync",
+                Times.Exactly(2),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
         }
 
 
@@ -554,49 +577,67 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("ENGINE_STATE_RUNNING", "api.firebolt.io?account_id=01hf9pchg0mnrd2g3hypm1dea4&engine=max_test", "", "api.firebolt.io")]
         public void SuccessfulLoginWithEngineName(string engineStatus, string engineUrl, string catalogs, string expectedEngineUrl)
         {
-            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+            var httpClient = new HttpClient(handlerMock.Object);
+
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
             var cs = new FireboltConnection(connectionString);
-            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
-            FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
-            FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
-            FireResponse.GetAccountIdByNameResponse accountIdResponse = new FireResponse.GetAccountIdByNameResponse() { id = "account_id" };
+            FireboltClient client = new FireboltClient2(cs, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClient);
+            var loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
+            var systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
 
-            httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"3\"},\"meta\":[],\"data\":[]}", HttpStatusCode.OK)) // USE ENGINE
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"string\"}, {\"name\": \"version()\"}],\"data\":[[\"1.2.3\"]]}", HttpStatusCode.OK)) // get version
-            ;
+            handlerMock.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(
+                    FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
+                .ReturnsAsync(
+                    FireboltClientTest.GetResponseMessage(systemEngineResponse,
+                        HttpStatusCode.OK)) // get system engine URL
+                .ReturnsAsync(FireboltClientTest.GetResponseMessage(
+                    "{\"query\":{\"query_id\": \"3\"},\"meta\":[],\"data\":[]}", HttpStatusCode.OK)) // USE ENGINE
+                .ReturnsAsync(FireboltClientTest.GetResponseMessage(
+                    "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"string\"}, {\"name\": \"version()\"}],\"data\":[[\"1.2.3\"]]}",
+                    HttpStatusCode.OK)); // get version
 
             cs.Client = client;
             FireboltConnection.CleanupCache();
             client.CleanupCache();
             cs.Open(); // should succeed
             Assert.That(cs.ServerVersion, Is.EqualTo("1.2.3"));
-            httpClientMock.Verify(m => m.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
+            handlerMock.Protected().Verify(
+                "SendAsync",
+                Times.Exactly(4),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
         }
 
         /// <summary>
         /// Helper method to set up a FireboltConnection with mocked HttpClient for testing
         /// </summary>
         /// <param name="additionalResponses">Optional list of HttpResponseMessage objects to append after initial authentication</param>
-        /// <returns>A tuple containing the FireboltConnection, Mock<HttpClient>, and FireboltClient</returns>
-        private static (FireboltConnection connection, Mock<HttpClient> httpClientMock, FireboltClient client) SetupFireboltConnection(params HttpResponseMessage[] additionalResponses)
+        /// <returns>the FireboltConnection</returns>
+        private static FireboltConnection SetupFireboltConnection(params HttpResponseMessage[] additionalResponses)
         {
-            Mock<HttpClient> httpClientMock = new Mock<HttpClient>();
+            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+            var httpClient = new HttpClient(handlerMock.Object);
+
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
             var connection = new FireboltConnection(connectionString);
-            FireboltClient client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClientMock.Object);
+            FireboltClient client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClient);
             connection.Client = client;
 
-            FireResponse.LoginResponse loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
-            FireResponse.GetSystemEngineUrlResponse systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
+            var loginResponse = new FireResponse.LoginResponse("access_token", "3600", "Bearer");
+            var systemEngineResponse = new FireResponse.GetSystemEngineUrlResponse() { engineUrl = "api.test.firebolt.io" };
 
-            var setupSequence = httpClientMock.SetupSequence(p => p.SendAsync(It.IsAny<HttpRequestMessage>(), It.IsAny<CancellationToken>()))
+            var setupSequence = handlerMock.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
                 .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
-                .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)); // select 1 - to get infra version
+                .ReturnsAsync(FireboltClientTest.GetResponseMessage(
+                    "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}",
+                    HttpStatusCode.OK)); // select 1 - to get infra version
 
             // Add additional responses
             foreach (var response in additionalResponses)
@@ -608,7 +649,7 @@ namespace FireboltDotNetSdk.Tests
             client.CleanupCache();
             connection.Open();
 
-            return (connection, httpClientMock, client);
+            return connection;
         }
 
         [TestCase("RUNNING", true)]
@@ -619,7 +660,7 @@ namespace FireboltDotNetSdk.Tests
         {
             // Ensure the status in JSON matches exactly what the IsServerSideAsyncQueryRunning method expects
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
-            var (connection, _, _) = SetupFireboltConnection(
+            var connection = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
@@ -635,7 +676,7 @@ namespace FireboltDotNetSdk.Tests
         public async Task IsServerSideAsyncQueryRunningAsync_WithStatus_ReturnsExpectedResult(string status, bool expected)
         {
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
-            var (connection, _, _) = SetupFireboltConnection(
+            var connection = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
@@ -651,7 +692,7 @@ namespace FireboltDotNetSdk.Tests
         public void IsServerSideAsyncQuerySuccessful_WithStatus_ReturnsExpectedResult(string status, bool? expected)
         {
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
-            var (connection, _, _) = SetupFireboltConnection(
+            var connection = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
@@ -667,7 +708,7 @@ namespace FireboltDotNetSdk.Tests
         public async Task IsServerSideAsyncQuerySuccessfulAsync_WithStatus_ReturnsExpectedResult(string status, bool? expected)
         {
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
-            var (connection, _, _) = SetupFireboltConnection(
+            var connection = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
@@ -681,7 +722,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"RUNNING\",\"456\"]]}";
             string cancelResponseJson = "{\"query\":{\"query_id\":\"124\"},\"meta\":[],\"data\":[[]]}";
-            var (connection, _, _) = SetupFireboltConnection(
+            var connection = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK),
                 FireboltClientTest.GetResponseMessage(cancelResponseJson, HttpStatusCode.OK)
             );
@@ -696,7 +737,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"RUNNING\",\"456\"]]}";
             string cancelResponseJson = "{\"query\":{\"query_id\":\"124\"},\"meta\":[],\"data\":[[]]}";
-            var (connection, _, _) = SetupFireboltConnection(
+            var connection = SetupFireboltConnection(
                 FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK),
                 FireboltClientTest.GetResponseMessage(cancelResponseJson, HttpStatusCode.OK)
             );
@@ -709,7 +750,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void GetAsyncQueryStatus_EmptyToken_ThrowsArgumentNullException()
         {
-            var (connection, _, _) = SetupFireboltConnection();
+            var connection = SetupFireboltConnection();
             var ex = Assert.Throws<ArgumentNullException>(() => connection.IsServerSideAsyncQueryRunning(""));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.ParamName, Is.EqualTo("token"));
@@ -718,7 +759,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void CancelServerSideAsyncQuery_EmptyToken_ThrowsArgumentNullException()
         {
-            var (connection, _, _) = SetupFireboltConnection();
+            var connection = SetupFireboltConnection();
             var ex = Assert.Throws<ArgumentNullException>(() => connection.CancelServerSideAsyncQuery(""));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.ParamName, Is.EqualTo("token"));
