@@ -27,7 +27,7 @@ using FireboltDotNetSdk.Utils;
 namespace FireboltDotNetSdk.Client
 {
     /// <summary>
-    /// Represents an data reader to get data form a FireBolt database. This class cannot be inherited.
+    /// Represents a data reader to get data form a FireBolt database. This class cannot be inherited.
     /// </summary>
     public sealed class FireboltDataReader : DbDataReader
     {
@@ -443,8 +443,8 @@ namespace FireboltDotNetSdk.Client
             return Task.FromResult(GetSchemaTable());
         }
 
-        public override string GetString(int ordinal)
         /// <inheritdoc/>
+        public override string GetString(int ordinal)
         {
             return GetValue(ordinal).ToString() ?? throw new InvalidOperationException($"String representation of column ${ordinal} is null");
         }
@@ -483,7 +483,7 @@ namespace FireboltDotNetSdk.Client
             {
                 return null;
             }
-            object? value = row[ordinal];
+            var value = row[ordinal];
             if (value == null)
             {
                 return DBNull.Value;

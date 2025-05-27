@@ -36,7 +36,7 @@ public class FireboltClient1 : FireboltClient
             "ENGINE_STATUS_PROVISIONING_STARTED", "ENGINE_STATUS_PROVISIONING_PENDING",
             "ENGINE_STATUS_PROVISIONING_FINISHED", "ENGINE_STATUS_RUNNING_REVISION_STARTING"
     };
-    public FireboltClient1(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpMessageInvoker httpClient) : base(connection, id, secret, endpoint, env, null, httpClient)
+    public FireboltClient1(FireboltConnection connection, string id, string secret, string endpoint, string? env, string account, HttpClient httpClient) : base(connection, id, secret, endpoint, env, null, httpClient)
     {
         _settings = new Lazy<JsonSerializerSettings>(new JsonSerializerSettings());
         _account = account;
@@ -89,7 +89,7 @@ public class FireboltClient1 : FireboltClient
     protected override Task<LoginResponse> Login(string username, string password, string env)
     {
         var credentials = new UsernamePasswordLoginRequest(username, password);
-        return SendAsync<LoginResponse>(HttpMethod.Post, $"https://{_endpoint}{AUTH_USERNAME_PASSWORD_URL}", JsonConvert.SerializeObject(credentials, _settings.Value), _jsonContentType, false, CancellationToken.None, false);
+        return SendAsync<LoginResponse>(HttpMethod.Post, $"https://{_endpoint}{AUTH_USERNAME_PASSWORD_URL}", JsonConvert.SerializeObject(credentials, _settings.Value), _jsonContentType, false, false, CancellationToken.None);
     }
 
     private async Task<string?> GetDefaultEngineUrl(string? accountId, string database, CancellationToken cancellationToken)
@@ -116,7 +116,7 @@ public class FireboltClient1 : FireboltClient
     private async Task<string?> GetEngineAttribute<T>(string? accountId, string suffix, Func<T, string?> attributeGetter, CancellationToken cancellationToken)
     {
         string engineByNameUrl = CreateAccountUri(accountId, suffix);
-        T engineByName = await SendAsync<T>(HttpMethod.Get, engineByNameUrl, null, true, cancellationToken, false);
+        T engineByName = await SendAsync<T>(HttpMethod.Get, engineByNameUrl, null, true, false, cancellationToken);
         return attributeGetter.Invoke(engineByName);
     }
 
@@ -126,13 +126,13 @@ public class FireboltClient1 : FireboltClient
         return $"https://{_endpoint}/core/v1/account{accountPath}{suffix}";
     }
 
-    public override async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string accountName, CancellationToken cancellationToken)
+    public override async Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
     {
-        if (accountName == string.Empty)
+        if (account == string.Empty)
         {
             return await Task.FromResult(new GetAccountIdByNameResponse() { id = null });
         }
-        string url = $"https://{_endpoint}/iam/v2/accounts:getIdByName?accountName={accountName}";
+        string url = $"https://{_endpoint}/iam/v2/accounts:getIdByName?accountName={account}";
         return await GetJsonResponseAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, null, requiresAuth: true, cancellationToken);
     }
 
