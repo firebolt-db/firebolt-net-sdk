@@ -42,7 +42,7 @@ public class FireboltClient1 : FireboltClient
         _account = account;
     }
 
-    public override async Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken)
+    public override async Task<ConnectionResponse> ConnectAsync(string? engineName, string databaseName, CancellationToken cancellationToken)
     {
         try
         {
@@ -70,25 +70,25 @@ public class FireboltClient1 : FireboltClient
             {
                 engineUrl = await GetEngineUrlByEngineName(accountId, engineName!, cancellationToken);
             }
-            else if (database != null)
+            else if (databaseName != null)
             {
-                engineUrl = await GetDefaultEngineUrl(accountId, database, cancellationToken);
+                engineUrl = await GetDefaultEngineUrl(accountId, databaseName, cancellationToken);
             }
             if (engineUrl == null)
             {
-                throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {database} database");
+                throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {databaseName} database");
             }
-            return new ConnectionResponse(engineUrl!, database!, FireboltConnection.SYSTEM_ENGINE.Equals(engineName));
+            return new ConnectionResponse(engineUrl!, databaseName!, FireboltConnection.SYSTEM_ENGINE.Equals(engineName));
         }
         catch (System.Exception ex)
         {
-            throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {database} database", ex);
+            throw new FireboltException(engineName != null ? $"Engine {engineName} not found." : $"Cannot get url of default engine url from {databaseName} database", ex);
         }
     }
 
-    protected override Task<LoginResponse> Login(string id, string secret, string env)
+    protected override Task<LoginResponse> Login(string username, string password, string env)
     {
-        var credentials = new UsernamePasswordLoginRequest(id, secret);
+        var credentials = new UsernamePasswordLoginRequest(username, password);
         return SendAsync<LoginResponse>(HttpMethod.Post, $"https://{_endpoint}{AUTH_USERNAME_PASSWORD_URL}", JsonConvert.SerializeObject(credentials, _settings.Value), _jsonContentType, false, false, CancellationToken.None);
     }
 

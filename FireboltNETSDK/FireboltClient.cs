@@ -134,8 +134,7 @@ public abstract class FireboltClient
         if (setParams.Length > 0)
             queryStr.Append('&').Append(setParams);
         urlBuilder.Query = queryStr.ToString();
-        var url = urlBuilder.Uri.ToString();
-        return url;
+        return urlBuilder.Uri.ToString();
     }
 
     private StringBuilder GetQueryString(string? databaseName, string? accountId, string outputFormat = "JSON_Compact")
@@ -149,11 +148,11 @@ public abstract class FireboltClient
         {
             parameters["account_id"] = accountId;
         }
-        if (!_connection.IsSystem && _connection.InfraVersion >= 2 && _connection.EngineName != null)
+        if (_connection is { IsSystem: false, InfraVersion: >= 2, EngineName: not null })
         {
             parameters["engine"] = _connection.EngineName;
         }
-        if (!_connection.IsSystem && _connection.InfraVersion >= 2)
+        if (_connection is { IsSystem: false, InfraVersion: >= 2 })
         {
             parameters["query_label"] = Guid.NewGuid().ToString();
         }
@@ -162,8 +161,7 @@ public abstract class FireboltClient
             parameters[item.Key] = item.Value;
         }
         var queryStr = parameters.Aggregate(new StringBuilder(),
-            (q, param) => q.AppendFormat("{0}{1}={2}",
-                q.Length > 0 ? "&" : "", param.Key, param.Value));
+            (q, param) => q.Append($"{(q.Length > 0 ? "&" : "")}{param.Key}={param.Value}"));
         return queryStr;
     }
 
@@ -356,9 +354,9 @@ public abstract class FireboltClient
 
     private void ProcessResponseHeaders(HttpResponseHeaders headers, CancellationToken cancellationToken)
     {
-        FireboltConnectionStringBuilder connectionBuilder = new FireboltConnectionStringBuilder(_connection.ConnectionString);
-        bool shouldUpdateConnection = ProcessResetSession(headers);
-        List<string[]> parameters = new List<string[]>();
+        var connectionBuilder = new FireboltConnectionStringBuilder(_connection.ConnectionString);
+        var shouldUpdateConnection = ProcessResetSession(headers);
+        var parameters = new List<string[]>();
         shouldUpdateConnection = ExtractParameters(headers, connectionBuilder, parameters, shouldUpdateConnection);
         shouldUpdateConnection = ProcessParameters(connectionBuilder, parameters, shouldUpdateConnection);
 
@@ -382,18 +380,18 @@ public abstract class FireboltClient
     {
         if (headers.Contains(HEADER_UPDATE_ENDPOINT))
         {
-            string? endpointHeader = headers.GetValues(HEADER_UPDATE_ENDPOINT).FirstOrDefault();
+            var endpointHeader = headers.GetValues(HEADER_UPDATE_ENDPOINT).FirstOrDefault();
             if (endpointHeader != null)
             {
-                string[] enpointHeaderParts = endpointHeader.Split('?', 2, StringSplitOptions.TrimEntries);
-                if (!enpointHeaderParts[0].Equals(connectionBuilder.Endpoint))
+                var endpointHeaderParts = endpointHeader.Split('?', 2, StringSplitOptions.TrimEntries);
+                if (!endpointHeaderParts[0].Equals(connectionBuilder.Endpoint))
                 {
-                    connectionBuilder.Endpoint = enpointHeaderParts[0];
+                    connectionBuilder.Endpoint = endpointHeaderParts[0];
                     shouldUpdateConnection = true;
                 }
-                if (enpointHeaderParts.Length > 1)
+                if (endpointHeaderParts.Length > 1)
                 {
-                    parameters.AddRange(enpointHeaderParts[1].Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
+                    parameters.AddRange(endpointHeaderParts[1].Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
                 }
             }
         }
@@ -468,7 +466,7 @@ public abstract class FireboltClient
 
     public async Task<string> EstablishConnection(bool forceTokenRefresh = false)
     {
-        LoginResponse? loginResponse = forceTokenRefresh ? null : await _tokenStorage.GetCachedToken(_id, _secret);
+        var loginResponse = forceTokenRefresh ? null : await _tokenStorage.GetCachedToken(_id, _secret);
         if (loginResponse == null)
         {
             loginResponse = await Login(_id, _secret, _env);
