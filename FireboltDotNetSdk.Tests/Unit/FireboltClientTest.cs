@@ -18,8 +18,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteQueryAsyncNullDataTest()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (_, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "any", "test.api.firebolt.io", null, "account", httpClient);
@@ -32,8 +31,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteQueryExceptionTest()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, "any", "any", "test.api.firebolt.io", null, "account", httpClient);
@@ -52,8 +50,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public async Task ExecuteQueryTest()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClient);
@@ -72,8 +69,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public async Task ExecuteQueryWithoutAccessTokenTest()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClient);
@@ -101,8 +97,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public async Task ExecuteQueryWithRetryWhenUnauthorizedTest()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClient);
@@ -135,8 +130,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteQueryWithJsonErrorReturned()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClient);
@@ -157,8 +151,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void ExecuteQueryWithRetryWhenUnauthorizedExceptionTest()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClient);
@@ -189,8 +182,7 @@ namespace FireboltDotNetSdk.Tests
         public async Task SuccessfulLoginWithCachedToken(string cs, bool cache)
         {
             // if token is cached the second connection will use the same token and the token is retrived only onece; otherwise the token is retrieved 2 times. 
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(cs);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClient);
@@ -218,8 +210,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public async Task SuccessfulLoginWhenOldTokenIsExpired()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             var client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClient);
@@ -251,8 +242,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void NotAuthorizedLogin()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt-new-test.io", null, "account", httpClient);
@@ -277,8 +267,7 @@ namespace FireboltDotNetSdk.Tests
         public async Task GetSystemEngineUrl()
         {
             const string engineUrl = "http://api.test.firebolt.io";
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = GetHttpMocks();
 
             var loginResponse = new LoginResponse("access_token", "3600", "Bearer");
             handlerMock.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
@@ -298,6 +287,13 @@ namespace FireboltDotNetSdk.Tests
                 Times.Exactly(2),
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>());
+        }
+
+        internal static (Mock<HttpMessageHandler> handlerMock, HttpClient httpClient) GetHttpMocks()
+        {
+            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+            var httpClient = new HttpClient(handlerMock.Object);
+            return (handlerMock, httpClient);
         }
 
 

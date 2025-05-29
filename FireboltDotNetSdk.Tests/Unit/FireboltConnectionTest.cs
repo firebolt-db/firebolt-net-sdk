@@ -486,8 +486,7 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public void SuccessfulLogin()
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = FireboltClientTest.GetHttpMocks();
 
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs = new FireboltConnection(connectionString);
@@ -520,8 +519,7 @@ namespace FireboltDotNetSdk.Tests
         public void SuccessfulLoginTwice()
         {
             // Simulate the first connection. Calls of CleanupCache() guarnatee that the global caches are empty
-            var handlerMock1 = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient1 = new HttpClient(handlerMock1.Object);
+            var (handlerMock1, httpClient1) = FireboltClientTest.GetHttpMocks();
 
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
             var cs1 = new FireboltConnection(connectionString);
@@ -553,8 +551,7 @@ namespace FireboltDotNetSdk.Tests
 
             // Now create the new connection. Due to caches are full we do not expect getting system engine URL and account ID. 
             var cs2 = new FireboltConnection(connectionString);
-            var handlerMock2 = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient2 = new HttpClient(handlerMock2.Object);
+            var (handlerMock2, httpClient2) = FireboltClientTest.GetHttpMocks();
             FireboltClient client2 = new FireboltClient2(cs2, Guid.NewGuid().ToString(), "password", "", "test", "account", httpClient2);
             cs2.Client = client2;
 
@@ -577,8 +574,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("ENGINE_STATE_RUNNING", "api.firebolt.io?account_id=01hf9pchg0mnrd2g3hypm1dea4&engine=max_test", "", "api.firebolt.io")]
         public void SuccessfulLoginWithEngineName(string engineStatus, string engineUrl, string catalogs, string expectedEngineUrl)
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = FireboltClientTest.GetHttpMocks();
 
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
             var cs = new FireboltConnection(connectionString);
@@ -619,8 +615,7 @@ namespace FireboltDotNetSdk.Tests
         /// <returns>the FireboltConnection</returns>
         private static FireboltConnection SetupFireboltConnection(params HttpResponseMessage[] additionalResponses)
         {
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-            var httpClient = new HttpClient(handlerMock.Object);
+            var (handlerMock, httpClient) = FireboltClientTest.GetHttpMocks();
 
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname";
             var connection = new FireboltConnection(connectionString);
