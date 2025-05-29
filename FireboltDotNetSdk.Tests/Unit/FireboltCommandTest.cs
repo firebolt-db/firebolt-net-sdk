@@ -6,6 +6,7 @@ using System.Data.Common;
 using System.Data;
 using Moq;
 using FireboltDoNetSdk.Utils;
+using FireboltNETSDK.Exception;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -37,7 +38,11 @@ namespace FireboltDotNetSdk.Tests
         {
             Query = query;
             CapturedSetParamList = new HashSet<string>(setParamList);
-            return await Task.FromResult((T)(object)_response);
+
+            if (typeof(T) != typeof(StreamReader)) return await Task.FromResult((T)(object)_response);
+
+            var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(_response));
+            return await Task.FromResult((T)(object)new StreamReader(stream));
         }
 
         public override Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken)
@@ -567,6 +572,112 @@ namespace FireboltDotNetSdk.Tests
                     Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(long)));
                 });
             }
+        }
+
+        [Test]
+        public void ExecuteStreamingCommand_ReturnsExpectedResult()
+        {
+            const string response = "{\"message_type\":\"START\",\"result_columns\":[{\"name\":\"?column?\",\"type\":\"integer\"}]}\n{\"message_type\":\"DATA\",\"data\":[[1],[1]]}\n{\"message_type\":\"FINISH_SUCCESSFULLY\"}";
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "select 1 from generate_series(1, 2))", new FireboltParameterCollection());
+
+            using var reader = command.ExecuteStreamedQuery();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+            });
+        }
+
+        [Test]
+        public void ExecuteStreamingCommand_ReturnsExpectedResultUsingEnumerator()
+        {
+            const string response = "{\"message_type\":\"START\",\"result_columns\":[{\"name\":\"?column?\",\"type\":\"integer\"}]}\n{\"message_type\":\"DATA\",\"data\":[[1],[1]]}\n{\"message_type\":\"FINISH_SUCCESSFULLY\"}";
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "select 1 from generate_series(1, 2))", new FireboltParameterCollection());
+
+            var reader = command.ExecuteStreamedQuery();
+            var enumerator = reader.GetEnumerator();
+            Assert.Multiple(() =>
+            {
+                Assert.That(enumerator.MoveNext(), Is.EqualTo(true));
+                var current = enumerator.Current;
+                Assert.That(current, Is.Not.Null);
+                var dbDataRecord = current as DbDataRecord;
+                Assert.That(dbDataRecord?.GetInt32(0), Is.EqualTo(1));
+                Assert.That(dbDataRecord?.GetFieldType(0), Is.EqualTo(typeof(int)));
+
+                Assert.That(enumerator.MoveNext(), Is.EqualTo(true));
+                current = enumerator.Current;
+                Assert.That(current, Is.Not.Null);
+                dbDataRecord = current as DbDataRecord;
+                Assert.That(dbDataRecord?.GetInt32(0), Is.EqualTo(1));
+                Assert.That(dbDataRecord?.GetFieldType(0), Is.EqualTo(typeof(int)));
+
+                Assert.That(enumerator.MoveNext(), Is.EqualTo(false));
+            });
+            reader.Close();
+        }
+
+        [Test]
+        public void ExecuteStreamingCommand_FinishesWithError()
+        {
+            const string response = "{\"message_type\":\"START\",\"result_columns\":[{\"name\":\"?column?\",\"type\":\"integer\"}]}\n{\"message_type\":\"FINISH_WITH_ERRORS\",\"errors\":[{\"description\":\"Line 1, Column 9: syntax error, unexpected identifier, expecting end of file select *1;\",\"location\":{\"failing_line\":1,\"start_offset\":9}}]}";
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "select 1 from generate_series(1, 2))", new FireboltParameterCollection());
+
+            var fireboltException = Assert.Throws<FireboltStructuredException>(() => command.ExecuteStreamedQuery());
+            Assert.That(fireboltException, Is.Not.Null);
+            Assert.That(fireboltException!.Message, Does.Contain("Line 1, Column 9: syntax error, unexpected identifier, expecting end of file select *1;"));
+        }
+
+        [Test]
+        public void ExecuteStreamingCommand_FinishesWithErrorAfterData()
+        {
+            const string response = "{\"message_type\":\"START\",\"result_columns\":[{\"name\":\"?column?\",\"type\":\"integer\"}]}\n{\"message_type\":\"DATA\",\"data\":[[1],[1]]}\n{\"message_type\":\"FINISH_WITH_ERRORS\",\"errors\":[{\"description\":\"Line 1, Column 9: syntax error, unexpected identifier, expecting end of file select *1;\",\"location\":{\"failing_line\":1,\"start_offset\":9}}]}";
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "select 1 from generate_series(1, 2))", new FireboltParameterCollection());
+
+            var reader = command.ExecuteStreamedQuery();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+            });
+            var fireboltException = Assert.Throws<FireboltStructuredException>(() => reader.Read());
+            Assert.That(fireboltException, Is.Not.Null);
+            Assert.That(fireboltException!.Message, Does.Contain("Line 1, Column 9: syntax error, unexpected identifier, expecting end of file select *1;"));
+        }
+
+        [Test]
+        public void ExecuteStreamingCommandWithPreparedStatement_ReturnsExpectedResult()
+        {
+            const string response = "{\"message_type\":\"START\",\"result_columns\":[{\"name\":\"?column?\",\"type\":\"integer\"}]}\n{\"message_type\":\"DATA\",\"data\":[[1],[1]]}\n{\"message_type\":\"FINISH_WITH_ERRORS\",\"errors\":[{\"description\":\"Line 1, Column 9: syntax error, unexpected identifier, expecting end of file select *1;\",\"location\":{\"failing_line\":1,\"start_offset\":9}}]}";
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = new MockClient(response), EngineUrl = "engine" };
+            var command = new FireboltCommand(connection, "select 1 from generate_series(1, @max))", new FireboltParameterCollection());
+            command.Parameters.Add(new FireboltParameter("@max", 2));
+
+            var reader = command.ExecuteStreamedQuery();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+            });
+            var fireboltException = Assert.Throws<FireboltStructuredException>(() => reader.Read());
+            Assert.That(fireboltException, Is.Not.Null);
+            Assert.That(fireboltException!.Message, Does.Contain("Line 1, Column 9: syntax error, unexpected identifier, expecting end of file select *1;"));
         }
 
         private static FireboltCommand CreateCommand(string? query, string response)

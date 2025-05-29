@@ -27,15 +27,15 @@ using FireboltDotNetSdk.Utils;
 namespace FireboltDotNetSdk.Client
 {
     /// <summary>
-    /// Represents a data reader to get data form a FireBolt database. This class cannot be inherited.
+    /// Represents a data reader to get data form a FireBolt database.
     /// </summary>
-    public sealed class FireboltDataReader : DbDataReader
+    public class FireboltDataReader : DbDataReader
     {
         private bool _closed = false;
         private readonly string? _fullTableName;
         private readonly QueryResult _queryResult;
         private readonly int _depth;
-        private int _currentRowIndex = -1;
+        protected int _currentRowIndex = -1;
         private const int MatchTimeoutSeconds = 60;
         private static readonly IDictionary<string, Type> TypesMap = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
         {
@@ -475,7 +475,7 @@ namespace FireboltDotNetSdk.Client
             return row != null && row[ordinal] == null;
         }
 
-        private object? GetValueSafely(int ordinal)
+        protected object? GetValueSafely(int ordinal)
         {
             ValidateRowIndex();
             var row = GetRow(ordinal);
@@ -492,7 +492,7 @@ namespace FireboltDotNetSdk.Client
             return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
         }
 
-        private List<object?>? GetRow(int ordinal)
+        protected virtual List<object?>? GetRow(int ordinal)
         {
             List<object?>? row = _queryResult.Data[_currentRowIndex];
             if (ordinal < 0 || ordinal > row?.Count - 1)
@@ -503,7 +503,7 @@ namespace FireboltDotNetSdk.Client
             return row;
         }
 
-        private void ValidateRowIndex()
+        protected void ValidateRowIndex()
         {
             if (_currentRowIndex == -1)
             {
@@ -511,7 +511,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private ColumnType GetColumnType(int ordinal)
+        protected virtual ColumnType GetColumnType(int ordinal)
         {
             return ColumnType.Of(TypesConverter.GetFullColumnTypeName(_queryResult.Meta[ordinal]));
         }

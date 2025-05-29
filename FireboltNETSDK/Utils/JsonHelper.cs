@@ -62,6 +62,45 @@ namespace FireboltDotNetSdk.Utils
         public long? ScannedBytesStorage { get; set; }
     }
 
+    public class StreamingJsonStart
+    {
+        [JsonProperty("message_type", NullValueHandling = NullValueHandling.Ignore)]
+        public string MessageType { get; set; } = null!;
+
+        [JsonProperty("query_id", NullValueHandling = NullValueHandling.Ignore)]
+        public string QueryId { get; set; } = null!;
+
+        [JsonProperty("result_columns", NullValueHandling = NullValueHandling.Ignore)]
+        public List<Meta> Meta { get; set; } = null!;
+    }
+
+    public class StreamingJsonData
+    {
+        [JsonProperty("message_type", NullValueHandling = NullValueHandling.Ignore)]
+        public string MessageType { get; set; } = null!;
+
+        [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
+        public List<List<object?>> Data { get; set; } = null!;
+    }
+
+    public class StreamingJsonFinishSuccessfully
+    {
+        [JsonProperty("message_type", NullValueHandling = NullValueHandling.Ignore)]
+        public string MessageType { get; set; } = null!;
+
+        [JsonProperty("statistics", NullValueHandling = NullValueHandling.Ignore)]
+        public Statistics Statistics { get; set; } = null!;
+    }
+
+    public class StreamingJsonFinishError
+    {
+        [JsonProperty("message_type", NullValueHandling = NullValueHandling.Ignore)]
+        public string MessageType { get; set; } = null!;
+
+        [JsonProperty("errors", NullValueHandling = NullValueHandling.Ignore)]
+        public List<StructuredError> Errors { get; set; } = null!;
+    }
+
     public class JsonErrorQueryResult
     {
         [JsonProperty("errors", NullValueHandling = NullValueHandling.Ignore)]

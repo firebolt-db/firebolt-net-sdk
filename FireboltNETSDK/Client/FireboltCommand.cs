@@ -268,6 +268,25 @@ namespace FireboltDotNetSdk.Client
             );
         }
 
+        private async Task<StreamReader> ExecuteStreamingCommandAsync(string commandText, CancellationToken cancellationToken = default)
+        {
+            VerifyConnection();
+            var engineUrl = Connection!.EngineUrl;
+            // If the command is a SET command, process it and return null
+            var isSetCommand = IsSetCommand(commandText);
+            if (isSetCommand)
+            {
+                throw new InvalidOperationException("SET commands are not supported by the streaming command execution");
+            }
+            var newCommandText = commandText;
+            if (Parameters.Any())
+            {
+                newCommandText = GetParamQuery(commandText);
+            }
+
+            return await Connection!.Client.ExecuteQueryAsync<StreamReader>(engineUrl, GetDatabase(), Connection?.AccountId, newCommandText, SetParamList, cancellationToken);
+        }
+
 
         private string ValidateSetCommand(string setCommand)
         {
@@ -538,6 +557,27 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Failed to parse async query response", ex);
             }
+        }
+
+        /// <summary>
+        /// Executes a query which returns it's results without storing them in memory.
+        /// </summary>
+        /// <returns>Always returns 0.</returns>
+        public FireboltDataReader ExecuteStreamedQuery()
+        {
+            return ExecuteStreamedQueryAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Executes a query which returns it's results without storing them in memory.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation. Always returns 0.</returns>
+        public async Task<FireboltDataReader> ExecuteStreamedQueryAsync(CancellationToken cancellationToken = default)
+        {
+            // Execute the query with the async parameter
+            var streamReader = await ExecuteStreamingCommandAsync(StrictCommandText, cancellationToken);
+
+            return new FireboltStreamingDataReader(streamReader);
         }
     }
 }
