@@ -12,3 +12,4 @@
 /FireboltDotNetSdk.Tests/obj/Release/net6.0
 /FireboltDotNetSdk.Tests/obj
 .idea
+*.DotSettings.user
