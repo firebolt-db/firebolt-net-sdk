@@ -35,6 +35,10 @@ namespace FireboltDotNetSdk.Client
         private readonly Queue<List<object?>> _currentRowQueue = new();
         private List<object?>? _currentRow;
         private bool _endOfStream = false;
+        private const string Start = "START";
+        private const string Data = "DATA";
+        private const string FinishWithErrors = "FINISH_WITH_ERRORS";
+        private const string FinishSuccessfully = "FINISH_SUCCESSFULLY";
 
         public FireboltStreamingDataReader(StreamReader streamReader) :
             base(null, new QueryResult())
@@ -144,11 +148,11 @@ namespace FireboltDotNetSdk.Client
 
             switch (messageType)
             {
-                case "DATA":
+                case Data:
                     json?.Data.ForEach(_currentRowQueue.Enqueue);
                     return true;
 
-                case "FINISH_SUCCESSFULLY":
+                case FinishSuccessfully:
                     _endOfStream = true;
                     break;
 
@@ -163,11 +167,15 @@ namespace FireboltDotNetSdk.Client
         private void InitializeMetadata()
         {
             var line = _streamReader.ReadLine();
-            if (string.IsNullOrWhiteSpace(line)) throw new FireboltException("Failed to read line from stream");
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                _endOfStream = true;
+                throw new FireboltException("Failed to read line from stream");
+            }
 
             var json = JsonConvert.DeserializeObject<StreamingJsonStart>(line);
 
-            if (json?.MessageType != "START") HandleError(line);
+            if (json?.MessageType != Start) HandleError(line);
             _metas = json?.Meta ?? new List<Meta>();
         }
 
@@ -175,10 +183,10 @@ namespace FireboltDotNetSdk.Client
         {
             _endOfStream = true;
             var json = JsonConvert.DeserializeObject<StreamingJsonFinishError>(line);
-            if (json?.MessageType == "FINISH_WITH_ERRORS")
+            if (json?.MessageType == FinishWithErrors)
                 throw new FireboltStructuredException(json.Errors);
 
-            throw new FireboltException("Failed to parse JSON from stream: " + line);
+            throw new FireboltException("Failed to parse JSON from stream. Unexpected messageType: " + json?.MessageType + " in line: " + line);
         }
 
         private bool IsStreamClosed()
