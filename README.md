@@ -200,7 +200,7 @@ This approach ensures that long-running queries do not block your application wh
 
 ### Server-side Prepared Statement Execution
 
-Firebolt supports **server-side prepared statement execution**, allowing better safety when using client provided inputs, not constructing the query server-side.
+Firebolt supports **server-side prepared statement execution**, allowing better safety when using client provided inputs, not constructing the query client-side.
 
 ###### Prerequisites
 
@@ -214,10 +214,10 @@ This makes any prepared statement constructed from the connection to use the `Fb
 
 Other than this parameter, the API is the same, except for the command text.
 ```cs
-FireboltCommand command = conn.CreateCommand();
+var command = (FireboltCommand)conn.CreateCommand();
 command.CommandText = "SELECT * FROM my_table WHERE id = $1";
 command.Parameters.AddWithValue("$1", 123);
-//command.Prepare(); is not needed
+command.Prepare();
 
 // Execute the query as any other command
 using var reader = command.ExecuteReader();
