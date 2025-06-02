@@ -666,13 +666,28 @@ namespace FireboltDotNetSdk.Tests
             command.Parameters.Add(new FireboltParameter("@max", 2));
 
             var reader = command.ExecuteStreamedQuery();
+
             Assert.Multiple(() =>
             {
+                Assert.That(reader.FieldCount, Is.EqualTo(1));
+                Assert.That(reader.VisibleFieldCount, Is.EqualTo(1));
+                Assert.That(reader.Depth, Is.EqualTo(0));
+            });
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.HasRows, Is.EqualTo(true));
                 Assert.That(reader.Read(), Is.EqualTo(true));
+                Assert.That(reader.HasRows, Is.EqualTo(true));
+
                 Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.IsDBNull(0), Is.EqualTo(false));
                 Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+
+                Assert.That(reader.GetOrdinal("?column?"), Is.EqualTo(0));
+
                 Assert.That(reader.Read(), Is.EqualTo(true));
                 Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                Assert.That(reader.IsDBNull(0), Is.EqualTo(false));
                 Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
             });
             var fireboltException = Assert.Throws<FireboltStructuredException>(() => reader.Read());
