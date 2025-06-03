@@ -226,7 +226,6 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(e.Message, Does.Contain("Line 1, Column 9: Division by zero\n" +
                                                              "select 1/(i-100000) as a from generate_series(1,...\n"));
             }
-
             Assert.Multiple(() =>
             {
                 Assert.That(oneReadAtLeast, Is.True, "Expected at least one row to be read before the exception was thrown.");

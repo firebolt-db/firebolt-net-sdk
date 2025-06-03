@@ -182,10 +182,17 @@ namespace FireboltDotNetSdk.Client
         private void HandleError(string line)
         {
             _endOfStream = true;
-            var json = JsonConvert.DeserializeObject<StreamingJsonFinishError>(line);
+            StreamingJsonFinishError? json;
+            try
+            {
+                json = JsonConvert.DeserializeObject<StreamingJsonFinishError>(line);
+            }
+            catch (System.Exception e)
+            {
+                throw new FireboltException("Failed to parse JSON from stream on line: " + line, e);
+            }
             if (json?.MessageType == FinishWithErrors)
                 throw new FireboltStructuredException(json.Errors);
-
             throw new FireboltException("Failed to parse JSON from stream. Unexpected messageType: " + json?.MessageType + " in line: " + line);
         }
 
