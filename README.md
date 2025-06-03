@@ -197,3 +197,61 @@ bool cancelled = await conn.CancelServerSideAsyncQueryAsync(token);
 ```
 
 This approach ensures that long-running queries do not block your application while allowing you to monitor, manage, and cancel them as needed.
+
+### Server-side Prepared Statement Execution
+
+Firebolt supports **server-side prepared statement execution**, allowing better safety when using client provided inputs, not constructing the query client-side.
+
+###### Prerequisites
+
+To make use of server-side prepared statements, you need to provide the following parameter in your connection string:
+```plaintext
+preparedStatementParamStyle=FbNumeric
+```
+This makes any prepared statement constructed from the connection to use the `FbNumeric` parameter style, which is required for server-side prepared statements.
+
+⚠ **Note:** Using this parameter, normal prepared statements will not work, so you need to use server-side prepared statements only.
+
+Other than this parameter, the API is the same, except for the command text.
+```cs
+var command = (FireboltCommand)conn.CreateCommand();
+command.CommandText = "SELECT * FROM my_table WHERE id = $1";
+command.Parameters.AddWithValue("$1", 123);
+command.Prepare();
+
+// Execute the query as any other command
+using var reader = command.ExecuteReader();
+```
+
+###### Prepared Statement Parameter Style
+The `preparedStatementParamStyle` parameter in the connection string can take the following values:
+- `Native`(@paramName) - default: Uses the native parameter style, which is compatible with client-side prepared statements.
+- `FbNumeric`($number): Uses Firebolt's numeric parameter style, which is required for server-side prepared statements.
+
+
+### Query result streaming
+
+Firebolt supports **query result streaming**, allowing you to retrieve large datasets in a memory-efficient manner. This is particularly useful for queries that return a significant amount of data, as it avoids loading the entire result set into memory at once.
+
+###### Executing a Streaming Query
+
+To execute a query that returns a large result set, you can use the `ExecuteStreamedQuery` method  or it's asynchronous equivalent `ExecuteStreamedQueryAsync`. This method allows you to stream the results directly from the server without loading them all into memory at once.
+
+```cs
+FireboltCommand command = (FireboltCommand)conn.CreateCommand();
+command.CommandText = "SELECT * FROM large_table";
+
+// Execute the query asynchronously on the server
+using var reader = command.ExecuteStreamedQuery();
+// or use the asynchronous version
+using var reader = await command.ExecuteStreamedQueryAsync();
+
+// Iterate over the streamed results in the same way as with a regular DbDataReader
+while (await reader.ReadAsync())
+{
+    for (int i = 0; i < reader.FieldCount; i++)
+    {
+        Console.WriteLine($"{reader.GetName(i)}: {reader.GetValue(i)}");
+    }
+}
+```
