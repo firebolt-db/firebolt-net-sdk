@@ -144,7 +144,7 @@ namespace FireboltDotNetSdk.Client
 
         internal QueryResult? Execute(string commandText)
         {
-            return CreateQueryResult(ExecuteCommandAsyncWithCommandTimeout(commandText, CancellationToken.None).GetAwaiter().GetResult());
+            return CreateQueryResult(ExecuteCommandAsyncWithCommandTimeout<string>(commandText, CancellationToken.None).GetAwaiter().GetResult());
         }
 
         private static QueryResult? CreateQueryResult(string? response)
@@ -157,11 +157,11 @@ namespace FireboltDotNetSdk.Client
             return queryResult != null ? new FireboltDataReader(null, queryResult, 0) : throw new InvalidOperationException("No result produced");
         }
 
-        private async Task<string?> ExecuteCommandAsyncWithCommandTimeout(string commandText, CancellationToken cancellationToken)
+        private async Task<T?> ExecuteCommandAsyncWithCommandTimeout<T>(string commandText, CancellationToken cancellationToken)
         {
             if (CommandTimeoutMillis == 0)
             {
-                return await ExecuteCommandAsync(commandText, cancellationToken);
+                return await ExecuteCommandAsync<T>(commandText, cancellationToken);
             }
             using (var timeoutSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(CommandTimeoutMillis)))
             using (var linkedTokenSource =
@@ -169,7 +169,7 @@ namespace FireboltDotNetSdk.Client
             {
                 try
                 {
-                    return await ExecuteCommandAsync(commandText, linkedTokenSource.Token);
+                    return await ExecuteCommandAsync<T>(commandText, linkedTokenSource.Token);
                 }
                 catch (TaskCanceledException) when (timeoutSource.Token.IsCancellationRequested)
                 {
@@ -190,12 +190,8 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken, bool isServerAsync = false)
+        private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
         {
-            if (isServerAsync)
-            {
-                throw new InvalidOperationException("SET commands are not supported by the server-side async");
-            }
             VerifyConnection();
             commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
             SetParamList.Add(commandText);
@@ -210,7 +206,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private async Task<string?> ExecuteCommandAsync(string commandText, CancellationToken cancellationToken, bool isServerAsync = false)
+        private async Task<T?> ExecuteCommandAsync<T>(string commandText, CancellationToken cancellationToken, bool isServerAsync = false)
         {
             VerifyConnection();
             var engineUrl = Connection!.EngineUrl;
@@ -219,8 +215,13 @@ namespace FireboltDotNetSdk.Client
             var isSetCommand = IsSetCommand(commandText);
             if (isSetCommand)
             {
-                await ProcessSetCommand(commandText, cancellationToken, isServerAsync);
-                return await Task.FromResult<string?>(null);
+                var isStreamingRequest = typeof(T) == typeof(StreamReader);
+                if (isServerAsync || isStreamingRequest)
+                {
+                    throw new InvalidOperationException("SET commands are not supported by the server-side async");
+                }
+                await ProcessSetCommand(commandText, cancellationToken);
+                return await Task.FromResult<T?>(default);
             }
             var newCommandText = commandText;
             var paramList = SetParamList;
@@ -244,7 +245,7 @@ namespace FireboltDotNetSdk.Client
                 };
             }
 
-            return await Connection!.Client.ExecuteQueryAsync<string>(engineUrl, GetDatabase(), Connection.AccountId, newCommandText, paramList, cancellationToken);
+            return await Connection!.Client.ExecuteQueryAsync<T>(engineUrl, GetDatabase(), Connection.AccountId, newCommandText, paramList, cancellationToken);
         }
 
         private static bool IsSetCommand(string commandText)
@@ -268,7 +269,6 @@ namespace FireboltDotNetSdk.Client
             );
         }
 
-
         private string ValidateSetCommand(string setCommand)
         {
             string name = setCommand.Split("=")[0].Trim();
@@ -286,7 +286,7 @@ namespace FireboltDotNetSdk.Client
             {
                 cancellationToken.Register(Cancel);
             }
-            return ExecuteCommandAsyncWithCommandTimeout(StrictCommandText, cancellationToken).ContinueWith(
+            return ExecuteCommandAsyncWithCommandTimeout<string>(StrictCommandText, cancellationToken).ContinueWith(
                 result => CreateDbDataReader(CreateQueryResult(result.Result)), cancellationToken);
         }
 
@@ -491,7 +491,7 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
-            await ExecuteCommandAsync(StrictCommandText, cancellationToken);
+            await ExecuteCommandAsync<string>(StrictCommandText, cancellationToken);
             return await Task.FromResult(0);
         }
 
@@ -513,7 +513,7 @@ namespace FireboltDotNetSdk.Client
         public async Task<int> ExecuteServerSideAsyncNonQueryAsync(CancellationToken cancellationToken = default)
         {
             // Execute the query with the async parameter
-            var response = await ExecuteCommandAsync(StrictCommandText, cancellationToken, true);
+            var response = await ExecuteCommandAsync<string>(StrictCommandText, cancellationToken, true);
             if (response == null)
             {
                 throw new FireboltException("Failed to execute async query: no response received");
@@ -538,6 +538,31 @@ namespace FireboltDotNetSdk.Client
             {
                 throw new FireboltException("Failed to parse async query response", ex);
             }
+        }
+
+        /// <summary>
+        /// Executes a query which returns it's results without storing them in memory.
+        /// </summary>
+        /// <returns>Always returns 0.</returns>
+        public FireboltDataReader ExecuteStreamedQuery()
+        {
+            return ExecuteStreamedQueryAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Executes a query which returns it's results without storing them in memory.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation. Always returns 0.</returns>
+        public async Task<FireboltDataReader> ExecuteStreamedQueryAsync(CancellationToken cancellationToken = default)
+        {
+            // Execute the query with the async parameter
+            var streamReader = await ExecuteCommandAsyncWithCommandTimeout<StreamReader>(StrictCommandText, cancellationToken);
+            if (streamReader == null)
+            {
+                throw new FireboltException("Failed to execute streamed query: no response received");
+            }
+
+            return new FireboltStreamingDataReader(streamReader);
         }
     }
 }

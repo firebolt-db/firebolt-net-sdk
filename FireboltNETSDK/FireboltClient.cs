@@ -115,13 +115,14 @@ public abstract class FireboltClient
         if (string.IsNullOrEmpty(engineEndpoint) || string.IsNullOrEmpty(query))
             throw new FireboltException(
                 $"Some parameters are null or empty: engineEndpoint: {engineEndpoint} or query: {query}");
+        var isStreamingRequest = typeof(T) == typeof(StreamReader);
 
-        var url = GetUrl(engineEndpoint, databaseName, accountId, setParamList);
+        var url = GetUrl(engineEndpoint, databaseName, accountId, setParamList, isStreamingRequest);
 
         return await SendAsync<T>(HttpMethod.Post, url, query, _textContentType, needsAccessToken: true, retryUnauthorized: true, cancellationToken);
     }
 
-    private string GetUrl(string engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList)
+    private string GetUrl(string engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, bool isStreamingRequest)
     {
         var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
         var urlBuilder = new UriBuilder(engineEndpoint)
@@ -130,15 +131,16 @@ public abstract class FireboltClient
             Port = -1
         };
 
-        var queryStr = GetQueryString(databaseName, accountId);
+        var queryStr = GetQueryString(databaseName, accountId, isStreamingRequest);
         if (setParams.Length > 0)
             queryStr.Append('&').Append(setParams);
         urlBuilder.Query = queryStr.ToString();
         return urlBuilder.Uri.ToString();
     }
 
-    private StringBuilder GetQueryString(string? databaseName, string? accountId, string outputFormat = "JSON_Compact")
+    private StringBuilder GetQueryString(string? databaseName, string? accountId, bool isStreamingRequest)
     {
+        var outputFormat = isStreamingRequest ? "JSONLines_Compact" : "JSON_Compact";
         var parameters = new Dictionary<string, string>() { { "output_format", outputFormat } };
         if (databaseName != null)
         {
@@ -173,6 +175,12 @@ public abstract class FireboltClient
         {
             var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return new ObjectResponseResult<T>((T)(object)text, text);
+        }
+
+        if (typeof(T) == typeof(StreamReader))
+        {
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            return new ObjectResponseResult<T>((T)(object)new StreamReader(stream), string.Empty);
         }
 
         if (readResponseAsString)
@@ -240,9 +248,13 @@ public abstract class FireboltClient
     protected async Task<T> SendAsync<T>(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken, bool retryUnauthorized, CancellationToken cancellationToken)
     {
         using var request = await GetHttpRequest(method, uri, content, needsAccessToken);
+        var isStreamingRequest = typeof(T) == typeof(StreamReader);
 
         var response = await _httpClient
-            .SendAsync(request, cancellationToken)
+            .SendAsync(request,
+                isStreamingRequest
+                    ? HttpCompletionOption.ResponseHeadersRead
+                    : HttpCompletionOption.ResponseContentRead, cancellationToken)
             .ConfigureAwait(false);
 
         try
@@ -275,7 +287,10 @@ public abstract class FireboltClient
         }
         finally
         {
-            response.Dispose();
+            if (!isStreamingRequest)
+            {
+                response.Dispose();
+            }
         }
     }
 
