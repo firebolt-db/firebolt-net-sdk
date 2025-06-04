@@ -68,7 +68,7 @@ namespace FireboltDotNetSdk.Tests
         {
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
             connection.Open();
-            var now = DateTime.UtcNow;
+            var now = new DateTime(DateTime.UtcNow.Ticks / 10 * 10, DateTimeKind.Utc);
 
             FireboltCommand command = (FireboltCommand)connection.CreateCommand();
             command.CommandText = "SELECT $1::int, $2::long, $3::decimal(38,4), $4::real, $5::double, $6::array(int), $7::datetime, $8::text";
