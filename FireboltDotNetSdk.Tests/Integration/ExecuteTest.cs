@@ -481,7 +481,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void AdapterNullValuesTest()
         {
             DbDataAdapter adapter = new FireboltDataAdapter("SELECT [1,2,null]::array(int), [[1,2],[null,2],null]::array(array(int)), null::array(array(int))", USER_CONNECTION_STRING);
@@ -520,7 +520,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("general")]
+        [Category("engine-v2")]
         public void AdapterVariousValuesTest()
         {
             const string query = "select  1                                                         as col_int,\n" +
