@@ -121,19 +121,13 @@ namespace FireboltDoNetSdk.Utils
                     FireboltDataType.Double => typeof(double),
                     FireboltDataType.Float => typeof(float),
                     FireboltDataType.Boolean => typeof(bool),
-                    FireboltDataType.ByteA => columnType.Nullable ? typeof(byte?[]) : typeof(byte[]),
+                    FireboltDataType.ByteA => typeof(byte[]),
                     FireboltDataType.Null => throw new FireboltException("Not null value in null type"),
                     _ => throw new FireboltException("Invalid destination type: " + columnType.Type)
                 }
             };
-            if (normalType == typeof(string)
-                || normalType == typeof(byte?[])
-                || normalType == typeof(byte[])
-                || !columnType.Nullable)
-            {
-                return normalType;
-            }
-            return typeof(Nullable<>).MakeGenericType(normalType);
+
+            return normalType;
         }
 
         public static Type GetArrayType(ArrayType arrayType)
@@ -143,7 +137,12 @@ namespace FireboltDoNetSdk.Utils
                 return GetArrayType(innerArrayType).MakeArrayType();
             }
 
-            return GetType(arrayType.InnerType).MakeArrayType();
+            var type = GetType(arrayType.InnerType);
+            if (arrayType.InnerType.Nullable)
+            {
+                type = typeof(Nullable<>).MakeGenericType(type);
+            }
+            return type.MakeArrayType();
         }
 
         public static bool ParseBoolean(object val)

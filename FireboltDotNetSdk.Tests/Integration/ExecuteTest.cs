@@ -481,6 +481,101 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        [Category("engine-v2")]
+        public void AdapterNullValuesTest()
+        {
+            DbDataAdapter adapter = new FireboltDataAdapter("SELECT [1,2,null]::array(int), [[1,2],[null,2],null]::array(array(int)), null::array(array(int))", USER_CONNECTION_STRING);
+            var dataSet = new DataSet();
+
+            adapter.Fill(dataSet);
+
+            var table = dataSet.Tables[0];
+
+            Assert.That(table.Rows, Has.Count.EqualTo(1), "Should have one row");
+
+            var row = table.Rows[0];
+            Assert.Multiple(() =>
+            {
+
+                // --- Check column types ---
+                Assert.That(table.Columns[0].DataType, Is.EqualTo(typeof(int?[])));
+                Assert.That(table.Columns[1].DataType, Is.EqualTo(typeof(int?[][])));
+                Assert.That(table.Columns[2].DataType, Is.EqualTo(typeof(int[][])));
+            });
+
+            var col0 = row.Field<int?[]>(0)!;
+            var col1 = row.Field<int?[][]>(1)!;
+            var isCol2Null = row.IsNull(2);
+
+            CollectionAssert.AreEqual(new int?[] { 1, 2, null }, col0.ToArray(), "Column 0 mismatch");
+
+            Assert.That(col1, Has.Length.EqualTo(3), "col1 outer array length mismatch");
+            CollectionAssert.AreEqual(new int?[] { 1, 2 }, col1[0], "col1[0] mismatch");
+            CollectionAssert.AreEqual(new int?[] { null, 2 }, col1[1], "col1[1] mismatch");
+            Assert.Multiple(() =>
+            {
+                Assert.That(col1[2], Is.Null, "col1[2] should be null");
+                Assert.That(isCol2Null, Is.True, "Column 2 should be NULL");
+            });
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void AdapterVariousValuesTest()
+        {
+            const string query = "select  1                                                         as col_int,\n" +
+                                 "        null::int                                                 as col_int_null,\n" +
+                                 "        30000000000                                               as col_long,\n" +
+                                 "        null::bigint                                              as col_long_null,\n" +
+                                 "        1.23::float4                                              as col_float,\n" +
+                                 "        null::float4                                              as col_float_null,\n" +
+                                 "        1.23456789012                                             as col_double,\n" +
+                                 "        null::double                                              as col_double_null,\n" +
+                                 "        'text'                                                    as col_text,\n" +
+                                 "        null::text                                                as col_text_null,\n" +
+                                 "        '2021-03-28'::date                                        as col_date,\n" +
+                                 "        null::date                                                as col_date_null,\n" +
+                                 "        '2019-07-31 01:01:01'::timestamp                          as col_timestamp,\n" +
+                                 "        null::timestamp                                           as col_timestamp_null,\n" +
+                                 "        '1111-01-05 17:04:42.123456'::timestamptz                 as col_timestamptz,\n" +
+                                 "        null::timestamptz                                         as col_timestamptz_null,\n" +
+                                 "        true                                                      as col_boolean,\n" +
+                                 "        null::bool                                                as col_boolean_null,\n" +
+                                 "        [1,2,3,4]                                                 as col_array,\n" +
+                                 "        null::array(int)                                          as col_array_null,\n" +
+                                 "        [1,2,null]::array(int)                                    as col_array_null_int,\n" +
+                                 "        '1231232.123459999990457054844258706536'::decimal(38, 30) as col_decimal,\n" +
+                                 "        null::decimal(38, 30)                                     as col_decimal_null,\n" +
+                                 "        'abc123'::bytea                                           as col_bytea,\n" +
+                                 "        null::bytea                                               as col_bytea_null,\n" +
+                                 "        'point(1 2)'::geography                                   as col_geography,\n" +
+                                 "        null::geography                                           as col_geography_null,\n" +
+                                 "        [[1,2],[null,2],null]::array(array(int))                  as col_arr_arr,\n" +
+                                 "        null::array(array(int))                                   as col_arr_arr_null";
+            DbDataAdapter adapter = new FireboltDataAdapter(query, USER_CONNECTION_STRING);
+            var dataSet = new DataSet();
+
+            adapter.Fill(dataSet);
+            var types = new List<Type>
+            {
+                typeof(int), typeof(int), typeof(long), typeof(long),
+                typeof(float), typeof(float), typeof(double), typeof(double),
+                typeof(string), typeof(string), typeof(DateTime), typeof(DateTime),
+                typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(DateTime),
+                typeof(bool), typeof(bool), typeof(int[]), typeof(int[]), typeof(int?[]),
+                typeof(decimal), typeof(decimal), typeof(byte[]), typeof(byte[]),
+                typeof(string), typeof(string), typeof(int?[][]), typeof(int[][])
+            };
+
+            var table = dataSet.Tables[0];
+
+            for (var i = 0; i < types.Count; i++)
+            {
+                Assert.That(table.Columns[i].DataType, Is.EqualTo(types[i]));
+            }
+        }
+
+        [Test]
         [Category("v1")]
         public void ExecuteServiceAccountLoginWithInvalidCredentialsV1()
         {
@@ -716,9 +811,9 @@ namespace FireboltDotNetSdk.Tests
                 DbCommand selectAll = CreateCommand(conn, SELECT_ALL_SIMPLE);
                 Type[] expectedTypes = new Type[]
                 {
-                    typeof(int?), typeof(decimal?), typeof(long?), typeof(float?), typeof(decimal?), typeof(double?),
-                    typeof(string), typeof(DateTime?), typeof(DateTime?), typeof(DateTime?), typeof(bool?),
-                    typeof(byte?[])
+                    typeof(int), typeof(decimal), typeof(long), typeof(float), typeof(decimal), typeof(double),
+                    typeof(string), typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(bool),
+                    typeof(byte[])
                 };
 
                 using (DbDataReader reader = selectAll.ExecuteReader())

@@ -40,12 +40,12 @@ namespace FireboltDotNetSdk.Tests
 
         private static readonly List<Type> TypeList = new()
         {
-            typeof(int), typeof(int?), typeof(long), typeof(long?),
-            typeof(float), typeof(float?), typeof(double), typeof(double?),
-            typeof(string), typeof(string), typeof(DateTime), typeof(DateTime?),
-            typeof(DateTime), typeof(DateTime?), typeof(DateTime), typeof(DateTime?),
-            typeof(bool), typeof(bool?), typeof(int[]), typeof(int[]), typeof(int?[]),
-            typeof(decimal), typeof(decimal?), typeof(byte[]), typeof(byte?[]),
+            typeof(int), typeof(int), typeof(long), typeof(long),
+            typeof(float), typeof(float), typeof(double), typeof(double),
+            typeof(string), typeof(string), typeof(DateTime), typeof(DateTime),
+            typeof(DateTime), typeof(DateTime), typeof(DateTime), typeof(DateTime),
+            typeof(bool), typeof(bool), typeof(int[]), typeof(int[]), typeof(int?[]),
+            typeof(decimal), typeof(decimal), typeof(byte[]), typeof(byte[]),
             typeof(string), typeof(string), typeof(int?[][]), typeof(int[][])
         };
 
