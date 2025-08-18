@@ -49,6 +49,7 @@ public abstract class FireboltClient
     private readonly string HEADER_UPDATE_PARAMETER = "Firebolt-Update-Parameters";
     private readonly string HEADER_UPDATE_ENDPOINT = "Firebolt-Update-Endpoint";
     private readonly string HEADER_RESET_SESSION = "Firebolt-Reset-Session";
+    private readonly string HEADER_REMOVE_PARAMETERS = "Firebolt-Remove-Parameters";
 
     private readonly IDictionary<string, string> _queryParameters = new Dictionary<string, string>();
     internal readonly TokenStorage _tokenStorage;
@@ -374,6 +375,7 @@ public abstract class FireboltClient
         var parameters = new List<string[]>();
         shouldUpdateConnection = ExtractParameters(headers, connectionBuilder, parameters, shouldUpdateConnection);
         shouldUpdateConnection = ProcessParameters(connectionBuilder, parameters, shouldUpdateConnection);
+        ProcessRemoveParametersHeader(headers);
 
         if (shouldUpdateConnection)
         {
@@ -454,7 +456,7 @@ public abstract class FireboltClient
                         _connection.AccountId = kv[1];
                         break;
                     default:
-                        if (!kv[1].Equals(_queryParameters[kv[0]]))
+                        if (!_queryParameters.ContainsKey(kv[0]) || !kv[1].Equals(_queryParameters[kv[0]]))
                         {
                             _queryParameters[kv[0]] = kv[1];
                             shouldUpdateConnection = true;
@@ -464,6 +466,25 @@ public abstract class FireboltClient
             }
         }
         return shouldUpdateConnection;
+    }
+
+    private void ProcessRemoveParametersHeader(HttpResponseHeaders headers)
+    {
+        if (!headers.Contains(HEADER_REMOVE_PARAMETERS))
+        {
+            return;
+        }
+
+        headers.GetValues(HEADER_REMOVE_PARAMETERS)
+            .Select(param => param.Trim())
+            .Where(param => !string.IsNullOrEmpty(param))
+            .ToList()
+            .ForEach(RemoveQueryParameter);
+    }
+
+    private void RemoveQueryParameter(string parameterName)
+    {
+        _queryParameters.Remove(parameterName);
     }
 
     private struct ObjectResponseResult<T>

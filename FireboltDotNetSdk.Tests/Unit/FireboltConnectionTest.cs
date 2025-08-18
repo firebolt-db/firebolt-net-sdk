@@ -440,20 +440,12 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void FakeTransaction()
+        public void TransactionWithClosedConnection_ThrowsInvalidOperationException()
         {
             const string connectionString = "clientid=testuser;clientsecret=testpwd;account=accountname;engine=diesel";
             var cs = new FireboltConnection(connectionString);
-            DbTransaction transaction = cs.BeginTransaction();
-            Assert.That(transaction, Is.Not.Null);
-            Assert.Multiple(() =>
-            {
-                Assert.That(transaction.SupportsSavepoints, Is.False);
-                Assert.That(transaction.Connection, Is.SameAs(cs));
-                Assert.That(transaction.IsolationLevel, Is.EqualTo(IsolationLevel.Unspecified));
-            });
-            transaction.Commit();
-            Assert.Throws<NotImplementedException>(() => transaction.Rollback());
+            // Connection is closed by default
+            Assert.Throws<FireboltException>(() => cs.BeginTransaction());
         }
 
         [Test]

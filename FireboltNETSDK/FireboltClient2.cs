@@ -29,7 +29,7 @@ using static FireboltDotNetSdk.Utils.Constant;
 namespace FireboltDotNetSdk;
 public class FireboltClient2 : FireboltClient
 {
-    private const string PROTOCOL_VERSION = "2.3";
+    private const string PROTOCOL_VERSION = "2.4";
     private readonly ISet<string> _engineStatusesRunning = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase) { "Running", "ENGINE_STATE_RUNNING" };
     private readonly string _account;
     private static IDictionary<string, string> systemEngineUrlCache = new ConcurrentDictionary<string, string>();

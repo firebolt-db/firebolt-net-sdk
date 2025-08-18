@@ -281,12 +281,12 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Not supported. Transactions are not supported by the Firebolt server but we ignore attempts to use them.
+        /// Not supported. Distributed transactions are not supported by the Firebolt server.
         /// </summary>
         /// <exception cref="NotSupportedException">Always throws <see cref="NotSupportedException"/>.</exception>
         public override void EnlistTransaction(Transaction? transaction)
         {
-            throw new NotSupportedException();
+            throw new NotSupportedException("Distributed transactions are not supported.");
         }
 
         /// <summary>
@@ -406,12 +406,14 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Simulates starting transaction. Due to transactions are not supported this method has not effect. 
+        /// Begins a database transaction. Isolation level is ignored.
         /// </summary>
-        /// <returns>Simulated implementaion of <see cref="DbTransaction"/>.</returns>
+        /// <param name="isolationLevel">The isolation level for the transaction.</param>
+        /// <returns>A FireboltTransaction object representing the new transaction.</returns>
+        /// <exception cref="FireboltException">Thrown when there is an error beginning the transaction.</exception>
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
-            return new FireboltTransaction(this);
+            return new FireboltTransaction(this, isolationLevel);
         }
 
         private static string EditConnectionString(string orig, string name, string value)
