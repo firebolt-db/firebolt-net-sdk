@@ -336,6 +336,25 @@ bool isCommitted = transaction.IsCommitted;
 bool isRolledBack = transaction.IsRolledBack;
 ```
 
+### Manual Transaction Management
+If you prefer manual transaction management, you can use the `FireboltConnection` class to control transactions explicitly:
+
+```cs
+using var connection = new FireboltConnection(connectionString);
+await connection.OpenAsync();
+// Start a transaction manually
+var command = connection.CreateCommand();
+command.CommandText = "BEGIN TRANSACTION";
+await command.ExecuteNonQueryAsync();
+// Execute your SQL commands
+// Commit the transaction
+command.CommandText = "COMMIT";
+await command.ExecuteNonQueryAsync();
+// If you need to rollback, you can do so
+command.CommandText = "ROLLBACK";
+await command.ExecuteNonQueryAsync();
+```
+
 ### TransactionScope Support
 
 TransactionScope is not supported in the Firebolt .NET SDK. Instead, you should use the explicit transaction management provided by the SDK, as shown in the examples above.
