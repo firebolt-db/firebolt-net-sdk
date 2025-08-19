@@ -47,15 +47,26 @@ jobs:
           repository: firebolt-db/action-python-release
           path: release_action
 
-      - name: Generate new version tag
-        id: tag_generation
+      - name: Get changes since last release
+        id: get_changes
         run: |
           OLD_VERSION=$(git describe --tags --abbrev=0)
           echo "Old version was ${OLD_VERSION}"
           CHANGE_LOG=$(git log $OLD_VERSION..HEAD --pretty=format:%s)
-          NEW_VERSION=$(python3 release_action/scripts/generate_version_tag.py "${CHANGE_LOG}" $OLD_VERSION --major_release "${{ inputs.major-release }}")
-          echo "new_version=$NEW_VERSION" >>  $GITHUB_OUTPUT
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGE_LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "old_tag=$OLD_TAG" >> $GITHUB_OUTPUT
         shell: bash
+        
+      - name: Generate new version tag
+        id: tag_generation
+        uses: firebolt-db/action-generate-version@main
+        with:
+          changes: ${{ steps.get_changes.outputs.changes }}
+          old-tag: ${{ steps.get_changes.outputs.old_tag }}
+          major-release: ${{ inputs.major-release }}
+
 
       - name: Version bump
         run: |
