@@ -23,8 +23,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
             tokenField!.SetValue(client, "test_token");
 
-            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            var queryParams = GetQueryParams(client);
             queryParams["test_param"] = "test_value";
             queryParams["other_param"] = "other_value";
 
@@ -56,8 +55,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
             tokenField!.SetValue(client, "test_token");
 
-            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            var queryParams = GetQueryParams(client);
             queryParams["param1"] = "value1";
             queryParams["param2"] = "value2";
             queryParams["param3"] = "value3";
@@ -95,8 +93,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
             tokenField!.SetValue(client, "test_token");
 
-            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            var queryParams = GetQueryParams(client);
             queryParams["param_with_space"] = "value1";
             queryParams["normal_param"] = "value2";
 
@@ -128,8 +125,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
             tokenField!.SetValue(client, "test_token");
 
-            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            var queryParams = GetQueryParams(client);
             queryParams["existing_param"] = "value";
 
             var response = GetResponseMessage("test_result", HttpStatusCode.OK);
@@ -156,8 +152,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
             tokenField!.SetValue(client, "test_token");
 
-            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            var queryParams = GetQueryParams(client);
             queryParams["param1"] = "value1";
             queryParams["param2"] = "value2";
 
@@ -204,6 +199,13 @@ namespace FireboltDotNetSdk.Tests.Unit
         private static HttpResponseMessage GetResponseMessage(HttpStatusCode httpStatusCode)
         {
             return new HttpResponseMessage() { StatusCode = httpStatusCode };
+        }
+
+        private static IDictionary<string, string> GetQueryParams(FireboltClient client)
+        {
+            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
+            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            return queryParams;
         }
     }
 }

@@ -14,8 +14,7 @@ namespace FireboltDotNetSdk.Tests.Integration
 
             var client = connection.Client;
 
-            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            var queryParams = GetQueryParams(client);
 
             Assert.That(queryParams.ContainsKey("transaction_id"), Is.False, "Transaction ID should not be present initially");
 
@@ -24,8 +23,7 @@ namespace FireboltDotNetSdk.Tests.Integration
 
             await command.ExecuteNonQueryAsync();
 
-            queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            queryParams = GetQueryParams(client);
 
             Assert.That(queryParams["transaction_id"], Is.Not.Null);
 
@@ -33,10 +31,16 @@ namespace FireboltDotNetSdk.Tests.Integration
 
             await command.ExecuteNonQueryAsync();
 
-            queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
-            queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            queryParams = GetQueryParams(client);
 
             Assert.That(queryParams.ContainsKey("transaction_id"), Is.False, "Transaction ID should be removed after commit");
+        }
+
+        private static IDictionary<string, string> GetQueryParams(FireboltClient client)
+        {
+            var queryParamsField = typeof(FireboltClient).GetField("_queryParameters", BindingFlags.NonPublic | BindingFlags.Instance);
+            var queryParams = (IDictionary<string, string>)queryParamsField!.GetValue(client)!;
+            return queryParams;
         }
     }
 }
