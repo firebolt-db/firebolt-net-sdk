@@ -255,3 +255,106 @@ while (await reader.ReadAsync())
     }
 }
 ```
+
+### Transaction Support
+
+The Firebolt .NET SDK provides full support for database transactions, allowing you to group multiple operations into atomic units of work.
+
+#### Basic Transaction Usage
+
+```cs
+using var connection = new FireboltConnection(connectionString);
+await connection.OpenAsync();
+
+// Begin a transaction
+using var transaction = connection.BeginTransaction();
+
+try
+{
+    // Execute multiple commands within the transaction
+    using var command1 = connection.CreateCommand();
+    command1.CommandText = "INSERT INTO customers (name) VALUES ('John Doe')";
+    await command1.ExecuteNonQueryAsync();
+
+    using var command2 = connection.CreateCommand();
+    command2.CommandText = "UPDATE inventory SET quantity = quantity - 1 WHERE product_id = 123";
+    await command2.ExecuteNonQueryAsync();
+
+    // Commit the transaction if all operations succeed
+    transaction.Commit();
+}
+catch (Exception)
+{
+    // Rollback the transaction if any operation fails
+    transaction.Rollback();
+    throw;
+}
+```
+
+#### Async Transaction Operations
+
+The SDK supports both synchronous and asynchronous transaction operations:
+
+```cs
+// Asynchronous commit
+await transaction.CommitAsync();
+
+// Asynchronous rollback
+await transaction.RollbackAsync();
+```
+
+#### Automatic Rollback
+
+If a transaction is disposed without being explicitly committed or rolled back, it will automatically rollback:
+
+```cs
+using var connection = new FireboltConnection(connectionString);
+await connection.OpenAsync();
+
+using (var transaction = connection.BeginTransaction())
+{
+    // Execute commands...
+    // If an exception occurs here, the transaction will automatically rollback when disposed
+}
+// Transaction is automatically rolled back if not committed
+```
+
+#### Transaction State Management
+
+The FireboltTransaction class provides properties to check the current state:
+
+```cs
+var transaction = connection.BeginTransaction();
+
+// Check if transaction has been completed
+bool isCompleted = transaction.IsCompleted;
+
+// Check if transaction has been committed
+bool isCommitted = transaction.IsCommitted;
+
+// Check if transaction has been rolled back
+bool isRolledBack = transaction.IsRolledBack;
+```
+
+### Manual Transaction Management
+If you prefer manual transaction management, you can use the `FireboltConnection` class to control transactions explicitly:
+
+```cs
+using var connection = new FireboltConnection(connectionString);
+await connection.OpenAsync();
+// Start a transaction manually
+var command = connection.CreateCommand();
+command.CommandText = "BEGIN TRANSACTION";
+await command.ExecuteNonQueryAsync();
+// Execute your SQL commands
+// Commit the transaction
+command.CommandText = "COMMIT";
+await command.ExecuteNonQueryAsync();
+// If you need to rollback, you can do so
+command.CommandText = "ROLLBACK";
+await command.ExecuteNonQueryAsync();
+```
+
+### TransactionScope Support
+
+TransactionScope is not supported in the Firebolt .NET SDK. Instead, you should use the explicit transaction management provided by the SDK, as shown in the examples above.

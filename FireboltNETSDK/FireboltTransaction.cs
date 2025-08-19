@@ -18,46 +18,131 @@
 using System.Data.Common;
 using System.Runtime.CompilerServices;
 using IsolationLevel = System.Data.IsolationLevel;
-
+using FireboltDotNetSdk.Exception;
 
 [assembly: InternalsVisibleTo("FireboltDotNetSdk.Tests")]
 namespace FireboltDotNetSdk.Client
 {
-    /// <summary>
-    /// Represents a connection to a Firebolt database. This class cannot be inherited.
-    /// </summary>
     internal sealed class FireboltTransaction : DbTransaction
     {
-        private DbConnection _dbConnection;
-        internal FireboltTransaction(DbConnection connection) : base()
+        private readonly FireboltConnection _dbConnection;
+        private bool _isDisposed = false;
+
+        internal FireboltTransaction(FireboltConnection connection, IsolationLevel isolationLevel) : base()
         {
-            _dbConnection = connection;
+            _dbConnection = connection ?? throw new ArgumentNullException(nameof(connection));
+            IsolationLevel = isolationLevel;
+
+            BeginTransactionAsync().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Isolation level of the transaction. Due to transaction are not supported and this implementation is simulation the return value is <see cref="IsolationLevel.Unspecified"/>
-        /// </summary>
-        /// <returns>The isolation level for this transaction: <see cref="IsolationLevel.Unspecified"/>.</returns>
-        public override IsolationLevel IsolationLevel { get => IsolationLevel.Unspecified; }
+        public override IsolationLevel IsolationLevel { get; }
 
-        /// <summary>
-        /// Gets DBConnection used for creation of current instance.
-        /// </summary>
-        /// <returns>Currend DBConnection.</returns>
-        protected override DbConnection? DbConnection { get => _dbConnection; }
+        protected override DbConnection? DbConnection => _dbConnection;
 
-        /// <summary>
-        /// Empty NOP implementation - does nothing.
-        /// </summary>
-        public override void Commit() { }
+        public override void Commit()
+        {
+            CommitAsync().GetAwaiter().GetResult();
+        }
 
-        /// <summary>
-        /// Throws NotImplementedException to indicate that rollback is not supported.
-        /// </summary>
+        public override async Task CommitAsync(CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            ThrowIfCompleted();
+
+            try
+            {
+                await using var command = _dbConnection.CreateCommand();
+                command.CommandText = "COMMIT";
+                await command.ExecuteNonQueryAsync(cancellationToken);
+                IsCommitted = true;
+            }
+            catch (System.Exception ex)
+            {
+                throw new FireboltException("Failed to commit transaction", ex);
+            }
+        }
+
         public override void Rollback()
         {
-            throw new NotImplementedException();
+            RollbackAsync().GetAwaiter().GetResult();
         }
 
+        public override async Task RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            ThrowIfCompleted();
+
+            try
+            {
+                await using var command = _dbConnection.CreateCommand();
+                command.CommandText = "ROLLBACK";
+                await command.ExecuteNonQueryAsync(cancellationToken);
+                IsRolledBack = true;
+            }
+            catch (System.Exception ex)
+            {
+                throw new FireboltException("Failed to rollback transaction", ex);
+            }
+        }
+
+        private bool IsCompleted => IsCommitted || IsRolledBack;
+
+        private bool IsCommitted { get; set; }
+
+        private bool IsRolledBack { get; set; }
+
+        private async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await using var command = _dbConnection.CreateCommand();
+                command.CommandText = "BEGIN TRANSACTION";
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (System.Exception ex)
+            {
+                throw new FireboltException("Failed to begin transaction", ex);
+            }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException(nameof(FireboltTransaction));
+            }
+        }
+
+        private void ThrowIfCompleted()
+        {
+            if (IsCompleted)
+            {
+                throw new FireboltException(
+                    IsCommitted
+                        ? "The transaction has already been committed."
+                        : "The transaction has already been rolled back.");
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (!_isDisposed && disposing)
+            {
+                try
+                {
+                    // If the transaction is still active, roll it back
+                    if (!IsCompleted)
+                    {
+                        Rollback();
+                    }
+                }
+                finally
+                {
+                    _isDisposed = true;
+                }
+            }
+            base.Dispose(disposing);
+        }
     }
 }
