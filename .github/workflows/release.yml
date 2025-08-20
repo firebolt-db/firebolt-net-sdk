@@ -39,7 +39,7 @@ jobs:
           echo "changes<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGE_LOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          echo "old_tag=OLD_VERSION" >> $GITHUB_OUTPUT
+          echo "old_tag=$OLD_VERSION" >> $GITHUB_OUTPUT
         shell: bash
         
       - name: Generate new version tag
