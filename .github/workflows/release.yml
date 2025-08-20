@@ -53,20 +53,20 @@ jobs:
 
       - name: Version bump
         run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.tag_generation.outputs.new_tag }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.tag_generation.outputs.new_tag }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.tag_generation.outputs.new_tag }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.tag_generation.outputs.new-tag }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.tag_generation.outputs.new-tag }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.tag_generation.outputs.new-tag }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ steps.tag_generation.outputs.new_tag }}"
+          git commit -m "Automatic version bump to ${{ steps.tag_generation.outputs.new-tag }}"
           git push origin main
         shell: bash
         
       - name: Publish tag on github
         run: |
-          git tag ${{ steps.tag_generation.outputs.new_tag }}
-          git push origin ${{ steps.tag_generation.outputs.new_tag }}
+          git tag ${{ steps.tag_generation.outputs.new-tag }}
+          git push origin ${{ steps.tag_generation.outputs.new-tag }}
         shell: bash
 
       - name: Set up .NET 6.0
@@ -88,7 +88,7 @@ jobs:
 
       - name: Publish package on Nuget
         run: |
-          dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.tag_generation.outputs.new_tag }}.nupkg \
+          dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.tag_generation.outputs.new-tag }}.nupkg \
             --api-key ${{ secrets.PUBLISH_API_KEY }} \
             --source https://api.nuget.org/v3/index.json
         shell: bash
