@@ -322,7 +322,7 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private static string GetParamValue(object? value)
+        private string GetParamValue(object? value)
         {
             var verifyParameters = value?.ToString() ?? "";
             switch (value)
@@ -334,6 +334,11 @@ namespace FireboltDotNetSdk.Client
                     {
                         // Only escape single quotes for SQL string literals
                         sourceText = sourceText.Replace("'", "''");
+                        // FB 1.0 does needs backslash escaping, FB 2.0 does not
+                        if (Connection!.InfraVersion < 2)
+                        {
+                            sourceText = sourceText.Replace("\\", "\\\\");
+                        }
                         verifyParameters = "'" + sourceText + "'";
                         break;
                     }
