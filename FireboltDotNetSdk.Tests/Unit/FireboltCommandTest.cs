@@ -268,7 +268,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase("abcd", "'abcd'")]
-        [TestCase("test' OR '1' == '1", "'test\\' OR \\'1\\' == \\'1'")]
+        [TestCase("test' OR '1' == '1", "'test'' OR ''1'' == ''1'")]
         [TestCase("test\\", "'test\\\\'")]
         [TestCase("some\0value", "'some\\\\0value'")]
         [TestCase(1, "1")]
@@ -276,6 +276,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(1.123, "1.123")]
         [TestCase(1.123, "1.123")]
         [TestCase(5.75F, "5.75")]
+        [TestCase("'", "''''")]
         [TestCase(null, "NULL")]
         [TestCase(true, "True")]
         [TestCase(false, "False")]

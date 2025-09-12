@@ -328,7 +328,7 @@ namespace FireboltDotNetSdk.Client
             {
                 { "\0", "\\0" },
                 { "\\", "\\\\" },
-                { "'", "\\'" }
+                { "'", "''" }
             };
             var verifyParameters = value?.ToString() ?? "";
             switch (value)
