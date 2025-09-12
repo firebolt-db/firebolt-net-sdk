@@ -324,12 +324,6 @@ namespace FireboltDotNetSdk.Client
 
         private static string GetParamValue(object? value)
         {
-            var escapeChars = new Dictionary<string, string>
-            {
-                { "\0", "\\0" },
-                { "\\", "\\\\" },
-                { "'", "''" }
-            };
             var verifyParameters = value?.ToString() ?? "";
             switch (value)
             {
@@ -338,10 +332,8 @@ namespace FireboltDotNetSdk.Client
                     break;
                 case string sourceText:
                     {
-                        foreach (var escapedPair in escapeChars)
-                        {
-                            sourceText = sourceText.Replace(escapedPair.Key, escapedPair.Value);
-                        }
+                        // Only escape single quotes for SQL string literals
+                        sourceText = sourceText.Replace("'", "''");
                         verifyParameters = "'" + sourceText + "'";
                         break;
                     }

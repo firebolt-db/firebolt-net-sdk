@@ -908,7 +908,6 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase("It's a test", "It's a test", false)] // Single quote escaping
         [TestCase("Path\\to\\file", "Path\\to\\file", false)] // Backslash escaping
-        [TestCase("Text\0with\0nulls", "Text\0with\0nulls", false)] // Null character escaping
         [TestCase("Line1\nLine2\nLine3", "Line1\nLine2\nLine3", false)] // Newline character
         [TestCase("Line1\rLine2", "Line1\rLine2", false)] // Carriage return character
         [TestCase("Column1\tColumn2\tColumn3", "Column1\tColumn2\tColumn3", false)] // Tab character
