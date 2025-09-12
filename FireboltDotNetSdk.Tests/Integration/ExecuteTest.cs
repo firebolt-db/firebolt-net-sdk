@@ -924,11 +924,11 @@ namespace FireboltDotNetSdk.Tests
 
                 DbCommand command = CreateCommand(conn, "SELECT @text");
                 command.Parameters.Add(CreateParameter(command, "@text", inputValue));
-                
+
                 using (DbDataReader reader = command.ExecuteReader())
                 {
                     Assert.That(reader.Read(), Is.True);
-                    
+
                     if (expectNull)
                     {
                         Assert.That(reader.IsDBNull(0), Is.True);
@@ -937,7 +937,7 @@ namespace FireboltDotNetSdk.Tests
                     {
                         Assert.That(reader.GetString(0), Is.EqualTo(expectedValue));
                     }
-                    
+
                     Assert.That(reader.Read(), Is.False);
                 }
             }
