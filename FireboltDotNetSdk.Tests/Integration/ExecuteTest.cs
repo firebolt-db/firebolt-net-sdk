@@ -906,6 +906,42 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
+        [TestCase("It's a test", "It's a test", false)] // Single quote escaping
+        [TestCase("Path\\to\\file", "Path\\to\\file", false)] // Backslash escaping
+        [TestCase("Line1\nLine2\nLine3", "Line1\nLine2\nLine3", false)] // Newline character
+        [TestCase("Line1\rLine2", "Line1\rLine2", false)] // Carriage return character
+        [TestCase("Column1\tColumn2\tColumn3", "Column1\tColumn2\tColumn3", false)] // Tab character
+        [TestCase("It's a 'complex' string\\with\nnewlines\tand\ttabs", "It's a 'complex' string\\with\nnewlines\tand\ttabs", false)] // Mixed special characters
+        [TestCase("", "", false)] // Empty string
+        [TestCase(null, null, true)] // Null string
+        [Category("general")]
+        public void StringParameterEscapingTest(string? inputValue, string? expectedValue, bool expectNull)
+        {
+            using (var conn = new FireboltConnection(USER_CONNECTION_STRING))
+            {
+                conn.Open();
+
+                DbCommand command = CreateCommand(conn, "SELECT @text");
+                command.Parameters.Add(CreateParameter(command, "@text", inputValue));
+
+                using (DbDataReader reader = command.ExecuteReader())
+                {
+                    Assert.That(reader.Read(), Is.True);
+
+                    if (expectNull)
+                    {
+                        Assert.That(reader.IsDBNull(0), Is.True);
+                    }
+                    else
+                    {
+                        Assert.That(reader.GetString(0), Is.EqualTo(expectedValue));
+                    }
+
+                    Assert.That(reader.Read(), Is.False);
+                }
+            }
+        }
+
         [Test]
         [Category("general")]
         public void CreateDropFillTableWithEmptyArrays()

@@ -268,14 +268,14 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [TestCase("abcd", "'abcd'")]
-        [TestCase("test' OR '1' == '1", "'test\\' OR \\'1\\' == \\'1'")]
-        [TestCase("test\\", "'test\\\\'")]
-        [TestCase("some\0value", "'some\\\\0value'")]
+        [TestCase("test' OR '1' == '1", "'test'' OR ''1'' == ''1'")]
+        [TestCase("test\\", "'test\\'")]
         [TestCase(1, "1")]
         [TestCase(15000000000L, "15000000000")]
         [TestCase(1.123, "1.123")]
         [TestCase(1.123, "1.123")]
         [TestCase(5.75F, "5.75")]
+        [TestCase("'", "''''")]
         [TestCase(null, "NULL")]
         [TestCase(true, "True")]
         [TestCase(false, "False")]
@@ -284,11 +284,35 @@ namespace FireboltDotNetSdk.Tests
         public void SetParamTest(object paramValue, object expect)
         {
             MockClient client = new MockClient("");
-            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine" }, "@param", new FireboltParameterCollection());
+            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine", InfraVersion = 2 }, "@param", new FireboltParameterCollection());
             cs.Parameters.Add(new FireboltParameter("@param", paramValue));
             cs.ExecuteNonQuery();
             Assert.That(client.Query, Is.EqualTo(expect));
         }
+
+        [TestCase("abcd", "'abcd'")]
+        [TestCase("test' OR '1' == '1", "'test'' OR ''1'' == ''1'")]
+        [TestCase("test\\", "'test\\\\'")]
+        [TestCase(1, "1")]
+        [TestCase(15000000000L, "15000000000")]
+        [TestCase(1.123, "1.123")]
+        [TestCase(1.123, "1.123")]
+        [TestCase(5.75F, "5.75")]
+        [TestCase("'", "''''")]
+        [TestCase(null, "NULL")]
+        [TestCase(true, "True")]
+        [TestCase(false, "False")]
+        [TestCase(new byte[0], "E'\\x'::BYTEA")]
+        [TestCase(new byte[] { 1, 2, 3 }, "E'\\x01\\x02\\x03'::BYTEA")]
+        public void SetParamTestV1(object paramValue, object expect)
+        {
+            MockClient client = new MockClient("");
+            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine", InfraVersion = 1 }, "@param", new FireboltParameterCollection());
+            cs.Parameters.Add(new FireboltParameter("@param", paramValue));
+            cs.ExecuteNonQuery();
+            Assert.That(client.Query, Is.EqualTo(expect));
+        }
+
 
         [TestCase("TimestampTz", "2022-05-10 21:01:02.12345+00", "TimestampTz", "2022-05-10 21:01:02Z", 1234500, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]
         [TestCase("TimestampTz", "2022-05-10 21:01:02.0+00", "TimestampTz", "2022-05-10 21:01:02Z", 0, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]

@@ -19,7 +19,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltCommand command = (FireboltCommand)connection.CreateCommand();
             command.CommandText = "SELECT $1, $2";
             command.Parameters.Add(CreateParameter(command, "$1", 1));
-            command.Parameters.Add(CreateParameter(command, "$2", 2));
+            command.Parameters.Add(CreateParameter(command, "$2", "don't panic"));
 
             // Execute the query asynchronously using the synchronous method
             using (DbDataReader reader = command.ExecuteReader())
@@ -29,8 +29,8 @@ namespace FireboltDotNetSdk.Tests
                     Assert.That(reader.Read(), Is.EqualTo(true));
                     Assert.That(reader.GetInt64(0), Is.EqualTo(1));
                     Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(long)));
-                    Assert.That(reader.GetInt64(1), Is.EqualTo(2));
-                    Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(long)));
+                    Assert.That(reader.GetString(1), Is.EqualTo("don't panic"));
+                    Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(string)));
                 });
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
@@ -45,7 +45,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltCommand command = (FireboltCommand)connection.CreateCommand();
             command.CommandText = "SELECT @1,@2";
             command.Parameters.Add(CreateParameter(command, "@1", 1));
-            command.Parameters.Add(CreateParameter(command, "@2", 2));
+            command.Parameters.Add(CreateParameter(command, "@2", "don't panic"));
 
             // Execute the query asynchronously using the synchronous method
             using (DbDataReader reader = command.ExecuteReader())
@@ -55,8 +55,8 @@ namespace FireboltDotNetSdk.Tests
                     Assert.That(reader.Read(), Is.EqualTo(true));
                     Assert.That(reader.GetInt32(0), Is.EqualTo(1));
                     Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
-                    Assert.That(reader.GetInt32(1), Is.EqualTo(2));
-                    Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(int)));
+                    Assert.That(reader.GetString(1), Is.EqualTo("don't panic"));
+                    Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(string)));
                 });
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }

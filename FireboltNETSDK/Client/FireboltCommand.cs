@@ -322,14 +322,8 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private static string GetParamValue(object? value)
+        private string GetParamValue(object? value)
         {
-            var escapeChars = new Dictionary<string, string>
-            {
-                { "\0", "\\0" },
-                { "\\", "\\\\" },
-                { "'", "\\'" }
-            };
             var verifyParameters = value?.ToString() ?? "";
             switch (value)
             {
@@ -338,9 +332,12 @@ namespace FireboltDotNetSdk.Client
                     break;
                 case string sourceText:
                     {
-                        foreach (var escapedPair in escapeChars)
+                        // Only escape single quotes for SQL string literals
+                        sourceText = sourceText.Replace("'", "''");
+                        // FB 1.0 does needs backslash escaping, FB 2.0 does not
+                        if (Connection!.InfraVersion < 2)
                         {
-                            sourceText = sourceText.Replace(escapedPair.Key, escapedPair.Value);
+                            sourceText = sourceText.Replace("\\", "\\\\");
                         }
                         verifyParameters = "'" + sourceText + "'";
                         break;
