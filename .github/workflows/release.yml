@@ -34,17 +34,17 @@ jobs:
         shell: bash
 
 
-      - name: Version bump
-        run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ inputs.version }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ inputs.version }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ inputs.version }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          git branch
-          git diff
-          git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ inputs.version }}"
-          git push origin fix-string-nullability
-        shell: bash
+      # - name: Version bump
+      #   run: |
+      #     sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ inputs.version }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+      #     sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ inputs.version }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+      #     sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ inputs.version }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+      #     git branch
+      #     git diff
+      #     git add FireboltNETSDK/FireboltDotNetSdk.csproj
+      #     git commit -m "Automatic version bump to ${{ inputs.version }}"
+      #     git push origin fix-string-nullability
+      #   shell: bash
         
       - name: Publish tag on github
         run: |
