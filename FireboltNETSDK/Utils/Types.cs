@@ -138,7 +138,7 @@ namespace FireboltDoNetSdk.Utils
             }
 
             var type = GetType(arrayType.InnerType);
-            if (arrayType.InnerType.Nullable)
+            if (arrayType.InnerType.Nullable && type.IsValueType)
             {
                 type = typeof(Nullable<>).MakeGenericType(type);
             }
