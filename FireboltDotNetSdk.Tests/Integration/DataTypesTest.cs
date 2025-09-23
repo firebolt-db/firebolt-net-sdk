@@ -12,7 +12,6 @@ namespace FireboltDotNetSdk.Tests
         private static readonly string UserConnectionString = ConnectionString();
         // Legacy combined test retained for compatibility; specific matrix tests are parameterized below
         private const string VariousTypeQuery =
-                // int
                 "select  1                                     as col_int,\n" +
                 "        null::int                             as col_int_null,\n" +
                 "        [1,2]                                 as col_int_array,\n" +
@@ -21,16 +20,14 @@ namespace FireboltDotNetSdk.Tests
                 "        [[1,2],null]::array(array(int))       as col_int_array_null_array,\n" +
                 "        [[1,null],null]::array(array(int))    as col_int_null_array_null_array,\n" +
                 "        null::array(array(int))               as col_int_array_array_null,\n" +
-                // long
-                "        30000000000                           as col_long,\n" +
-                "        null::bigint                          as col_long_null,\n" +
-                "        [1,2,3]::array(bigint)                as col_long_array,\n" +
-                "        [1,null]::array(bigint)               as col_long_null_array,\n" +
-                "        null::array(bigint)                   as col_long_array_null,\n" +
-                "        [[1,2],null]::array(array(bigint))    as col_long_array_null_array,\n" +
-                "        [[1,null],null]::array(array(bigint)) as col_long_null_array_null_array,\n" +
-                "        null::array(array(bigint))            as col_long_array_array_null,\n" +
-                // float
+                "        30000000000                            as col_long,\n" +
+                "        null::bigint                           as col_long_null,\n" +
+                "        [1,2,3]::array(bigint)                 as col_long_array,\n" +
+                "        [1,null]::array(bigint)                as col_long_null_array,\n" +
+                "        null::array(bigint)                    as col_long_array_null,\n" +
+                "        [[1,2],null]::array(array(bigint))     as col_long_array_null_array,\n" +
+                "        [[1,null],null]::array(array(bigint))  as col_long_null_array_null_array,\n" +
+                "        null::array(array(bigint))             as col_long_array_array_null,\n" +
                 "        1.23::float4                             as col_float,\n" +
                 "        null::float4                             as col_float_null,\n" +
                 "        [1.25,2.5]::array(float4)                as col_float_array,\n" +
@@ -39,7 +36,6 @@ namespace FireboltDotNetSdk.Tests
                 "        [[1.25,2.5],null]::array(array(float4))  as col_float_array_null_array,\n" +
                 "        [[1.25,null],null]::array(array(float4)) as col_float_null_array_null_array,\n" +
                 "        null::array(array(float4))               as col_float_array_array_null,\n" +
-                // double
                 "        1.23456789012                             as col_double,\n" +
                 "        null::double                              as col_double_null,\n" +
                 "        [1.125,2.25]::array(double)               as col_double_array,\n" +
@@ -48,7 +44,6 @@ namespace FireboltDotNetSdk.Tests
                 "        [[1.125,2.25],null]::array(array(double)) as col_double_array_null_array,\n" +
                 "        [[1.125,null],null]::array(array(double)) as col_double_null_array_null_array,\n" +
                 "        null::array(array(double))                as col_double_array_array_null,\n" +
-                // text
                 "        'text'                                 as col_text,\n" +
                 "        null::text                             as col_text_null,\n" +
                 "        ['a','b']::array(text)                 as col_text_array,\n" +
@@ -57,7 +52,6 @@ namespace FireboltDotNetSdk.Tests
                 "        [['a','b'],null]::array(array(text))   as col_text_array_null_array,\n" +
                 "        [['a',null],null]::array(array(text))  as col_text_null_array_null_array,\n" +
                 "        null::array(array(text))               as col_text_array_array_null,\n" +
-                // date
                 "        '2021-03-28'::date                                     as col_date,\n" +
                 "        null::date                                             as col_date_null,\n" +
                 "        ['2021-03-28','2021-03-29']::array(date)               as col_date_array,\n" +
@@ -67,7 +61,6 @@ namespace FireboltDotNetSdk.Tests
                 "        [['2021-03-28','2021-03-29']]::array(array(date))      as col_date_array_array,\n" +
                 "        [['2021-03-28',null],null]::array(array(date))         as col_date_null_array_null_array,\n" +
                 "        null::array(array(date))                               as col_date_array_array_null,\n" +
-                // timestamp
                 "        '2019-07-31 01:01:01'::timestamp                                              as col_timestamp,\n" +
                 "        null::timestamp                                                               as col_timestamp_null,\n" +
                 "        ['2019-07-31 01:01:01','2019-08-01 00:00:00']::array(timestamp)               as col_timestamp_array,\n" +
@@ -77,7 +70,6 @@ namespace FireboltDotNetSdk.Tests
                 "        [['2019-07-31 01:01:01','2019-08-01 00:00:00']]::array(array(timestamp))      as col_timestamp_array_null_array,\n" +
                 "        [['2019-07-31 01:01:01',null],null]::array(array(timestamp))                  as col_timestamp_null_array_null_array,\n" +
                 "        null::array(array(timestamp))                                                 as col_timestamp_array_array_null,\n" +
-                // timestamptz
                 "        '1111-01-05 17:04:42.123456+00'::timestamptz                                                        as col_timestamptz,\n" +
                 "        null::timestamptz                                                                                   as col_timestamptz_null,\n" +
                 "        ['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00']::array(timestamptz)               as col_timestamptz_array,\n" +
@@ -87,7 +79,6 @@ namespace FireboltDotNetSdk.Tests
                 "        [['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00']]::array(array(timestamptz))      as col_timestamptz_array_null_array,\n" +
                 "        [['1111-01-05 17:04:42.123456+00',null],null]::array(array(timestamptz))                            as col_timestamptz_null_array_null_array,\n" +
                 "        null::array(array(timestamptz))                                                                     as col_timestamptz_array_array_null,\n" +
-                // boolean
                 "        true                                    as col_boolean,\n" +
                 "        null::bool                              as col_boolean_null,\n" +
                 "        [true,false]::array(bool)               as col_boolean_array,\n" +
@@ -96,7 +87,6 @@ namespace FireboltDotNetSdk.Tests
                 "        [[true,false],null]::array(array(bool)) as col_boolean_array_null_array,\n" +
                 "        [[true,null],null]::array(array(bool))  as col_boolean_null_array_null_array,\n" +
                 "        null::array(array(bool))                as col_boolean_array_array_null,\n" +
-                // decimal
                 "        '1231232.123459999990457054844258706536'::decimal(38, 30) as col_decimal,\n" +
                 "        null::decimal(38, 30)                                     as col_decimal_null,\n" +
                 "        ['1.50','-2.25']::array(decimal(38, 30))                  as col_decimal_array,\n" +
@@ -106,10 +96,8 @@ namespace FireboltDotNetSdk.Tests
                 "        [['1.50','-2.25']]::array(array(decimal(38, 30)))         as col_decimal_array_null_array,\n" +
                 "        [['1.50',null],null]::array(array(decimal(38, 30)))       as col_decimal_null_array_null_array,\n" +
                 "        null::array(array(decimal(38, 30)))                       as col_decimal_array_array_null,\n" +
-                // bytea
                 "        'abc123'::bytea                       as col_bytea,\n" +
                 "        null::bytea                           as col_bytea_null,\n" +
-                // geography
                 "        'point(1 2)'::geography                                     as col_geography,\n" +
                 "        null::geography                                             as col_geography_null,\n" +
                 "        ['point(1 2)','point(2 3)']::array(geography)               as col_geography_array,\n" +
@@ -332,7 +320,7 @@ namespace FireboltDotNetSdk.Tests
                 }
             }
         }
-        
+
         [Test]
         [Category("engine-v2")]
         public async Task ExecuteStreamedQueryAsyncWithDifferentDataTypes()
@@ -350,7 +338,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
             }
         }
-        
+
         [Test]
         [Category("engine-v2")]
         public void ExecuteStreamedQueryWithDifferentDataTypes()
