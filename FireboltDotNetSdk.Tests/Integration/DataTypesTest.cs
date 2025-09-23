@@ -17,7 +17,7 @@ namespace FireboltDotNetSdk.Tests
                 "        [1,2]                                 as col_int_array,\n" +
                 "        [1,null]                              as col_int_null_array,\n" +
                 "        null::array(int)                      as col_int_array_null,\n" +
-                "        [[1,2],null]::array(array(int))       as col_int_array_null_array,\n" +
+                "        [[1,2],[]]::array(array(int))         as col_int_array_null_array,\n" +
                 "        [[1,null],null]::array(array(int))    as col_int_null_array_null_array,\n" +
                 "        null::array(array(int))               as col_int_array_array_null,\n" +
                 "        30000000000                            as col_long,\n" +
@@ -25,7 +25,7 @@ namespace FireboltDotNetSdk.Tests
                 "        [1,2,3]::array(bigint)                 as col_long_array,\n" +
                 "        [1,null]::array(bigint)                as col_long_null_array,\n" +
                 "        null::array(bigint)                    as col_long_array_null,\n" +
-                "        [[1,2],null]::array(array(bigint))     as col_long_array_null_array,\n" +
+                "        [[1,2],[]]::array(array(bigint))       as col_long_array_null_array,\n" +
                 "        [[1,null],null]::array(array(bigint))  as col_long_null_array_null_array,\n" +
                 "        null::array(array(bigint))             as col_long_array_array_null,\n" +
                 "        1.23::float4                             as col_float,\n" +
@@ -33,7 +33,7 @@ namespace FireboltDotNetSdk.Tests
                 "        [1.25,2.5]::array(float4)                as col_float_array,\n" +
                 "        [1.25,null]::array(float4)               as col_float_null_array,\n" +
                 "        null::array(float4)                      as col_float_array_null,\n" +
-                "        [[1.25,2.5],null]::array(array(float4))  as col_float_array_null_array,\n" +
+                "        [[1.25,2.5],[]]::array(array(float4))    as col_float_array_null_array,\n" +
                 "        [[1.25,null],null]::array(array(float4)) as col_float_null_array_null_array,\n" +
                 "        null::array(array(float4))               as col_float_array_array_null,\n" +
                 "        1.23456789012                             as col_double,\n" +
@@ -41,7 +41,7 @@ namespace FireboltDotNetSdk.Tests
                 "        [1.125,2.25]::array(double)               as col_double_array,\n" +
                 "        [1.125,null]::array(double)               as col_double_null_array,\n" +
                 "        null::array(double)                       as col_double_array_null,\n" +
-                "        [[1.125,2.25],null]::array(array(double)) as col_double_array_null_array,\n" +
+                "        [[1.125,2.25],[]]::array(array(double))   as col_double_array_null_array,\n" +
                 "        [[1.125,null],null]::array(array(double)) as col_double_null_array_null_array,\n" +
                 "        null::array(array(double))                as col_double_array_array_null,\n" +
                 "        'text'                                 as col_text,\n" +
@@ -49,61 +49,61 @@ namespace FireboltDotNetSdk.Tests
                 "        ['a','b']::array(text)                 as col_text_array,\n" +
                 "        ['a',null]::array(text)                as col_text_null_array,\n" +
                 "        null::array(text)                      as col_text_array_null,\n" +
-                "        [['a','b'],null]::array(array(text))   as col_text_array_null_array,\n" +
+                "        [['a','b'],[]]::array(array(text))     as col_text_array_null_array,\n" +
                 "        [['a',null],null]::array(array(text))  as col_text_null_array_null_array,\n" +
                 "        null::array(array(text))               as col_text_array_array_null,\n" +
-                "        '2021-03-28'::date                                     as col_date,\n" +
-                "        null::date                                             as col_date_null,\n" +
-                "        ['2021-03-28','2021-03-29']::array(date)               as col_date_array,\n" +
-                "        ['2021-03-28',null]::array(date)                       as col_date_null_array,\n" +
-                "        null::array(date)                                      as col_date_array_null,\n" +
-                "        [['2021-03-28','2021-03-29'],null]::array(array(date)) as col_date_array_null_array,\n" +
-                "        [['2021-03-28','2021-03-29']]::array(array(date))      as col_date_array_array,\n" +
-                "        [['2021-03-28',null],null]::array(array(date))         as col_date_null_array_null_array,\n" +
-                "        null::array(array(date))                               as col_date_array_array_null,\n" +
-                "        '2019-07-31 01:01:01'::timestamp                                              as col_timestamp,\n" +
-                "        null::timestamp                                                               as col_timestamp_null,\n" +
-                "        ['2019-07-31 01:01:01','2019-08-01 00:00:00']::array(timestamp)               as col_timestamp_array,\n" +
-                "        ['2019-07-31 01:01:01',null]::array(timestamp)                                as col_timestamp_null_array,\n" +
-                "        null::array(timestamp)                                                        as col_timestamp_array_null,\n" +
-                "        [['2019-07-31 01:01:01','2019-08-01 00:00:00'],null]::array(array(timestamp)) as col_timestamp_array_null_array,\n" +
-                "        [['2019-07-31 01:01:01','2019-08-01 00:00:00']]::array(array(timestamp))      as col_timestamp_array_null_array,\n" +
-                "        [['2019-07-31 01:01:01',null],null]::array(array(timestamp))                  as col_timestamp_null_array_null_array,\n" +
-                "        null::array(array(timestamp))                                                 as col_timestamp_array_array_null,\n" +
-                "        '1111-01-05 17:04:42.123456+00'::timestamptz                                                        as col_timestamptz,\n" +
-                "        null::timestamptz                                                                                   as col_timestamptz_null,\n" +
-                "        ['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00']::array(timestamptz)               as col_timestamptz_array,\n" +
-                "        ['1111-01-05 17:04:42.123456+00',null]::array(timestamptz)                                          as col_timestamptz_null_array,\n" +
-                "        null::array(timestamptz)                                                                            as col_timestamptz_array_null,\n" +
-                "        [['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00'],null]::array(array(timestamptz)) as col_timestamptz_array_null_array,\n" +
-                "        [['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00']]::array(array(timestamptz))      as col_timestamptz_array_null_array,\n" +
-                "        [['1111-01-05 17:04:42.123456+00',null],null]::array(array(timestamptz))                            as col_timestamptz_null_array_null_array,\n" +
-                "        null::array(array(timestamptz))                                                                     as col_timestamptz_array_array_null,\n" +
+                "        '2021-03-28'::date                                        as col_date,\n" +
+                "        null::date                                                as col_date_null,\n" +
+                "        ['2021-03-28','2021-03-29']::array(date)                  as col_date_array,\n" +
+                "        ['2021-03-28',null]::array(date)                          as col_date_null_array,\n" +
+                "        null::array(date)                                         as col_date_array_null,\n" +
+                "        [['2021-03-28','2021-03-29'],null]::array(array(date))    as col_date_array_null_array,\n" +
+                "        [['2021-03-28','2021-03-29'],[]]::array(array(date))      as col_date_array_array,\n" +
+                "        [['2021-03-28',null],null]::array(array(date))            as col_date_null_array_null_array,\n" +
+                "        null::array(array(date))                                  as col_date_array_array_null,\n" +
+                "        '2019-07-31 01:01:01'::timestamp                                                 as col_timestamp,\n" +
+                "        null::timestamp                                                                  as col_timestamp_null,\n" +
+                "        ['2019-07-31 01:01:01','2019-08-01 00:00:00']::array(timestamp)                  as col_timestamp_array,\n" +
+                "        ['2019-07-31 01:01:01',null]::array(timestamp)                                   as col_timestamp_null_array,\n" +
+                "        null::array(timestamp)                                                           as col_timestamp_array_null,\n" +
+                "        [['2019-07-31 01:01:01','2019-08-01 00:00:00'],null]::array(array(timestamp))    as col_timestamp_array_null_array,\n" +
+                "        [['2019-07-31 01:01:01','2019-08-01 00:00:00'],[]]::array(array(timestamp))      as col_timestamp_array_null_array,\n" +
+                "        [['2019-07-31 01:01:01',null],null]::array(array(timestamp))                     as col_timestamp_null_array_null_array,\n" +
+                "        null::array(array(timestamp))                                                    as col_timestamp_array_array_null,\n" +
+                "        '1111-01-05 17:04:42.123456+00'::timestamptz                                                           as col_timestamptz,\n" +
+                "        null::timestamptz                                                                                      as col_timestamptz_null,\n" +
+                "        ['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00']::array(timestamptz)                  as col_timestamptz_array,\n" +
+                "        ['1111-01-05 17:04:42.123456+00',null]::array(timestamptz)                                             as col_timestamptz_null_array,\n" +
+                "        null::array(timestamptz)                                                                               as col_timestamptz_array_null,\n" +
+                "        [['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00'],null]::array(array(timestamptz))    as col_timestamptz_array_null_array,\n" +
+                "        [['1111-01-05 17:04:42.123456+00','1111-01-06 17:04:42.123456+00'],[]]::array(array(timestamptz))      as col_timestamptz_array_null_array,\n" +
+                "        [['1111-01-05 17:04:42.123456+00',null],null]::array(array(timestamptz))                               as col_timestamptz_null_array_null_array,\n" +
+                "        null::array(array(timestamptz))                                                                        as col_timestamptz_array_array_null,\n" +
                 "        true                                    as col_boolean,\n" +
                 "        null::bool                              as col_boolean_null,\n" +
                 "        [true,false]::array(bool)               as col_boolean_array,\n" +
                 "        [true,null]::array(bool)                as col_boolean_null_array,\n" +
                 "        null::array(bool)                       as col_boolean_array_null,\n" +
-                "        [[true,false],null]::array(array(bool)) as col_boolean_array_null_array,\n" +
+                "        [[true,false],[]]::array(array(bool))   as col_boolean_array_null_array,\n" +
                 "        [[true,null],null]::array(array(bool))  as col_boolean_null_array_null_array,\n" +
                 "        null::array(array(bool))                as col_boolean_array_array_null,\n" +
-                "        '1231232.123459999990457054844258706536'::decimal(38, 30) as col_decimal,\n" +
-                "        null::decimal(38, 30)                                     as col_decimal_null,\n" +
-                "        ['1.50','-2.25']::array(decimal(38, 30))                  as col_decimal_array,\n" +
-                "        ['1.50',null]::array(decimal(38, 30))                     as col_decimal_null_array,\n" +
-                "        null::array(decimal(38, 30))                              as col_decimal_array_null,\n" +
-                "        [['1.50','-2.25'],null]::array(array(decimal(38, 30)))    as col_decimal_array_null_array,\n" +
-                "        [['1.50','-2.25']]::array(array(decimal(38, 30)))         as col_decimal_array_null_array,\n" +
-                "        [['1.50',null],null]::array(array(decimal(38, 30)))       as col_decimal_null_array_null_array,\n" +
-                "        null::array(array(decimal(38, 30)))                       as col_decimal_array_array_null,\n" +
-                "        'abc123'::bytea                       as col_bytea,\n" +
-                "        null::bytea                           as col_bytea_null,\n" +
+                "        '1231232.123459999990457054844258706536'::decimal(38, 30)    as col_decimal,\n" +
+                "        null::decimal(38, 30)                                        as col_decimal_null,\n" +
+                "        ['1.50','-2.25']::array(decimal(38, 30))                     as col_decimal_array,\n" +
+                "        ['1.50',null]::array(decimal(38, 30))                        as col_decimal_null_array,\n" +
+                "        null::array(decimal(38, 30))                                 as col_decimal_array_null,\n" +
+                "        [['1.50','-2.25'],null]::array(array(decimal(38, 30)))       as col_decimal_array_null_array,\n" +
+                "        [['1.50','-2.25'],[]]::array(array(decimal(38, 30)))         as col_decimal_array_null_array,\n" +
+                "        [['1.50',null],null]::array(array(decimal(38, 30)))          as col_decimal_null_array_null_array,\n" +
+                "        null::array(array(decimal(38, 30)))                          as col_decimal_array_array_null,\n" +
+                "        'abc123'::bytea                                    as col_bytea,\n" +
+                "        null::bytea                                        as col_bytea_null,\n" +
                 "        'point(1 2)'::geography                                     as col_geography,\n" +
                 "        null::geography                                             as col_geography_null,\n" +
                 "        ['point(1 2)','point(2 3)']::array(geography)               as col_geography_array,\n" +
                 "        ['point(1 2)',null]::array(geography)                       as col_geography_null_array,\n" +
                 "        null::array(geography)                                      as col_geography_array_null,\n" +
-                "        [['point(1 2)','point(2 3)'],null]::array(array(geography)) as col_geography_array_null_array,\n" +
+                "        [['point(1 2)','point(2 3)'],[]]::array(array(geography))   as col_geography_array_null_array,\n" +
                 "        [['point(1 2)',null],null]::array(array(geography))         as col_geography_null_array_null_array,\n" +
                 "        null::array(array(geography))                               as col_geography_array_array_null";
 
@@ -141,7 +141,7 @@ namespace FireboltDotNetSdk.Tests
             new[] { 1, 2 },
             new int?[] { 1, null },
             null,
-            new[] { new[] { 1, 2 }, null },
+            new[] { new[] { 1, 2 }, Array.Empty<int>() },
             new[] { new int?[] { 1, null }, null },
             null,
             // long
@@ -149,7 +149,7 @@ namespace FireboltDotNetSdk.Tests
             new[] { 1L, 2L, 3L },
             new long?[] { 1L, null },
             null,
-            new[] { new[] { 1L, 2L }, null },
+            new[] { new[] { 1L, 2L }, Array.Empty<long>() },
             new[] { new long?[] { 1L, null }, null },
             null,
             // float
@@ -157,7 +157,7 @@ namespace FireboltDotNetSdk.Tests
             new[] { 1.25f, 2.5f },
             new float?[] { 1.25f, null },
             null,
-            new[] { new[] { 1.25f, 2.5f }, null },
+            new[] { new[] { 1.25f, 2.5f }, Array.Empty<float>() },
             new[] { new float?[] { 1.25f, null }, null },
             null,
             // double
@@ -165,7 +165,7 @@ namespace FireboltDotNetSdk.Tests
             new[] { 1.125d, 2.25d },
             new double?[] { 1.125d, null },
             null,
-            new[] { new[] { 1.125d, 2.25d }, null },
+            new[] { new[] { 1.125d, 2.25d }, Array.Empty<double>() },
             new[] { new double?[] { 1.125d, null }, null },
             null,
             // text
@@ -173,7 +173,7 @@ namespace FireboltDotNetSdk.Tests
             new[] { "a", "b" },
             new[] { "a", null },
             null,
-            new[] { new[] { "a", "b" }, null },
+            new[] { new[] { "a", "b" }, Array.Empty<string>() },
             new[] { new[] { "a", null }, null },
             null,
             // date
@@ -182,7 +182,7 @@ namespace FireboltDotNetSdk.Tests
             new DateTime?[] { Parse("2021-03-28"), null },
             null,
             new[] { new[] { Parse("2021-03-28"), Parse("2021-03-29") }, null },
-            new[] { new[] { Parse("2021-03-28"), Parse("2021-03-29") } },
+            new[] { new[] { Parse("2021-03-28"), Parse("2021-03-29") }, Array.Empty<DateTime>() },
             new[] { new DateTime?[] { Parse("2021-03-28"), null }, null },
             null,
             // timestamp
@@ -191,7 +191,7 @@ namespace FireboltDotNetSdk.Tests
             new DateTime?[] { Parse("2019-07-31 01:01:01"), null },
             null,
             new[] { new[] { Parse("2019-07-31 01:01:01"), Parse("2019-08-01 00:00:00") }, null },
-            new[] { new[] { Parse("2019-07-31 01:01:01"), Parse("2019-08-01 00:00:00") } },
+            new[] { new[] { Parse("2019-07-31 01:01:01"), Parse("2019-08-01 00:00:00") }, Array.Empty<DateTime>() },
             new[] { new DateTime?[] { Parse("2019-07-31 01:01:01"), null }, null },
             null,
             // timestamptz
@@ -200,7 +200,7 @@ namespace FireboltDotNetSdk.Tests
             new DateTime?[] { Parse("1111-01-05 17:04:42.123456+00"), null },
             null,
             new[] { new[] { Parse("1111-01-05 17:04:42.123456+00"), Parse("1111-01-06 17:04:42.123456+00") }, null },
-            new[] { new[] { Parse("1111-01-05 17:04:42.123456+00"), Parse("1111-01-06 17:04:42.123456+00") } },
+            new[] { new[] { Parse("1111-01-05 17:04:42.123456+00"), Parse("1111-01-06 17:04:42.123456+00") }, Array.Empty<DateTime>() },
             new[] { new DateTime?[] { Parse("1111-01-05 17:04:42.123456+00"), null }, null },
             null,
             // boolean
@@ -208,7 +208,7 @@ namespace FireboltDotNetSdk.Tests
             new[] { true, false },
             new bool?[] { true, null },
             null,
-            new[] { new[] { true, false }, null },
+            new[] { new[] { true, false }, Array.Empty<bool>() },
             new[] { new bool?[] { true, null }, null },
             null,
             // decimal
@@ -217,7 +217,7 @@ namespace FireboltDotNetSdk.Tests
             new decimal?[] { decimal.Parse("1.50"), null },
             null,
             new[] { new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") }, null },
-            new[] { new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") } },
+            new[] { new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") }, Array.Empty<decimal>() },
             new[] { new decimal?[] { decimal.Parse("1.50"), null }, null },
             null,
             // bytea
@@ -227,7 +227,7 @@ namespace FireboltDotNetSdk.Tests
             new[] { "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040", "0101000020E6100000FEFFFFFFFFFFFF3F0100000000000840" },
             new[] { "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040", null },
             null,
-            new[] { new[] { "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040", "0101000020E6100000FEFFFFFFFFFFFF3F0100000000000840" }, null },
+            new[] { new[] { "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040", "0101000020E6100000FEFFFFFFFFFFFF3F0100000000000840" }, Array.Empty<string>() },
             new[] { new[] { "0101000020E6100000FEFFFFFFFFFFEF3F0000000000000040", null }, null },
             null
         };
@@ -311,10 +311,7 @@ namespace FireboltDotNetSdk.Tests
 
             await using var reader = await command.ExecuteStreamedQueryAsync();
             Assert.That(await reader.ReadAsync(), Is.EqualTo(true));
-            for (var i = 0; i < TypeList.Count; i++)
-            {
-                Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
-            }
+            VerifyReturnedValues(reader);
         }
 
         [Test]
@@ -329,10 +326,7 @@ namespace FireboltDotNetSdk.Tests
 
             using var reader = command.ExecuteStreamedQuery();
             Assert.That(reader.Read(), Is.EqualTo(true));
-            for (var i = 0; i < TypeList.Count; i++)
-            {
-                Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
-            }
+            VerifyReturnedValues(reader);
         }
 
         private static void VerifyReturnedValues(DbDataReader reader)
