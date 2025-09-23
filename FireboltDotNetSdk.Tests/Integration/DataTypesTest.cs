@@ -11,6 +11,8 @@ namespace FireboltDotNetSdk.Tests
     {
         private static readonly string UserConnectionString = ConnectionString();
         // Legacy combined test retained for compatibility; specific matrix tests are parameterized below
+        // arrays of arrays test data contain [[1,2],[]] instead of [[1,2],null] because the query result was inconsistent when it came to the base type being null or not
+        // so for consistency we use empty array instead of null for the second element so that the base type is always non-nullable
         private const string VariousTypeQuery =
                 "select  1                                     as col_int,\n" +
                 "        null::int                             as col_int_null,\n" +
