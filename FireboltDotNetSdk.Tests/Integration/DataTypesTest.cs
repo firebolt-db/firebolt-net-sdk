@@ -248,18 +248,7 @@ namespace FireboltDotNetSdk.Tests
             {
                 Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
             }
-            for (var i = 0; i < ExpectedValues.Length; i++)
-            {
-                if (ExpectedValues[i] == null)
-                {
-                    Assert.That(reader.IsDBNull(i), Is.True, $"Column at index {i} expected to be null");
-                }
-                else
-                {
-                    var value = reader.GetValue(i);
-                    Assert.That(value, Is.EqualTo(ExpectedValues[i]), $"Mismatch at column index {i}");
-                }
-            }
+            VerifyReturnedValues(reader);
         }
 
         [Test]
@@ -278,18 +267,7 @@ namespace FireboltDotNetSdk.Tests
             {
                 Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
             }
-            for (var i = 0; i < ExpectedValues.Length; i++)
-            {
-                if (ExpectedValues[i] == null)
-                {
-                    Assert.That(reader.IsDBNull(i), Is.True, $"Column at index {i} expected to be null");
-                }
-                else
-                {
-                    var value = reader.GetValue(i);
-                    Assert.That(value, Is.EqualTo(ExpectedValues[i]), $"Mismatch at column index {i}");
-                }
-            }
+            VerifyReturnedValues(reader);
         }
 
         [Test]
@@ -354,6 +332,22 @@ namespace FireboltDotNetSdk.Tests
             for (var i = 0; i < TypeList.Count; i++)
             {
                 Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
+            }
+        }
+
+        private static void VerifyReturnedValues(DbDataReader reader)
+        {
+            for (var i = 0; i < ExpectedValues.Length; i++)
+            {
+                if (ExpectedValues[i] == null)
+                {
+                    Assert.That(reader.IsDBNull(i), Is.True, $"Column at index {i} expected to be null");
+                }
+                else
+                {
+                    var value = reader.GetValue(i);
+                    Assert.That(value, Is.EqualTo(ExpectedValues[i]), $"Mismatch at column index {i}");
+                }
             }
         }
     }
