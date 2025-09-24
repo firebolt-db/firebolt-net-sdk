@@ -23,6 +23,8 @@ using System.Text.RegularExpressions;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FireboltDotNetSdk.Client
 {
@@ -547,6 +549,44 @@ namespace FireboltDotNetSdk.Client
                 Data = _queryResult.Data.Select(HasRows => new List<object?>() { HasRows[ordinal] }).ToList()
             };
             return new FireboltDataReader(_fullTableName, queryResult, _depth + 1);
+        }
+
+        /// <inheritdoc/>
+        public override T GetFieldValue<T>(int ordinal)
+        {
+            if (IsDBNull(ordinal))
+            {
+                throw new InvalidCastException($"Column #{ordinal} is null (DBNull) and cannot be cast to {typeof(T).Name}");
+            }
+            var value = GetValue(ordinal);
+            switch (value)
+            {
+                case T direct:
+                    return direct;
+
+                case Dictionary<string, object?> dict when typeof(T).IsAssignableFrom(typeof(Dictionary<string, object>)) ||
+                                                           typeof(IDictionary<string, object>).IsAssignableFrom(typeof(T)):
+                    return (T)(object)dict;
+
+                case Dictionary<string, object?> dict:
+                    {
+                        var serializer = new JsonSerializer
+                        {
+                            ContractResolver = new FireboltStructNameContractResolver()
+                        };
+                        var token = JToken.FromObject(dict);
+                        return token.ToObject<T>(serializer)!;
+                    }
+                default:
+                    // Fallback conversion attempt for compatible primitives
+                    return (T)Convert.ChangeType(value, typeof(T));
+            }
+        }
+
+        /// <inheritdoc/>
+        public override Task<T> GetFieldValueAsync<T>(int ordinal, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(GetFieldValue<T>(ordinal));
         }
     }
 }

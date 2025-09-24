@@ -721,5 +721,71 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(dataTable.Rows[0]["i"], Is.EqualTo(123));
             });
         }
+
+        [Test]
+        public void GetFieldValueGeneric_StructHappyFlow()
+        {
+            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct" } };
+            var dict = new Dictionary<string, object?>
+            {
+                { "int_val", 42 },
+                { "str_val", "hello" },
+                { "arr_val", new float[] { 1.23f, 4.56f } }
+            };
+            var data = new List<List<object?>> { new List<object?> { dict } };
+            QueryResult result = new QueryResult { Rows = 1, Meta = meta, Data = data };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.That(reader.Read(), Is.True);
+
+            // As dictionary
+            var asDict = reader.GetFieldValue<Dictionary<string, object?>>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(asDict["int_val"], Is.EqualTo(42));
+                Assert.That(asDict["str_val"], Is.EqualTo("hello"));
+            });
+
+            // As POCO using FromName
+            var poco = reader.GetFieldValue<TestPoco>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.IntVal, Is.EqualTo(42));
+                Assert.That(poco.StrVal, Is.EqualTo("hello"));
+                Assert.That(poco.ArrVal!.Length, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_Struct_UnhappyFlows()
+        {
+            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct" } };
+            var dict = new Dictionary<string, object?>
+            {
+                { "int_val", 42 },
+                { "str_val", "hello" },
+                { "arr_val", new float[] { 1.23f, 4.56f } }
+            };
+            var data = new List<List<object?>> { new List<object?> { dict } };
+            DbDataReader reader = new FireboltDataReader(null, new QueryResult { Rows = 1, Meta = meta, Data = data });
+            Assert.That(reader.Read(), Is.True);
+
+            // Not assignable cast
+            Assert.Throws<InvalidCastException>(() => reader.GetFieldValue<int>(0));
+
+            // Null column should throw
+            var meta2 = new List<Meta>() { new Meta { Name = "plain", Type = "struct" } };
+            var data2 = new List<List<object?>> { new List<object?> { null } };
+            DbDataReader reader2 = new FireboltDataReader(null, new QueryResult { Rows = 1, Meta = meta2, Data = data2 });
+            Assert.That(reader2.Read(), Is.True);
+            Assert.Throws<InvalidCastException>(() => reader2.GetFieldValue<TestPoco>(0));
+        }
+
+        class TestPoco
+        {
+            [FireboltStructName("int_val")] public int IntVal { get; init; }
+            [FireboltStructName("str_val")] public string StrVal { get; init; } = string.Empty;
+            [FireboltStructName("arr_val")] public float[]? ArrVal { get; init; }
+        }
     }
 }
