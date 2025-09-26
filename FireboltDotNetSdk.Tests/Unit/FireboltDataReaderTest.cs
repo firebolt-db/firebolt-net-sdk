@@ -722,21 +722,22 @@ namespace FireboltDotNetSdk.Tests
             });
         }
 
-        [Test]
-        public void GetFieldValueGeneric_StructHappyFlow()
+        private static DbDataReader CreateStructReader()
         {
-            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct" } };
-            var dict = new Dictionary<string, object?>
-            {
-                { "int_val", 42 },
-                { "str_val", "hello" },
-                { "arr_val", new float[] { 1.23f, 4.56f } }
-            };
-            var data = new List<List<object?>> { new List<object?> { dict } };
-            QueryResult result = new QueryResult { Rows = 1, Meta = meta, Data = data };
+            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct(int_val int, str_val text, arr_val array(decimal(5, 3)))" } };
+            const string json = "{\"int_val\":42,\"str_val\":\"hello\",\"arr_val\":[1.23,4.56]}";
+            var data = new List<List<object?>> { new List<object?> { json } };
+            var result = new QueryResult { Rows = 1, Meta = meta, Data = data };
 
             DbDataReader reader = new FireboltDataReader(null, result);
             Assert.That(reader.Read(), Is.True);
+            return reader;
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_StructHappyFlow()
+        {
+            var reader = CreateStructReader();
 
             // As dictionary
             var asDict = reader.GetFieldValue<Dictionary<string, object?>>(0);
@@ -746,27 +747,22 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(asDict["str_val"], Is.EqualTo("hello"));
             });
 
-            // As POCO using FromName
+            // Also verify POCO mapping using attribute names
             var poco = reader.GetFieldValue<TestPoco>(0);
             Assert.Multiple(() =>
             {
                 Assert.That(poco.IntVal, Is.EqualTo(42));
                 Assert.That(poco.StrVal, Is.EqualTo("hello"));
-                Assert.That(poco.ArrVal!.Length, Is.EqualTo(2));
+                Assert.That(poco.ArrVal!, Has.Length.EqualTo(2));
             });
         }
 
         [Test]
         public void GetFieldValueGeneric_Struct_UnhappyFlows()
         {
-            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct" } };
-            var dict = new Dictionary<string, object?>
-            {
-                { "int_val", 42 },
-                { "str_val", "hello" },
-                { "arr_val", new float[] { 1.23f, 4.56f } }
-            };
-            var data = new List<List<object?>> { new List<object?> { dict } };
+            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct(int_val int, str_val text, arr_val array(decimal(5, 3)))" } };
+            const string json = "{\"int_val\":42,\"str_val\":\"hello\",\"arr_val\":[1.23,4.56]}";
+            var data = new List<List<object?>> { new List<object?> { json } };
             DbDataReader reader = new FireboltDataReader(null, new QueryResult { Rows = 1, Meta = meta, Data = data });
             Assert.That(reader.Read(), Is.True);
 

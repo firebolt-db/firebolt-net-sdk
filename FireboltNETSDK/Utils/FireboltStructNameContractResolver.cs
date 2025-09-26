@@ -12,12 +12,14 @@ namespace FireboltDotNetSdk.Utils
             NamingStrategy = new SnakeCaseNamingStrategy();
         }
 
+        /// <summary>
+        /// Override JSON.NET's property creation.
+        /// If a member has a [FireboltStructName("...")] mapping, use that name as the JSON property name instead of the default.
+        /// </summary>
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
             var prop = base.CreateProperty(member, memberSerialization);
 
-            // If an explicit JsonProperty is present, let it win
-            if (member.GetCustomAttribute<JsonPropertyAttribute>(true) is not null) return prop;
             var map = GetFromName(member);
             if (map is { Name: { Length: > 0 } name })
                 prop.PropertyName = name;
@@ -25,6 +27,10 @@ namespace FireboltDotNetSdk.Utils
             return prop;
         }
 
+        /// <summary>
+        /// Override JSON.NET's default constructor parameter mapping.
+        /// If a parameter has [FireboltStructName("...")], use that value as the JSON property name instead of the parameter's name.
+        /// </summary>
         protected override IList<JsonProperty> CreateConstructorParameters(
             ConstructorInfo constructor, JsonPropertyCollection memberProperties)
         {

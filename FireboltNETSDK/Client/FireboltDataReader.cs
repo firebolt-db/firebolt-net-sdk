@@ -564,8 +564,7 @@ namespace FireboltDotNetSdk.Client
                 case T direct:
                     return direct;
 
-                case Dictionary<string, object?> dict when typeof(T).IsAssignableFrom(typeof(Dictionary<string, object>)) ||
-                                                           typeof(IDictionary<string, object>).IsAssignableFrom(typeof(T)):
+                case Dictionary<string, object?> dict when typeof(T).IsAssignableFrom(typeof(Dictionary<string, object>)):
                     return (T)(object)dict;
 
                 case Dictionary<string, object?> dict:
@@ -575,7 +574,14 @@ namespace FireboltDotNetSdk.Client
                             ContractResolver = new FireboltStructNameContractResolver()
                         };
                         var token = JToken.FromObject(dict);
-                        return token.ToObject<T>(serializer)!;
+                        try
+                        {
+                            return token.ToObject<T>(serializer)!;
+                        }
+                        catch (JsonReaderException ex)
+                        {
+                            throw new InvalidCastException("Cannot convert struct to the specified type", ex);
+                        }
                     }
                 default:
                     // Fallback conversion attempt for compatible primitives

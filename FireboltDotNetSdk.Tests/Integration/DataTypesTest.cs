@@ -13,6 +13,9 @@ namespace FireboltDotNetSdk.Tests
     internal class DataTypesTest : IntegrationTest
     {
         private static readonly string UserConnectionString = ConnectionString();
+        private const string StructHelperTable = "struct_various_types_helper";
+        private const string StructTable = "struct_various";
+        private static List<string> StructAliases = new();
         // Legacy combined test retained for compatibility; specific matrix tests are parameterized below
         // arrays of arrays test data contain [[1,2],[]] instead of [[1,2],null] because the query result was inconsistent when it came to the base type being null or not
         // so for consistency we use empty array instead of null for the second element so that the base type is always non-nullable
@@ -386,9 +389,8 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        [Test]
-        [Category("engine-v2")]
-        public void CreateSelect_Struct_With_All_VariousTypes()
+        [OneTimeSetUp]
+        public void OneTimeSetup_StructVarious()
         {
             using var connection = new FireboltConnection(UserConnectionString);
             connection.Open();
@@ -400,8 +402,8 @@ namespace FireboltDotNetSdk.Tests
                 "SET enable_struct_syntax=true",
                 "SET prevent_create_on_information_schema=true",
                 "SET enable_create_table_with_struct_type=true",
-                "DROP TABLE IF EXISTS struct_various_types_helper",
-                "DROP TABLE IF EXISTS struct_various"
+                $"DROP TABLE IF EXISTS {StructHelperTable}",
+                $"DROP TABLE IF EXISTS {StructTable}"
             };
             foreach (var s in setup)
             {
@@ -410,19 +412,16 @@ namespace FireboltDotNetSdk.Tests
                 c.ExecuteNonQuery();
             }
 
-            // Create helper table with all columns from VariousTypeQuery
             var createHelper = (FireboltCommand)connection.CreateCommand();
-            createHelper.CommandText = $"CREATE TABLE struct_various_types_helper AS {VariousTypeQuery}";
+            createHelper.CommandText = $"CREATE TABLE {StructHelperTable} AS {VariousTypeQuery}";
             createHelper.ExecuteNonQuery();
 
-            // Extract column aliases from VariousTypeQuery in order
-            var aliases = Regex.Matches(VariousTypeQuery, @"as\s+([a-zA-Z_]*)")
+            StructAliases = Regex.Matches(VariousTypeQuery, @"as\s+([a-zA-Z_]*)")
                 .Select(m => m.Groups[1].Value)
                 .ToList();
 
-            // Read column types from information_schema to build struct(name type, ...)
             var typesCmd = (FireboltCommand)connection.CreateCommand();
-            typesCmd.CommandText = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='struct_various_types_helper' ORDER BY ordinal_position";
+            typesCmd.CommandText = $"SELECT column_name, data_type FROM information_schema.columns WHERE table_name='{StructHelperTable}' ORDER BY ordinal_position";
             var typeMap = new Dictionary<string, string>();
             using (var tReader = typesCmd.ExecuteReader())
             {
@@ -434,65 +433,111 @@ namespace FireboltDotNetSdk.Tests
                 }
             }
 
-            var structTypeDef = string.Join(", ", aliases.Select(a => $"{a} {typeMap[a]}"));
+            var structTypeDef = string.Join(", ", StructAliases.Select(a => $"{a} {typeMap[a]}"));
 
-            // Create table with explicit struct schema
             var createStruct = (FireboltCommand)connection.CreateCommand();
-            createStruct.CommandText = $"CREATE TABLE struct_various (s struct({structTypeDef}))";
+            createStruct.CommandText = $"CREATE TABLE {StructTable} (s struct({structTypeDef}))";
             createStruct.ExecuteNonQuery();
 
-            // Insert rows by packing helper columns into the struct
-            var structExpr = string.Join(", ", aliases);
+            var structExpr = string.Join(", ", StructAliases);
             var insertStruct = (FireboltCommand)connection.CreateCommand();
-            insertStruct.CommandText = $"INSERT INTO struct_various SELECT struct({structExpr}) FROM struct_various_types_helper";
+            insertStruct.CommandText = $"INSERT INTO {StructTable} SELECT struct({structExpr}) FROM {StructHelperTable}";
             insertStruct.ExecuteNonQuery();
+        }
 
-            // Validate: read the struct and compare every field to ExpectedValues
+        [OneTimeTearDown]
+        public void OneTimeTearDown_StructVarious()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+            foreach (var s in new[] { $"DROP TABLE IF EXISTS {StructTable}", $"DROP TABLE IF EXISTS {StructHelperTable}" })
+            {
+                var c = (FireboltCommand)connection.CreateCommand();
+                c.CommandText = s;
+                c.ExecuteNonQuery();
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void CreateSelect_Struct_With_All_VariousTypes_StandardDictionary()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+
             var select = (FireboltCommand)connection.CreateCommand();
-            select.CommandText = "SELECT s FROM struct_various";
+            select.CommandText = $"SELECT s FROM {StructTable}";
             using var reader = select.ExecuteReader();
             Assert.That(reader.Read(), Is.True);
 
             var standardDic = (Dictionary<string, object?>)reader.GetValue(0);
-            var genericDic = reader.GetFieldValue<Dictionary<string, object?>>(0);
             Assert.Multiple(() =>
             {
                 Assert.That(standardDic, Is.Not.Null);
-                Assert.That(standardDic.Keys, Has.Count.EqualTo(aliases.Count));
-                Assert.That(genericDic, Is.Not.Null);
-                Assert.That(genericDic.Keys, Has.Count.EqualTo(aliases.Count));
+                Assert.That(standardDic.Keys, Has.Count.EqualTo(StructAliases.Count));
             });
 
-            for (var i = 0; i < aliases.Count; i++)
+            for (var i = 0; i < StructAliases.Count; i++)
             {
-                var key = aliases[i];
+                var key = StructAliases[i];
                 var expected = ExpectedValues[i];
-                Assert.Multiple(() =>
-                {
-                    Assert.That(standardDic.ContainsKey(key), Is.True, $"Missing key '{key}' in struct");
-                    Assert.That(genericDic.ContainsKey(key), Is.True, $"Missing key '{key}' in struct");
-                });
-                var standardActual = standardDic[key];
-                var genericActual = genericDic[key];
+                Assert.That(standardDic.ContainsKey(key), Is.True, $"Missing key '{key}' in struct");
+                var actual = standardDic[key];
                 if (expected is null)
                 {
-                    Assert.Multiple(() =>
-                    {
-                        Assert.That(standardActual, Is.Null, $"Field '{key}' expected null");
-                        Assert.That(genericActual, Is.Null, $"Field '{key}' expected null");
-                    });
+                    Assert.That(actual, Is.Null, $"Field '{key}' expected null");
                 }
                 else
                 {
-                    Assert.Multiple(() =>
-                    {
-                        Assert.That(standardActual, Is.EqualTo(expected), $"Mismatch at '{key}'");
-                        Assert.That(genericActual, Is.EqualTo(expected), $"Mismatch at '{key}'");
-                    });
+                    Assert.That(actual, Is.EqualTo(expected), $"Mismatch at '{key}'");
                 }
             }
+        }
 
-            // Also deserialize into POCO using FireboltStructNameAttribute and validate
+        [Test]
+        [Category("engine-v2")]
+        public void CreateSelect_Struct_With_All_VariousTypes_GenericDictionary()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+
+            var select = (FireboltCommand)connection.CreateCommand();
+            select.CommandText = $"SELECT s FROM {StructTable}";
+            using var reader = select.ExecuteReader();
+            Assert.That(reader.Read(), Is.True);
+
+            var genericDic = reader.GetFieldValue<Dictionary<string, object?>>(0);
+            Assert.That(genericDic.Keys, Has.Count.EqualTo(StructAliases.Count));
+
+            for (var i = 0; i < StructAliases.Count; i++)
+            {
+                var key = StructAliases[i];
+                var expected = ExpectedValues[i];
+                Assert.That(genericDic.ContainsKey(key), Is.True, $"Missing key '{key}' in struct");
+                var actual = genericDic[key];
+                if (expected is null)
+                {
+                    Assert.That(actual, Is.Null, $"Field '{key}' expected null");
+                }
+                else
+                {
+                    Assert.That(actual, Is.EqualTo(expected), $"Mismatch at '{key}'");
+                }
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void CreateSelect_Struct_With_All_VariousTypes_Poco()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+
+            var select = (FireboltCommand)connection.CreateCommand();
+            select.CommandText = $"SELECT s FROM {StructTable}";
+            using var reader = select.ExecuteReader();
+            Assert.That(reader.Read(), Is.True);
+
             var poco = reader.GetFieldValue<VariousStructPoco>(0);
             var propByAlias = typeof(VariousStructPoco)
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
@@ -501,9 +546,9 @@ namespace FireboltDotNetSdk.Tests
                     f => f
                 );
 
-            for (var i = 0; i < aliases.Count; i++)
+            for (var i = 0; i < StructAliases.Count; i++)
             {
-                var alias = aliases[i];
+                var alias = StructAliases[i];
                 var expected = ExpectedValues[i];
                 var value = propByAlias[alias].GetValue(poco);
 
@@ -515,15 +560,6 @@ namespace FireboltDotNetSdk.Tests
                 {
                     Assert.That(value, Is.EqualTo(expected), $"POCO mismatch at '{alias}'");
                 }
-            }
-
-            // Cleanup
-            var cleanup = new[] { "DROP TABLE struct_various", "DROP TABLE struct_various_types_helper" };
-            foreach (var s in cleanup)
-            {
-                var c = (FireboltCommand)connection.CreateCommand();
-                c.CommandText = s;
-                c.ExecuteNonQuery();
             }
         }
 
