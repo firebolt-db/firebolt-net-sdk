@@ -9,9 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check title name convention
-        uses: jef/conventional-commits-pr-action@v1.0.0
+        uses: firebolt-db/action-pr-checks@519d59493b028e944971deaeca570933c378f09e
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          github-key: ${{ secrets.GITHUB_TOKEN }}
   build:
     uses: ./.github/workflows/build.yml
   code-checkers:
@@ -20,5 +20,6 @@ jobs:
     uses: ./.github/workflows/unit-tests.yml
   sonar-scan:
     uses: ./.github/workflows/sonar-scan.yml
+    needs: [build, unit-tests]
     secrets:
       SONARCLOUD_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}

@@ -8,50 +8,41 @@ on:
 jobs:
   build:
     name: Build and analyze
-    runs-on: windows-latest
+    runs-on: ubuntu-latest   # <-- match OS of the artifacts producer
     steps:
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
         with:
-          java-version: 17
-          distribution: 'zulu'
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-          path: ~\sonar\cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+          fetch-depth: 0
 
-      - name: Cache SonarCloud scanner
-        id: cache-sonar-scanner
-        uses: actions/cache@v3
+      - uses: actions/download-artifact@v4
         with:
-          path: .\.sonar\scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
+          name: test-artifacts
+          path: artifacts
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 6.0.x
 
       - name: Install SonarCloud scanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          New-Item -Path .\.sonar\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+        run: dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
 
-      - name: Install Coverage tool
-        shell: powershell
-        run: |
-          dotnet tool install --global dotnet-coverage
-
-      - name: Build and analyze
+      - name: Sonar begin
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
-        shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"firebolt-db_firebolt-net-sdk" /o:"firebolt-db" /d:sonar.token="${{ secrets.SONARCLOUD_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths="coverage.xml"
-          dotnet build --no-incremental
-          dotnet-coverage collect 'dotnet test --filter "Category!=Integration"' -f xml -o "coverage.xml"
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONARCLOUD_TOKEN }}"
+          ./.sonar/scanner/dotnet-sonarscanner begin \
+            /k:"firebolt-db_firebolt-net-sdk" \
+            /o:"firebolt-db" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.cs.vscoveragexml.reportsPaths="artifacts/coverage/coverage.xml" \
+            /d:sonar.cs.vstest.reportsPaths="artifacts/**/*.trx"
+
+      #Sonar needs this step to collect the required information about the project
+      - name: Build
+        run: dotnet build --no-incremental
+
+      - name: Sonar end
+        env:
+          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
+        run: ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
