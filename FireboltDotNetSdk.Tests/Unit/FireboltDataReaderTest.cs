@@ -777,11 +777,78 @@ namespace FireboltDotNetSdk.Tests
             Assert.Throws<InvalidCastException>(() => reader2.GetFieldValue<TestPoco>(0));
         }
 
+        [Test]
+        public void GetFieldValueGeneric_Struct_MixedAttributeAndImplicitNames()
+        {
+            var reader = CreateStructReader();
+
+            var poco = reader.GetFieldValue<TestPocoMixed>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.IntVal, Is.EqualTo(42));
+                Assert.That(poco.StrVal, Is.EqualTo("hello"));
+                Assert.That(poco.ArrVal!, Has.Length.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_Struct_PocoMissingFieldFromStruct()
+        {
+            var reader = CreateStructReader();
+
+            var poco = reader.GetFieldValue<TestPocoMissing>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.IntVal, Is.EqualTo(42));
+                Assert.That(poco.StrVal, Is.EqualTo("hello"));
+                // Missing field (arr_val) should be ignored without exceptions
+            });
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_Struct_PocoDifferentShape_Throws()
+        {
+            var reader = CreateStructReader();
+
+            var poco = reader.GetFieldValue<DifferentPocoWrongType>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.TimestampVal, Is.EqualTo(default(DateTime)));
+                Assert.That(poco.DoubleVal, Is.EqualTo(0.0));
+            });
+        }
+
         class TestPoco
         {
             [FireboltStructName("int_val")] public int IntVal { get; init; }
             [FireboltStructName("str_val")] public string StrVal { get; init; } = string.Empty;
             [FireboltStructName("arr_val")] public float[]? ArrVal { get; init; }
+        }
+
+        class TestPocoMixed
+        {
+            // Attribute for one field
+            [FireboltStructName("int_val")] public int IntVal { get; init; }
+
+            // Implicit snake_case mapping (no attribute)
+            public string StrVal { get; init; } = string.Empty;
+
+            // Implicit snake_case mapping (no attribute)
+            public float[]? ArrVal { get; init; }
+        }
+
+        class TestPocoMissing
+        {
+            [FireboltStructName("int_val")] public int IntVal { get; init; }
+            // No attribute, mapped by snake_case to str_val
+            public string StrVal { get; init; } = string.Empty;
+            // Deliberately missing ArrVal property
+        }
+
+        class DifferentPocoWrongType
+        {
+            public DateTime TimestampVal { get; init; }
+            [FireboltStructName("double_val")] public double DoubleVal { get; init; }
         }
     }
 }
