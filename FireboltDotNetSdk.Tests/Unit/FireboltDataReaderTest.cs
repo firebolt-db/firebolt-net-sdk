@@ -721,5 +721,134 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(dataTable.Rows[0]["i"], Is.EqualTo(123));
             });
         }
+
+        private static DbDataReader CreateStructReader()
+        {
+            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct(int_val int, str_val text, arr_val array(decimal(5, 3)))" } };
+            const string json = "{\"int_val\":42,\"str_val\":\"hello\",\"arr_val\":[1.23,4.56]}";
+            var data = new List<List<object?>> { new List<object?> { json } };
+            var result = new QueryResult { Rows = 1, Meta = meta, Data = data };
+
+            DbDataReader reader = new FireboltDataReader(null, result);
+            Assert.That(reader.Read(), Is.True);
+            return reader;
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_StructHappyFlow()
+        {
+            var reader = CreateStructReader();
+
+            // As dictionary
+            var asDict = reader.GetFieldValue<Dictionary<string, object?>>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(asDict["int_val"], Is.EqualTo(42));
+                Assert.That(asDict["str_val"], Is.EqualTo("hello"));
+            });
+
+            // Also verify POCO mapping using attribute names
+            var poco = reader.GetFieldValue<TestPoco>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.IntVal, Is.EqualTo(42));
+                Assert.That(poco.StrVal, Is.EqualTo("hello"));
+                Assert.That(poco.ArrVal!, Has.Length.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_Struct_UnhappyFlows()
+        {
+            var meta = new List<Meta>() { new Meta { Name = "plain", Type = "struct(int_val int, str_val text, arr_val array(decimal(5, 3)))" } };
+            const string json = "{\"int_val\":42,\"str_val\":\"hello\",\"arr_val\":[1.23,4.56]}";
+            var data = new List<List<object?>> { new List<object?> { json } };
+            DbDataReader reader = new FireboltDataReader(null, new QueryResult { Rows = 1, Meta = meta, Data = data });
+            Assert.That(reader.Read(), Is.True);
+
+            // Not assignable cast
+            Assert.Throws<InvalidCastException>(() => reader.GetFieldValue<int>(0));
+
+            // Null column should throw
+            var meta2 = new List<Meta>() { new Meta { Name = "plain", Type = "struct" } };
+            var data2 = new List<List<object?>> { new List<object?> { null } };
+            DbDataReader reader2 = new FireboltDataReader(null, new QueryResult { Rows = 1, Meta = meta2, Data = data2 });
+            Assert.That(reader2.Read(), Is.True);
+            Assert.Throws<InvalidCastException>(() => reader2.GetFieldValue<TestPoco>(0));
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_Struct_MixedAttributeAndImplicitNames()
+        {
+            var reader = CreateStructReader();
+
+            var poco = reader.GetFieldValue<TestPocoMixed>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.IntVal, Is.EqualTo(42));
+                Assert.That(poco.StrVal, Is.EqualTo("hello"));
+                Assert.That(poco.ArrVal!, Has.Length.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_Struct_PocoMissingFieldFromStruct()
+        {
+            var reader = CreateStructReader();
+
+            var poco = reader.GetFieldValue<TestPocoMissing>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.IntVal, Is.EqualTo(42));
+                Assert.That(poco.StrVal, Is.EqualTo("hello"));
+                // Missing field (arr_val) should be ignored without exceptions
+            });
+        }
+
+        [Test]
+        public void GetFieldValueGeneric_Struct_PocoDifferentShape_Throws()
+        {
+            var reader = CreateStructReader();
+
+            var poco = reader.GetFieldValue<DifferentPocoWrongType>(0);
+            Assert.Multiple(() =>
+            {
+                Assert.That(poco.TimestampVal, Is.EqualTo(default(DateTime)));
+                Assert.That(poco.DoubleVal, Is.EqualTo(0.0));
+            });
+        }
+
+        class TestPoco
+        {
+            [FireboltStructName("int_val")] public int IntVal { get; init; }
+            [FireboltStructName("str_val")] public string StrVal { get; init; } = string.Empty;
+            [FireboltStructName("arr_val")] public float[]? ArrVal { get; init; }
+        }
+
+        class TestPocoMixed
+        {
+            // Attribute for one field
+            [FireboltStructName("int_val")] public int IntVal { get; init; }
+
+            // Implicit snake_case mapping (no attribute)
+            public string StrVal { get; init; } = string.Empty;
+
+            // Implicit snake_case mapping (no attribute)
+            public float[]? ArrVal { get; init; }
+        }
+
+        class TestPocoMissing
+        {
+            [FireboltStructName("int_val")] public int IntVal { get; init; }
+            // No attribute, mapped by snake_case to str_val
+            public string StrVal { get; init; } = string.Empty;
+            // Deliberately missing ArrVal property
+        }
+
+        class DifferentPocoWrongType
+        {
+            public DateTime TimestampVal { get; init; }
+            [FireboltStructName("double_val")] public double DoubleVal { get; init; }
+        }
     }
 }
