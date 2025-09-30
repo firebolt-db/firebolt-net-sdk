@@ -26,10 +26,22 @@ jobs:
       run: |
         dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
 
+    - name: Install coverage tool
+      run: dotnet tool install --global dotnet-coverage --version 17.12.6
+
     - name: Install dependencies
       run: |
         dotnet restore
 
     - name: Run unit tests
       run: |
-        dotnet test --filter "Category!=Integration"
+        mkdir -p coverage
+        dotnet-coverage collect 'dotnet test --filter "Category!=Integration" --logger trx' -f xml -o "coverage/coverage.xml"
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifacts
+        path: |
+          **/TestResults/*.trx
+          coverage/coverage.xml
