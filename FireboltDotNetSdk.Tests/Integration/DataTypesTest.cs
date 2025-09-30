@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Utils;
@@ -688,6 +689,34 @@ namespace FireboltDotNetSdk.Tests
                 {
                     Assert.That(value, Is.EqualTo(expected), $"POCO mismatch at '{alias}'");
                 }
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void ExecuteReader_VariousTypes_WithCzCulture()
+        {
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("cs-CZ");
+                using var connection = new FireboltConnection(UserConnectionString);
+                connection.Open();
+
+                var command = (FireboltCommand)connection.CreateCommand();
+                command.CommandText = VariousTypeQuery;
+
+                using var reader = command.ExecuteReader();
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                for (var i = 0; i < TypeList.Count; i++)
+                {
+                    Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
+                }
+                VerifyReturnedValues(reader);
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = originalCulture;
             }
         }
 
