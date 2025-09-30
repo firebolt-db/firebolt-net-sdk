@@ -16,6 +16,7 @@
 #endregion
 
 using System.Collections;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Text;
@@ -436,7 +437,78 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override DataTable? GetSchemaTable()
         {
-            return _fullTableName == null ? null : new DataTable(_fullTableName); // TODO split full table name that can contain schema_name.table_name (dot notation)
+            return BuildSchemaTable(_queryResult.Meta, _fullTableName);
+        }
+
+        protected DataTable BuildSchemaTable(IList<Meta> metas, string? fullTableName)
+        {
+            var schema = new DataTable(fullTableName);
+
+            schema.Columns.Add("ColumnName", typeof(string));
+            schema.Columns.Add("ColumnOrdinal", typeof(int));
+            schema.Columns.Add("ColumnSize", typeof(int));
+            schema.Columns.Add("NumericPrecision", typeof(short));
+            schema.Columns.Add("NumericScale", typeof(short));
+            schema.Columns.Add("DataType", typeof(Type));
+            schema.Columns.Add("DataTypeName", typeof(string));
+            schema.Columns.Add("AllowDBNull", typeof(bool));
+            schema.Columns.Add("IsUnique", typeof(bool));
+            schema.Columns.Add("IsKey", typeof(bool));
+            schema.Columns.Add("IsAutoIncrement", typeof(bool));
+            schema.Columns.Add("IsLong", typeof(bool));
+            schema.Columns.Add("IsReadOnly", typeof(bool));
+            schema.Columns.Add("IsRowVersion", typeof(bool));
+            schema.Columns.Add("BaseCatalogName", typeof(string));
+            schema.Columns.Add("BaseSchemaName", typeof(string));
+            schema.Columns.Add("BaseTableName", typeof(string));
+            schema.Columns.Add("BaseColumnName", typeof(string));
+
+            string? baseSchemaName = null;
+            string? baseTableName = null;
+            if (!string.IsNullOrWhiteSpace(fullTableName))
+            {
+                int dot = fullTableName.IndexOf('.');
+                if (dot > 0 && dot < fullTableName.Length - 1)
+                {
+                    baseSchemaName = fullTableName.Substring(0, dot);
+                    baseTableName = fullTableName.Substring(dot + 1);
+                }
+                else
+                {
+                    baseTableName = fullTableName;
+                }
+            }
+
+            for (int i = 0; i < metas.Count; i++)
+            {
+                var meta = metas[i];
+                var columnType = GetColumnType(i);
+                var dataType = TypesConverter.GetType(columnType);
+
+                var row = schema.NewRow();
+                row["ColumnName"] = meta.Name;
+                row["ColumnOrdinal"] = i;
+                row["ColumnSize"] = -1;
+                row["NumericPrecision"] = columnType.Precision.HasValue ? columnType.Precision.Value : DBNull.Value;
+                row["NumericScale"] = columnType.Scale.HasValue ? columnType.Scale.Value : DBNull.Value;
+                row["DataType"] = dataType;
+                row["DataTypeName"] = meta.Type;
+                row["AllowDBNull"] = columnType.Nullable;
+                row["IsUnique"] = false;
+                row["IsKey"] = false;
+                row["IsAutoIncrement"] = DBNull.Value;
+                row["IsLong"] = DBNull.Value;
+                row["IsReadOnly"] = true;
+                row["IsRowVersion"] = false;
+                row["BaseCatalogName"] = DBNull.Value;
+                row["BaseSchemaName"] = baseSchemaName != null ? (object)baseSchemaName : DBNull.Value;
+                row["BaseTableName"] = baseTableName != null ? (object)baseTableName : DBNull.Value;
+                row["BaseColumnName"] = meta.Name;
+
+                schema.Rows.Add(row);
+            }
+
+            return schema;
         }
 
         /// <inheritdoc/>
@@ -590,7 +662,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <inheritdoc/>
-        public override Task<T> GetFieldValueAsync<T>(int ordinal, CancellationToken cancellationToken = default)
+        public override Task<T> GetFieldValueAsync<T>(int ordinal, CancellationToken cancellationToken)
         {
             return Task.FromResult(GetFieldValue<T>(ordinal));
         }

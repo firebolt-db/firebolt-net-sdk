@@ -16,6 +16,8 @@
 #endregion
 
 using System.Collections;
+using System.Collections.ObjectModel;
+using System.Data;
 using System.Data.Common;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
@@ -88,6 +90,12 @@ namespace FireboltDotNetSdk.Client
         public override object GetValue(int ordinal)
         {
             return GetValueSafely(ordinal) ?? throw new InvalidOperationException($"Column ${ordinal} is null");
+        }
+
+        /// <inheritdoc/>
+        public override DataTable? GetSchemaTable()
+        {
+            return BuildSchemaTable(_metas, null);
         }
 
         /// <inheritdoc/>

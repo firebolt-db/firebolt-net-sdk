@@ -659,6 +659,35 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("general")]
+        public void Integration_GetSchemaTable_And_ColumnSchema()
+        {
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT 1::int as i, 2.5::decimal(10,2) as d, 'x'::text as t";
+            using var reader = cmd.ExecuteReader();
+            Assert.That(reader.Read(), Is.True);
+
+            // GetSchemaTable
+            var schema = reader.GetSchemaTable();
+            Assert.That(schema, Is.Not.Null);
+            Assert.That(schema!.Rows, Has.Count.EqualTo(3));
+
+            // ColumnSchema sync/async
+            var cols = reader.GetColumnSchema();
+            var colsAsync = reader.GetColumnSchemaAsync().GetAwaiter().GetResult();
+            Assert.Multiple(() =>
+            {
+                Assert.That(cols, Has.Count.EqualTo(3));
+                Assert.That(colsAsync, Has.Count.EqualTo(3));
+                Assert.That(cols[0].ColumnName, Is.EqualTo("i"));
+                Assert.That(cols[1].ColumnName, Is.EqualTo("d"));
+                Assert.That(cols[2].ColumnName, Is.EqualTo("t"));
+            });
+        }
+
+        [Test]
+        [Category("general")]
         public void WrongQuerySystemEngine()
         {
             WrongQuery(SYSTEM_CONNECTION_STRING);
