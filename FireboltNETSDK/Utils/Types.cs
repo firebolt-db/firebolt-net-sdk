@@ -75,7 +75,7 @@ namespace FireboltDoNetSdk.Utils
                 {
                     FireboltDataType.Long => Convert.ToInt64(val),
                     FireboltDataType.Int => Convert.ToInt32(val),
-                    FireboltDataType.Decimal => Convert.ToDecimal(val),
+                    FireboltDataType.Decimal => Convert.ToDecimal(val, CultureInfo.InvariantCulture),
                     FireboltDataType.String => val.ToString(),
                     FireboltDataType.Geography => val.ToString(),
                     FireboltDataType.DateTime => ParseDateTime(val),
