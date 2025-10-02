@@ -157,7 +157,7 @@ namespace FireboltDotNetSdk.Client
             switch (messageType)
             {
                 case Data:
-                    json?.Data.ForEach(_currentRowQueue.Enqueue);
+                    json!.Data.ForEach(_currentRowQueue.Enqueue);
                     return true;
 
                 case FinishSuccessfully:
