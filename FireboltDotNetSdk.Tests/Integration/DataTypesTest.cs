@@ -414,6 +414,70 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("engine-v2")]
+        public void ExecuteStreamedQueryWithDifferentDataTypes_ColumnSchema()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = VariousTypeQuery;
+
+            using var reader = command.ExecuteStreamedQuery();
+            Assert.That(reader.Read(), Is.True);
+
+            var schema = reader.GetColumnSchema();
+            Assert.That(schema, Has.Count.EqualTo(TypeList.Count));
+
+            for (var i = 0; i < schema.Count; i++)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
+                    Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
+                    Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
+                });
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public async Task ExecuteStreamedQueryAsyncWithDifferentDataTypes_ColumnSchemaAsync()
+        {
+            await using var connection = new FireboltConnection(UserConnectionString);
+            await connection.OpenAsync();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = VariousTypeQuery;
+
+            await using var reader = await command.ExecuteStreamedQueryAsync();
+            Assert.That(await reader.ReadAsync(), Is.True);
+
+            var schema = await reader.GetColumnSchemaAsync();
+            Assert.That(schema, Has.Count.EqualTo(TypeList.Count));
+
+            for (var i = 0; i < schema.Count; i++)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
+                    Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
+                    Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
+                });
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
         public void AdapterVariousValuesTest()
         {
             DbDataAdapter adapter = new FireboltDataAdapter(VariousTypeQuery, UserConnectionString);
