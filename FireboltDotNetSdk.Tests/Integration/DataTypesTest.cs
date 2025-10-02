@@ -240,6 +240,76 @@ namespace FireboltDotNetSdk.Tests
             null
         };
 
+        [OneTimeSetUp]
+        public void OneTimeSetup_StructVarious()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+
+            var setup = new[]
+            {
+                "SET advanced_mode=1",
+                "SET enable_create_table_v2=true",
+                "SET enable_struct_syntax=true",
+                "SET prevent_create_on_information_schema=true",
+                "SET enable_create_table_with_struct_type=true",
+                $"DROP TABLE IF EXISTS {StructHelperTable}",
+                $"DROP TABLE IF EXISTS {StructTable}"
+            };
+            foreach (var s in setup)
+            {
+                var c = (FireboltCommand)connection.CreateCommand();
+                c.CommandText = s;
+                c.ExecuteNonQuery();
+            }
+
+            var createHelper = (FireboltCommand)connection.CreateCommand();
+            createHelper.CommandText = $"CREATE TABLE {StructHelperTable} AS {VariousTypeQuery}";
+            createHelper.ExecuteNonQuery();
+
+            StructAliases = Regex.Matches(VariousTypeQuery, @"as\s+([a-zA-Z_]*)")
+                .Select(m => m.Groups[1].Value)
+                .ToList();
+
+            var typesCmd = (FireboltCommand)connection.CreateCommand();
+            typesCmd.CommandText = $"SELECT column_name, data_type FROM information_schema.columns WHERE table_name='{StructHelperTable}' ORDER BY ordinal_position";
+            var typeMap = new Dictionary<string, string>();
+            using (var tReader = typesCmd.ExecuteReader())
+            {
+                while (tReader.Read())
+                {
+                    var col = tReader.GetString(0);
+                    var typ = tReader.GetString(1);
+                    typeMap[col] = typ;
+                }
+            }
+
+            var structTypeDef = string.Join(", ", StructAliases.Select(a => $"{a} {typeMap[a]}"));
+
+            var createStruct = (FireboltCommand)connection.CreateCommand();
+            createStruct.CommandText = $"CREATE TABLE {StructTable} (s struct({structTypeDef}))";
+            createStruct.ExecuteNonQuery();
+
+            var structExpr = string.Join(", ", StructAliases);
+            var insertStruct = (FireboltCommand)connection.CreateCommand();
+            insertStruct.CommandText = $"INSERT INTO {StructTable} SELECT struct({structExpr}) FROM {StructHelperTable}";
+            insertStruct.ExecuteNonQuery();
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown_StructVarious()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+            foreach (var s in new[] { $"DROP TABLE IF EXISTS {StructTable}", $"DROP TABLE IF EXISTS {StructHelperTable}" })
+            {
+                var c = (FireboltCommand)connection.CreateCommand();
+                c.CommandText = s;
+                c.ExecuteNonQuery();
+            }
+        }
+
+
         [Test]
         [Category("engine-v2")]
         public async Task ExecuteReaderAsyncWithDifferentDataTypes()
@@ -276,6 +346,134 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
             }
             VerifyReturnedValues(reader);
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void ExecuteReaderWithDifferentDataTypes_ColumnSchema()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = VariousTypeQuery;
+
+            using var reader = command.ExecuteReader();
+            Assert.That(reader.Read(), Is.True);
+
+            var schema = reader.GetColumnSchema();
+            Assert.That(schema, Has.Count.EqualTo(TypeList.Count));
+
+            for (var i = 0; i < schema.Count; i++)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
+                    Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
+                    Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
+                });
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public async Task ExecuteReaderAsyncWithDifferentDataTypes_ColumnSchemaAsync()
+        {
+            await using var connection = new FireboltConnection(UserConnectionString);
+            await connection.OpenAsync();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = VariousTypeQuery;
+
+            await using var reader = await command.ExecuteReaderAsync();
+            Assert.That(await reader.ReadAsync(), Is.True);
+
+            var schema = await reader.GetColumnSchemaAsync();
+            Assert.That(schema, Has.Count.EqualTo(TypeList.Count));
+
+            for (var i = 0; i < schema.Count; i++)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
+                    Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
+                    Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
+                });
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void ExecuteStreamedQueryWithDifferentDataTypes_ColumnSchema()
+        {
+            using var connection = new FireboltConnection(UserConnectionString);
+            connection.Open();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = VariousTypeQuery;
+
+            using var reader = command.ExecuteStreamedQuery();
+            Assert.That(reader.Read(), Is.True);
+
+            var schema = reader.GetColumnSchema();
+            Assert.That(schema, Has.Count.EqualTo(TypeList.Count));
+
+            for (var i = 0; i < schema.Count; i++)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
+                    Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
+                    Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
+                });
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public async Task ExecuteStreamedQueryAsyncWithDifferentDataTypes_ColumnSchemaAsync()
+        {
+            await using var connection = new FireboltConnection(UserConnectionString);
+            await connection.OpenAsync();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = VariousTypeQuery;
+
+            await using var reader = await command.ExecuteStreamedQueryAsync();
+            Assert.That(await reader.ReadAsync(), Is.True);
+
+            var schema = await reader.GetColumnSchemaAsync();
+            Assert.That(schema, Has.Count.EqualTo(TypeList.Count));
+
+            for (var i = 0; i < schema.Count; i++)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
+                    Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
+                    Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
+                });
+            }
         }
 
         [Test]
@@ -386,75 +584,6 @@ namespace FireboltDotNetSdk.Tests
                     ExpectedValues[i] is null
                         ? Does.Contain("is null (DBNull) and cannot be cast to TimeSpan")
                         : Does.Not.Contain("DBNull"));
-            }
-        }
-
-        [OneTimeSetUp]
-        public void OneTimeSetup_StructVarious()
-        {
-            using var connection = new FireboltConnection(UserConnectionString);
-            connection.Open();
-
-            var setup = new[]
-            {
-                "SET advanced_mode=1",
-                "SET enable_create_table_v2=true",
-                "SET enable_struct_syntax=true",
-                "SET prevent_create_on_information_schema=true",
-                "SET enable_create_table_with_struct_type=true",
-                $"DROP TABLE IF EXISTS {StructHelperTable}",
-                $"DROP TABLE IF EXISTS {StructTable}"
-            };
-            foreach (var s in setup)
-            {
-                var c = (FireboltCommand)connection.CreateCommand();
-                c.CommandText = s;
-                c.ExecuteNonQuery();
-            }
-
-            var createHelper = (FireboltCommand)connection.CreateCommand();
-            createHelper.CommandText = $"CREATE TABLE {StructHelperTable} AS {VariousTypeQuery}";
-            createHelper.ExecuteNonQuery();
-
-            StructAliases = Regex.Matches(VariousTypeQuery, @"as\s+([a-zA-Z_]*)")
-                .Select(m => m.Groups[1].Value)
-                .ToList();
-
-            var typesCmd = (FireboltCommand)connection.CreateCommand();
-            typesCmd.CommandText = $"SELECT column_name, data_type FROM information_schema.columns WHERE table_name='{StructHelperTable}' ORDER BY ordinal_position";
-            var typeMap = new Dictionary<string, string>();
-            using (var tReader = typesCmd.ExecuteReader())
-            {
-                while (tReader.Read())
-                {
-                    var col = tReader.GetString(0);
-                    var typ = tReader.GetString(1);
-                    typeMap[col] = typ;
-                }
-            }
-
-            var structTypeDef = string.Join(", ", StructAliases.Select(a => $"{a} {typeMap[a]}"));
-
-            var createStruct = (FireboltCommand)connection.CreateCommand();
-            createStruct.CommandText = $"CREATE TABLE {StructTable} (s struct({structTypeDef}))";
-            createStruct.ExecuteNonQuery();
-
-            var structExpr = string.Join(", ", StructAliases);
-            var insertStruct = (FireboltCommand)connection.CreateCommand();
-            insertStruct.CommandText = $"INSERT INTO {StructTable} SELECT struct({structExpr}) FROM {StructHelperTable}";
-            insertStruct.ExecuteNonQuery();
-        }
-
-        [OneTimeTearDown]
-        public void OneTimeTearDown_StructVarious()
-        {
-            using var connection = new FireboltConnection(UserConnectionString);
-            connection.Open();
-            foreach (var s in new[] { $"DROP TABLE IF EXISTS {StructTable}", $"DROP TABLE IF EXISTS {StructHelperTable}" })
-            {
-                var c = (FireboltCommand)connection.CreateCommand();
-                c.CommandText = s;
-                c.ExecuteNonQuery();
             }
         }
 

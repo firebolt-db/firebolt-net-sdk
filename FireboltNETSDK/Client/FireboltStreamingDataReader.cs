@@ -16,6 +16,8 @@
 #endregion
 
 using System.Collections;
+using System.Collections.ObjectModel;
+using System.Data;
 using System.Data.Common;
 using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
@@ -91,6 +93,12 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <inheritdoc/>
+        public override DataTable? GetSchemaTable()
+        {
+            return BuildSchemaTable(_metas, null);
+        }
+
+        /// <inheritdoc/>
         public override int GetValues(object[] values)
         {
             List<object?> row = _currentRow ?? new List<object?>();
@@ -149,7 +157,7 @@ namespace FireboltDotNetSdk.Client
             switch (messageType)
             {
                 case Data:
-                    json?.Data.ForEach(_currentRowQueue.Enqueue);
+                    json!.Data.ForEach(_currentRowQueue.Enqueue);
                     return true;
 
                 case FinishSuccessfully:

@@ -16,6 +16,7 @@
 #endregion
 
 using System.Collections;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Text;
@@ -436,7 +437,42 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override DataTable? GetSchemaTable()
         {
-            return _fullTableName == null ? null : new DataTable(_fullTableName); // TODO split full table name that can contain schema_name.table_name (dot notation)
+            return BuildSchemaTable(_queryResult.Meta, _fullTableName);
+        }
+
+        protected DataTable BuildSchemaTable(IList<Meta> metas, string? fullTableName)
+        {
+            var schema = new DataTable(fullTableName);
+
+            schema.Columns.Add("ColumnName", typeof(string));
+            schema.Columns.Add("ColumnOrdinal", typeof(int));
+            schema.Columns.Add("DataType", typeof(Type));
+            schema.Columns.Add("ColumnSize", typeof(int));
+            schema.Columns.Add("DataTypeName", typeof(string));
+            schema.Columns.Add("AllowDBNull", typeof(bool));
+            schema.Columns.Add("NumericPrecision", typeof(int));
+            schema.Columns.Add("NumericScale", typeof(int));
+
+            for (var i = 0; i < metas.Count; i++)
+            {
+                var meta = metas[i];
+                var columnType = GetColumnType(i);
+                var dataType = TypesConverter.GetType(columnType);
+
+                var row = schema.NewRow();
+                row["ColumnName"] = meta.Name;
+                row["ColumnOrdinal"] = i;
+                row["DataType"] = dataType;
+                row["ColumnSize"] = -1;
+                row["DataTypeName"] = meta.Type;
+                row["AllowDBNull"] = columnType.Nullable;
+                row["NumericPrecision"] = columnType.Precision.HasValue ? columnType.Precision.Value : DBNull.Value;
+                row["NumericScale"] = columnType.Scale.HasValue ? columnType.Scale.Value : DBNull.Value;
+
+                schema.Rows.Add(row);
+            }
+
+            return schema;
         }
 
         /// <inheritdoc/>
@@ -590,7 +626,7 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <inheritdoc/>
-        public override Task<T> GetFieldValueAsync<T>(int ordinal, CancellationToken cancellationToken = default)
+        public override Task<T> GetFieldValueAsync<T>(int ordinal, CancellationToken cancellationToken)
         {
             return Task.FromResult(GetFieldValue<T>(ordinal));
         }

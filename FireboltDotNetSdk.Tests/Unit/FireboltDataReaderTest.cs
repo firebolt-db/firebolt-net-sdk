@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Collections;
 using System.Data;
 using System.Text;
+using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Utils;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
@@ -620,6 +621,7 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase(null)]
         [TestCase("my_table")]
+        [TestCase("")]
         public async Task GetSchemaTable(string? tableName)
         {
             QueryResult result = new QueryResult
@@ -632,10 +634,10 @@ namespace FireboltDotNetSdk.Tests
             DbDataReader reader = new FireboltDataReader(tableName, result);
 
             DataTable? dataTable = reader.GetSchemaTable();
-            Assert.That(dataTable?.TableName, Is.EqualTo(tableName));
+            Assert.That(dataTable?.TableName, Is.EqualTo(tableName ?? string.Empty));
 
             DataTable? dataTableAsync = await reader.GetSchemaTableAsync();
-            Assert.That(dataTableAsync?.TableName, Is.EqualTo(tableName));
+            Assert.That(dataTableAsync?.TableName, Is.EqualTo(tableName ?? string.Empty));
         }
 
         [Test]
@@ -709,7 +711,6 @@ namespace FireboltDotNetSdk.Tests
             };
 
             DbDataReader reader = new FireboltDataReader(null, result);
-
             DataTable dataTable = new DataTable();
             dataTable.Load(reader);
 
@@ -849,6 +850,86 @@ namespace FireboltDotNetSdk.Tests
         {
             public DateTime TimestampVal { get; init; }
             [FireboltStructName("double_val")] public double DoubleVal { get; init; }
+        }
+
+        [Test]
+        public async Task SchemaTable_And_ColumnSchema_Are_Populated_From_Meta()
+        {
+            var resultTypes = new List<Type>
+            {
+                typeof(int),
+                typeof(decimal),
+                typeof(string),
+            };
+            var metas = new List<Meta>
+            {
+                new Meta { Name = "i", Type = "int" },
+                new Meta { Name = "dec", Type = "decimal(8, 3) null" },
+                new Meta { Name = "t", Type = "text" },
+            };
+            var result = new QueryResult { Rows = 0, Meta = metas, Data = new List<List<object?>>() };
+            var reader = new FireboltDataReader(null, result);
+
+            var schema = reader.GetSchemaTable();
+            Assert.That(schema, Is.Not.Null);
+            Assert.That(schema!.Rows, Has.Count.EqualTo(metas.Count));
+
+            // Validate each row
+            for (var i = 0; i < metas.Count; i++)
+            {
+                var row = schema.Rows[i];
+                var expectedType = TypesConverter.GetType(ColumnType.Of(TypesConverter.GetFullColumnTypeName(metas[i])));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(row["ColumnName"], Is.EqualTo(metas[i].Name));
+                    Assert.That(row["ColumnOrdinal"], Is.EqualTo(i));
+                    Assert.That(row["DataTypeName"], Is.EqualTo(metas[i].Type));
+                    Assert.That(row["ColumnSize"], Is.EqualTo(-1));
+                    Assert.That(row["DataType"], Is.EqualTo(expectedType));
+                });
+
+                if (metas[i].Type.StartsWith("decimal"))
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(row["NumericPrecision"], Is.Not.EqualTo(DBNull.Value));
+                        Assert.That(row["NumericScale"], Is.Not.EqualTo(DBNull.Value));
+                        Assert.That(Convert.ToInt32(row["NumericPrecision"]), Is.EqualTo(8));
+                        Assert.That(Convert.ToInt32(row["NumericScale"]), Is.EqualTo(3));
+                        Assert.That(row["AllowDBNull"], Is.EqualTo(true));
+                    });
+                }
+                else
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(row["NumericPrecision"], Is.EqualTo(DBNull.Value));
+                        Assert.That(row["NumericScale"], Is.EqualTo(DBNull.Value));
+                        Assert.That(row["AllowDBNull"], Is.EqualTo(false));
+                    });
+                }
+            }
+
+            // Validate column schema APIs are available and consistent
+            var columnSchema = reader.GetColumnSchema();
+            var columnSchemaAsync = await reader.GetColumnSchemaAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(columnSchema, Is.Not.Null);
+                Assert.That(columnSchema, Has.Count.EqualTo(metas.Count));
+                Assert.That(columnSchemaAsync, Is.Not.Null);
+                Assert.That(columnSchemaAsync, Has.Count.EqualTo(metas.Count));
+            });
+            for (int i = 0; i < metas.Count; i++)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(columnSchema[i].ColumnName, Is.EqualTo(metas[i].Name));
+                    Assert.That(columnSchema[i].ColumnOrdinal, Is.EqualTo(i));
+                    Assert.That(columnSchema[i].DataTypeName, Is.EqualTo(metas[i].Type));
+                    Assert.That(columnSchema[i].DataType, Is.EqualTo(resultTypes[i]));
+                });
+            }
         }
     }
 }
