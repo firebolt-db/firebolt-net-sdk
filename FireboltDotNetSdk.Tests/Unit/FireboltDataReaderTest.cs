@@ -855,6 +855,12 @@ namespace FireboltDotNetSdk.Tests
         [Test]
         public async Task SchemaTable_And_ColumnSchema_Are_Populated_From_Meta()
         {
+            var resultTypes = new List<Type>
+            {
+                typeof(int),
+                typeof(decimal),
+                typeof(string),
+            };
             var metas = new List<Meta>
             {
                 new Meta { Name = "i", Type = "int" },
@@ -904,13 +910,6 @@ namespace FireboltDotNetSdk.Tests
                 }
             }
 
-            // Also validate BaseSchemaName/BaseTableName split
-            Assert.Multiple(() =>
-            {
-                Assert.That(schema.Rows[0]["BaseSchemaName"], Is.EqualTo("myschema"));
-                Assert.That(schema.Rows[0]["BaseTableName"], Is.EqualTo("mytable"));
-            });
-
             // Validate column schema APIs are available and consistent
             var columnSchema = reader.GetColumnSchema();
             var columnSchemaAsync = await reader.GetColumnSchemaAsync();
@@ -928,7 +927,7 @@ namespace FireboltDotNetSdk.Tests
                     Assert.That(columnSchema[i].ColumnName, Is.EqualTo(metas[i].Name));
                     Assert.That(columnSchema[i].ColumnOrdinal, Is.EqualTo(i));
                     Assert.That(columnSchema[i].DataTypeName, Is.EqualTo(metas[i].Type));
-                    Assert.That(columnSchema[i].DataType, Is.Not.Null);
+                    Assert.That(columnSchema[i].DataType, Is.EqualTo(resultTypes[i]));
                 });
             }
         }

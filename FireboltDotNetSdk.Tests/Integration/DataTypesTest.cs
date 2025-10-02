@@ -369,8 +369,13 @@ namespace FireboltDotNetSdk.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
                     Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
                     Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
                 });
             }
         }
@@ -396,8 +401,13 @@ namespace FireboltDotNetSdk.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(schema[i].ColumnName, Is.EqualTo(StructAliases[i]));
+                    Assert.That(schema[i].ColumnOrdinal, Is.EqualTo(i));
                     Assert.That(schema[i].DataType, Is.EqualTo(TypeList[i]));
+                    Assert.That(schema[i].ColumnSize, Is.EqualTo(-1));
                     Assert.That(schema[i].DataTypeName, Is.EqualTo(reader.GetDataTypeName(i)));
+                    Assert.That(schema[i].AllowDBNull, Is.EqualTo(reader.IsDBNull(i)));
+                    Assert.That(schema[i].NumericPrecision, Is.EqualTo(TypeList[i] == typeof(decimal) ? 38 : null));
+                    Assert.That(schema[i].NumericScale, Is.EqualTo(TypeList[i] == typeof(decimal) ? 30 : null));
                 });
             }
         }

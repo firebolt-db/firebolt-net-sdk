@@ -446,22 +446,12 @@ namespace FireboltDotNetSdk.Client
 
             schema.Columns.Add("ColumnName", typeof(string));
             schema.Columns.Add("ColumnOrdinal", typeof(int));
-            schema.Columns.Add("ColumnSize", typeof(int));
-            schema.Columns.Add("NumericPrecision", typeof(short));
-            schema.Columns.Add("NumericScale", typeof(short));
             schema.Columns.Add("DataType", typeof(Type));
+            schema.Columns.Add("ColumnSize", typeof(int));
             schema.Columns.Add("DataTypeName", typeof(string));
             schema.Columns.Add("AllowDBNull", typeof(bool));
-            schema.Columns.Add("IsUnique", typeof(bool));
-            schema.Columns.Add("IsKey", typeof(bool));
-            schema.Columns.Add("IsAutoIncrement", typeof(bool));
-            schema.Columns.Add("IsLong", typeof(bool));
-            schema.Columns.Add("IsReadOnly", typeof(bool));
-            schema.Columns.Add("IsRowVersion", typeof(bool));
-            schema.Columns.Add("BaseCatalogName", typeof(string));
-            schema.Columns.Add("BaseSchemaName", typeof(string));
-            schema.Columns.Add("BaseTableName", typeof(string));
-            schema.Columns.Add("BaseColumnName", typeof(string));
+            schema.Columns.Add("NumericPrecision", typeof(int));
+            schema.Columns.Add("NumericScale", typeof(int));
 
             string? baseSchemaName = null;
             string? baseTableName = null;
@@ -488,22 +478,12 @@ namespace FireboltDotNetSdk.Client
                 var row = schema.NewRow();
                 row["ColumnName"] = meta.Name;
                 row["ColumnOrdinal"] = i;
-                row["ColumnSize"] = -1;
-                row["NumericPrecision"] = columnType.Precision.HasValue ? columnType.Precision.Value : DBNull.Value;
-                row["NumericScale"] = columnType.Scale.HasValue ? columnType.Scale.Value : DBNull.Value;
                 row["DataType"] = dataType;
+                row["ColumnSize"] = -1;
                 row["DataTypeName"] = meta.Type;
                 row["AllowDBNull"] = columnType.Nullable;
-                row["IsUnique"] = false;
-                row["IsKey"] = false;
-                row["IsAutoIncrement"] = DBNull.Value;
-                row["IsLong"] = DBNull.Value;
-                row["IsReadOnly"] = true;
-                row["IsRowVersion"] = false;
-                row["BaseCatalogName"] = DBNull.Value;
-                row["BaseSchemaName"] = baseSchemaName != null ? (object)baseSchemaName : DBNull.Value;
-                row["BaseTableName"] = baseTableName != null ? (object)baseTableName : DBNull.Value;
-                row["BaseColumnName"] = meta.Name;
+                row["NumericPrecision"] = columnType.Precision.HasValue ? columnType.Precision.Value : DBNull.Value;
+                row["NumericScale"] = columnType.Scale.HasValue ? columnType.Scale.Value : DBNull.Value;
 
                 schema.Rows.Add(row);
             }
