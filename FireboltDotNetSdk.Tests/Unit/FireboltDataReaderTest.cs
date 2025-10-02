@@ -864,18 +864,18 @@ namespace FireboltDotNetSdk.Tests
             var metas = new List<Meta>
             {
                 new Meta { Name = "i", Type = "int" },
-                new Meta { Name = "dec", Type = "decimal(8, 3)" },
+                new Meta { Name = "dec", Type = "decimal(8, 3) null" },
                 new Meta { Name = "t", Type = "text" },
             };
             var result = new QueryResult { Rows = 0, Meta = metas, Data = new List<List<object?>>() };
-            var reader = new FireboltDataReader("myschema.mytable", result);
+            var reader = new FireboltDataReader(null, result);
 
             var schema = reader.GetSchemaTable();
             Assert.That(schema, Is.Not.Null);
             Assert.That(schema!.Rows, Has.Count.EqualTo(metas.Count));
 
             // Validate each row
-            for (int i = 0; i < metas.Count; i++)
+            for (var i = 0; i < metas.Count; i++)
             {
                 var row = schema.Rows[i];
                 var expectedType = TypesConverter.GetType(ColumnType.Of(TypesConverter.GetFullColumnTypeName(metas[i])));
@@ -884,20 +884,19 @@ namespace FireboltDotNetSdk.Tests
                     Assert.That(row["ColumnName"], Is.EqualTo(metas[i].Name));
                     Assert.That(row["ColumnOrdinal"], Is.EqualTo(i));
                     Assert.That(row["DataTypeName"], Is.EqualTo(metas[i].Type));
+                    Assert.That(row["ColumnSize"], Is.EqualTo(-1));
                     Assert.That(row["DataType"], Is.EqualTo(expectedType));
                 });
 
-                if (metas[i].Type.StartsWith("decimal", StringComparison.OrdinalIgnoreCase) || metas[i].Type.StartsWith("numeric", StringComparison.OrdinalIgnoreCase))
+                if (metas[i].Type.StartsWith("decimal"))
                 {
-                    // Use conversion to avoid brittleness on exact underlying type (short/int)
-                    var prec = row["NumericPrecision"];
-                    var scale = row["NumericScale"];
                     Assert.Multiple(() =>
                     {
-                        Assert.That(prec, Is.Not.EqualTo(DBNull.Value));
-                        Assert.That(scale, Is.Not.EqualTo(DBNull.Value));
-                        Assert.That(Convert.ToInt32(prec), Is.EqualTo(8));
-                        Assert.That(Convert.ToInt32(scale), Is.EqualTo(3));
+                        Assert.That(row["NumericPrecision"], Is.Not.EqualTo(DBNull.Value));
+                        Assert.That(row["NumericScale"], Is.Not.EqualTo(DBNull.Value));
+                        Assert.That(Convert.ToInt32(row["NumericPrecision"]), Is.EqualTo(8));
+                        Assert.That(Convert.ToInt32(row["NumericScale"]), Is.EqualTo(3));
+                        Assert.That(row["AllowDBNull"], Is.EqualTo(true));
                     });
                 }
                 else
@@ -906,6 +905,7 @@ namespace FireboltDotNetSdk.Tests
                     {
                         Assert.That(row["NumericPrecision"], Is.EqualTo(DBNull.Value));
                         Assert.That(row["NumericScale"], Is.EqualTo(DBNull.Value));
+                        Assert.That(row["AllowDBNull"], Is.EqualTo(false));
                     });
                 }
             }
