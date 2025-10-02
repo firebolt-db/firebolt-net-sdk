@@ -453,23 +453,7 @@ namespace FireboltDotNetSdk.Client
             schema.Columns.Add("NumericPrecision", typeof(int));
             schema.Columns.Add("NumericScale", typeof(int));
 
-            string? baseSchemaName = null;
-            string? baseTableName = null;
-            if (!string.IsNullOrWhiteSpace(fullTableName))
-            {
-                int dot = fullTableName.IndexOf('.');
-                if (dot > 0 && dot < fullTableName.Length - 1)
-                {
-                    baseSchemaName = fullTableName.Substring(0, dot);
-                    baseTableName = fullTableName.Substring(dot + 1);
-                }
-                else
-                {
-                    baseTableName = fullTableName;
-                }
-            }
-
-            for (int i = 0; i < metas.Count; i++)
+            for (var i = 0; i < metas.Count; i++)
             {
                 var meta = metas[i];
                 var columnType = GetColumnType(i);
