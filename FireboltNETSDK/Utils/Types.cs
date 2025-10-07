@@ -188,7 +188,7 @@ namespace FireboltDoNetSdk.Utils
             {
                 string str when DoubleInfinity.ContainsKey(str) => DoubleInfinity[str],
                 double d => d,
-                _ => Convert.ToDouble(val)
+                _ => Convert.ToDouble(val, CultureInfo.InvariantCulture)
             };
         }
 
@@ -198,7 +198,7 @@ namespace FireboltDoNetSdk.Utils
             {
                 string str when FloatInfinity.ContainsKey(str) => FloatInfinity[str],
                 float f => f,
-                _ => Convert.ToSingle(val)
+                _ => Convert.ToSingle(val, CultureInfo.InvariantCulture)
             };
         }
 

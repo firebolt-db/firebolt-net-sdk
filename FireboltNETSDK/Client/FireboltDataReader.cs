@@ -527,7 +527,7 @@ namespace FireboltDotNetSdk.Client
                 return DBNull.Value;
             }
             var columnType = GetColumnType(ordinal);
-            return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
+            return TypesConverter.ConvertToCSharpVal(value, columnType);
         }
 
         protected virtual List<object?>? GetRow(int ordinal)
