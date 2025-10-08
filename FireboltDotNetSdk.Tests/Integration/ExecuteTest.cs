@@ -426,7 +426,7 @@ namespace FireboltDotNetSdk.Tests
 
             var command = (FireboltCommand)conn.CreateCommand();
             command.CommandText =
-                "SELECT\n    product.id, product.product_name " +
+                "SELECT product.id, product.product_name " +
                 "FROM (SELECT 1 AS id, 'Pa@' AS product_name UNION ALL SELECT 2 AS id, 'taasfata' AS product_name UNION ALL SELECT 3 AS id, 'allooo$' AS product_name) product " +
                 "WHERE REGEXP_LIKE_ANY(product.product_name, @patterns)";
 
@@ -439,6 +439,26 @@ namespace FireboltDotNetSdk.Tests
                 rows++;
             }
             Assert.That(rows, Is.EqualTo(3));
+        }
+
+        [Test]
+        [Category("v2")]
+        public void ExecuteSelectArray_WithComplexStrings()
+        {
+            using var conn = new FireboltConnection(USER_CONNECTION_STRING);
+            conn.Open();
+
+            var command = (FireboltCommand)conn.CreateCommand();
+            command.CommandText = "SELECT @patterns";
+
+            command.Parameters.Add(CreateParameter(command, "@patterns", new[] { "^Pa@", "ta$", "al.*?o\\$$", "$1$&$`&+" }.ToArray()));
+
+            using var reader = command.ExecuteReader();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(reader.GetValue(0), Is.EqualTo(new[] { "^Pa@", "ta$", "al.*?o\\$$", "$1$&$`&+" }));
+            });
         }
 
         [Test]

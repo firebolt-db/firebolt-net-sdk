@@ -340,7 +340,7 @@ namespace FireboltDotNetSdk.Client
                             sourceText = sourceText.Replace("\\", "\\\\");
                         }
                         verifyParameters = "'" + sourceText + "'";
-                        verifyParameters = verifyParameters.Replace("$", "$$"); // Escape $ for dollar-quoted strings
+                        verifyParameters = verifyParameters.Replace("$", "$$"); // Escape $
                         break;
                     }
                 case DateTime dateTime:
