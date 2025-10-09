@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using FireboltDotNetSdk.Client;
 using static System.DateTime;
@@ -106,9 +107,9 @@ namespace FireboltDotNetSdk.Tests
             new[] { true, false },
             new[] { new[] { true, false }, Array.Empty<bool>() },
             // decimal
-            decimal.Parse("1231232.12346"),
-            new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") },
-            new[] { new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") }, Array.Empty<decimal>() },
+            1231232.12346m,
+            new[] { 1.50m, -2.25m },
+            new[] { new[] { 1.50m, -2.25m }, Array.Empty<decimal>() },
             // bytea
             Encoding.ASCII.GetBytes("abc123"),
         };
@@ -149,6 +150,34 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
             }
             VerifyReturnedValues(reader);
+        }
+
+        [Test]
+        [Category("v1")]
+        public void ExecuteReader_VariousTypes_WithCzCulture()
+        {
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("cs-CZ");
+                using var connection = new FireboltConnection(UserConnectionString);
+                connection.Open();
+
+                var command = (FireboltCommand)connection.CreateCommand();
+                command.CommandText = VariousTypeQuery;
+
+                using var reader = command.ExecuteReader();
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                for (var i = 0; i < TypeList.Count; i++)
+                {
+                    Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
+                }
+                VerifyReturnedValues(reader);
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = originalCulture;
+            }
         }
 
         private static void VerifyReturnedValues(DbDataReader reader)
