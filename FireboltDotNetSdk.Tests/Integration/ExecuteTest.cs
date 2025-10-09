@@ -442,7 +442,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        [Category("v2")]
+        [Category("general")]
         public void ExecuteSelectArray_WithComplexStrings()
         {
             using var conn = new FireboltConnection(USER_CONNECTION_STRING);
