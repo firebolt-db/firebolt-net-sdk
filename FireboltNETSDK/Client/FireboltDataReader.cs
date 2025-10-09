@@ -16,14 +16,12 @@
 #endregion
 
 using System.Collections;
-using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Text;
 using System.Text.RegularExpressions;
-using FireboltDoNetSdk.Utils;
-using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
+using FireboltDotNetSdk.Exception;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -527,7 +525,7 @@ namespace FireboltDotNetSdk.Client
                 return DBNull.Value;
             }
             var columnType = GetColumnType(ordinal);
-            return TypesConverter.ConvertToCSharpVal(value.ToString(), columnType);
+            return TypesConverter.ConvertToCSharpVal(value, columnType);
         }
 
         protected virtual List<object?>? GetRow(int ordinal)

@@ -2,17 +2,14 @@
  * Copyright (c) 2022 FireBolt All rights reserved.
  */
 
-using System.Collections;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
-using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NodaTime.Text;
 
-namespace FireboltDoNetSdk.Utils
+namespace FireboltDotNetSdk.Utils
 {
     public enum FireboltDataType
     {
@@ -75,7 +72,7 @@ namespace FireboltDoNetSdk.Utils
                 {
                     FireboltDataType.Long => Convert.ToInt64(val),
                     FireboltDataType.Int => Convert.ToInt32(val),
-                    FireboltDataType.Decimal => Convert.ToDecimal(val),
+                    FireboltDataType.Decimal => Convert.ToDecimal(val, CultureInfo.InvariantCulture),
                     FireboltDataType.String => val.ToString(),
                     FireboltDataType.Geography => val.ToString(),
                     FireboltDataType.DateTime => ParseDateTime(val),
@@ -188,7 +185,7 @@ namespace FireboltDoNetSdk.Utils
             {
                 string str when DoubleInfinity.ContainsKey(str) => DoubleInfinity[str],
                 double d => d,
-                _ => Convert.ToDouble(val)
+                _ => Convert.ToDouble(val, CultureInfo.InvariantCulture)
             };
         }
 
@@ -198,7 +195,7 @@ namespace FireboltDoNetSdk.Utils
             {
                 string str when FloatInfinity.ContainsKey(str) => FloatInfinity[str],
                 float f => f,
-                _ => Convert.ToSingle(val)
+                _ => Convert.ToSingle(val, CultureInfo.InvariantCulture)
             };
         }
 
@@ -278,7 +275,7 @@ namespace FireboltDoNetSdk.Utils
                 var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
                 return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
             }
-            catch (Exception e)
+            catch (System.Exception e)
             {
                 throw new FireboltException("Error while parsing response", e);
             }

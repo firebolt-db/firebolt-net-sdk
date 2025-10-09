@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Utils;
@@ -220,13 +221,13 @@ namespace FireboltDotNetSdk.Tests
             new[] { new bool?[] { true, null }, null },
             null,
             // decimal
-            decimal.Parse("1231232.123459999990457054844258706536"), null,
-            new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") },
-            new decimal?[] { decimal.Parse("1.50"), null },
+            1231232.123459999990457054844258706536m, null,
+            new[] { 1.50m, -2.25m },
+            new decimal?[] { 1.50m, null },
             null,
-            new[] { new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") }, null },
-            new[] { new[] { decimal.Parse("1.50"), decimal.Parse("-2.25") }, Array.Empty<decimal>() },
-            new[] { new decimal?[] { decimal.Parse("1.50"), null }, null },
+            new[] { new[] { 1.50m, -2.25m }, null },
+            new[] { new[] { 1.50m, -2.25m }, Array.Empty<decimal>() },
+            new[] { new decimal?[] { 1.50m, null }, null },
             null,
             // bytea
             Encoding.ASCII.GetBytes("abc123"), null,
@@ -688,6 +689,34 @@ namespace FireboltDotNetSdk.Tests
                 {
                     Assert.That(value, Is.EqualTo(expected), $"POCO mismatch at '{alias}'");
                 }
+            }
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public void ExecuteReader_VariousTypes_WithCzCulture()
+        {
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("cs-CZ");
+                using var connection = new FireboltConnection(UserConnectionString);
+                connection.Open();
+
+                var command = (FireboltCommand)connection.CreateCommand();
+                command.CommandText = VariousTypeQuery;
+
+                using var reader = command.ExecuteReader();
+                Assert.That(reader.Read(), Is.EqualTo(true));
+                for (var i = 0; i < TypeList.Count; i++)
+                {
+                    Assert.That(reader.GetFieldType(i), Is.EqualTo(TypeList[i]));
+                }
+                VerifyReturnedValues(reader);
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = originalCulture;
             }
         }
 

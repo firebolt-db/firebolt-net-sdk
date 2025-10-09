@@ -1,4 +1,3 @@
-using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Tests;
@@ -16,13 +15,19 @@ public class ColumnTypeTest
             return;
         }
 
-        Assert.That(arrayType.Type, Is.EqualTo(FireboltDataType.Array));
-        Assert.False(arrayType.Nullable);
-        Assert.Null(arrayType.Precision);
-        Assert.Null(arrayType.Scale);
-        Assert.NotNull(arrayType.InnerType);
-        Assert.True(arrayType.InnerType!.Nullable);
-        Assert.That(arrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Int));
+        Assert.Multiple(() =>
+        {
+            Assert.That(arrayType.Type, Is.EqualTo(FireboltDataType.Array));
+            Assert.That(arrayType.Nullable, Is.False);
+            Assert.That(arrayType.Precision, Is.Null);
+            Assert.That(arrayType.Scale, Is.Null);
+            Assert.That(arrayType.InnerType, Is.Not.Null);
+        });
+        Assert.Multiple(() =>
+        {
+            Assert.That(arrayType.InnerType.Nullable, Is.True);
+            Assert.That(arrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Int));
+        });
     }
 
     [Test]
@@ -36,13 +41,19 @@ public class ColumnTypeTest
             return;
         }
 
-        Assert.That(arrayType.Type, Is.EqualTo(FireboltDataType.Array));
-        Assert.True(arrayType.Nullable);
-        Assert.Null(arrayType.Precision);
-        Assert.Null(arrayType.Scale);
-        Assert.NotNull(arrayType.InnerType);
-        Assert.True(arrayType.InnerType!.Nullable);
-        Assert.That(arrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Int));
+        Assert.Multiple(() =>
+        {
+            Assert.That(arrayType.Type, Is.EqualTo(FireboltDataType.Array));
+            Assert.That(arrayType.Nullable, Is.True);
+            Assert.That(arrayType.Precision, Is.Null);
+            Assert.That(arrayType.Scale, Is.Null);
+            Assert.That(arrayType.InnerType, Is.Not.Null);
+        });
+        Assert.Multiple(() =>
+        {
+            Assert.That(arrayType.InnerType.Nullable, Is.True);
+            Assert.That(arrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Int));
+        });
     }
 
     [Test]
@@ -50,9 +61,12 @@ public class ColumnTypeTest
     {
         String type = "decimal(5,2) null";
         ColumnType columnType = ColumnType.Of(type);
-        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Decimal));
-        Assert.That(columnType.Precision, Is.EqualTo(5));
-        Assert.That(columnType.Scale, Is.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Decimal));
+            Assert.That(columnType.Precision, Is.EqualTo(5));
+            Assert.That(columnType.Scale, Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -66,24 +80,32 @@ public class ColumnTypeTest
             return;
         }
 
-        Assert.That(arrayType.Type, Is.EqualTo(FireboltDataType.Array));
-        Assert.False(arrayType.Nullable);
-        Assert.Null(arrayType.Precision);
-        Assert.Null(arrayType.Scale);
-        Assert.NotNull(arrayType.InnerType);
-        Assert.True(arrayType.InnerType!.Nullable);
-        Assert.That(arrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Array));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(arrayType.Type, Is.EqualTo(FireboltDataType.Array));
+            Assert.That(arrayType.Nullable, Is.False);
+            Assert.That(arrayType.Precision, Is.Null);
+            Assert.That(arrayType.Scale, Is.Null);
+            Assert.That(arrayType.InnerType, Is.Not.Null);
+        });
+        Assert.Multiple(() =>
+        {
+            Assert.That(arrayType.InnerType.Nullable, Is.True);
+            Assert.That(arrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Array));
+        });
         if (arrayType.InnerType is not ArrayType innerArrayType)
         {
             Assert.Fail("ArrayType expected");
             return;
         }
-        Assert.NotNull(innerArrayType.InnerType);
-        Assert.True(innerArrayType.InnerType!.Nullable);
-        Assert.That(innerArrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Decimal));
-        Assert.That(innerArrayType.InnerType.Precision, Is.EqualTo(5));
-        Assert.That(innerArrayType.InnerType.Scale, Is.EqualTo(2));
+        Assert.That(innerArrayType.InnerType, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(innerArrayType.InnerType.Nullable, Is.True);
+            Assert.That(innerArrayType.InnerType.Type, Is.EqualTo(FireboltDataType.Decimal));
+            Assert.That(innerArrayType.InnerType.Precision, Is.EqualTo(5));
+            Assert.That(innerArrayType.InnerType.Scale, Is.EqualTo(2));
+        });
     }
 
     [TestCase("string NULL", FireboltDataType.String, true)]
@@ -123,10 +145,13 @@ public class ColumnTypeTest
     public void CreateColumnTypeWithProvidedColumnTypeNamesTest(String columnTypeName, FireboltDataType expectedType, bool expectedIsNullable)
     {
         ColumnType columnType = ColumnType.Of(columnTypeName);
-        Assert.That(columnType.Type, Is.EqualTo(expectedType));
-        Assert.That(columnType.Nullable, Is.EqualTo(expectedIsNullable));
-        Assert.Null(columnType.Precision);
-        Assert.Null(columnType.Scale);
+        Assert.Multiple(() =>
+        {
+            Assert.That(columnType.Type, Is.EqualTo(expectedType));
+            Assert.That(columnType.Nullable, Is.EqualTo(expectedIsNullable));
+            Assert.That(columnType.Precision, Is.Null);
+            Assert.That(columnType.Scale, Is.Null);
+        });
     }
 
     [Test]
@@ -134,24 +159,30 @@ public class ColumnTypeTest
     {
         String type = "struct(a int, b text)";
         ColumnType columnType = ColumnType.Of(type);
-        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
-        Assert.False(columnType.Nullable);
-        Assert.Null(columnType.Precision);
-        Assert.Null(columnType.Scale);
+        Assert.Multiple(() =>
+        {
+            Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+            Assert.That(columnType.Nullable, Is.False);
+            Assert.That(columnType.Precision, Is.Null);
+            Assert.That(columnType.Scale, Is.Null);
+        });
         if (columnType is not StructType structType)
         {
             Assert.Fail("StructType expected");
             return;
         }
-        Assert.That(structType.Fields.Count, Is.EqualTo(2));
-        Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
-        Assert.False(structType.Fields["a"].Nullable);
-        Assert.Null(structType.Fields["a"].Precision);
-        Assert.Null(structType.Fields["a"].Scale);
-        Assert.That(structType.Fields["b"].Type, Is.EqualTo(FireboltDataType.String));
-        Assert.False(structType.Fields["b"].Nullable);
-        Assert.Null(structType.Fields["b"].Precision);
-        Assert.Null(structType.Fields["b"].Scale);
+        Assert.That(structType.Fields, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
+            Assert.That(structType.Fields["a"].Nullable, Is.False);
+            Assert.That(structType.Fields["a"].Precision, Is.Null);
+            Assert.That(structType.Fields["a"].Scale, Is.Null);
+            Assert.That(structType.Fields["b"].Type, Is.EqualTo(FireboltDataType.String));
+            Assert.That(structType.Fields["b"].Nullable, Is.False);
+            Assert.That(structType.Fields["b"].Precision, Is.Null);
+            Assert.That(structType.Fields["b"].Scale, Is.Null);
+        });
     }
 
     [Test]
@@ -159,24 +190,30 @@ public class ColumnTypeTest
     {
         String type = "struct(a int, `b c` text)";
         ColumnType columnType = ColumnType.Of(type);
-        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
-        Assert.False(columnType.Nullable);
-        Assert.Null(columnType.Precision);
-        Assert.Null(columnType.Scale);
+        Assert.Multiple(() =>
+        {
+            Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+            Assert.That(columnType.Nullable, Is.False);
+            Assert.That(columnType.Precision, Is.Null);
+            Assert.That(columnType.Scale, Is.Null);
+        });
         if (columnType is not StructType structType)
         {
             Assert.Fail("StructType expected");
             return;
         }
-        Assert.That(structType.Fields.Count, Is.EqualTo(2));
-        Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
-        Assert.False(structType.Fields["a"].Nullable);
-        Assert.Null(structType.Fields["a"].Precision);
-        Assert.Null(structType.Fields["a"].Scale);
-        Assert.That(structType.Fields["b c"].Type, Is.EqualTo(FireboltDataType.String));
-        Assert.False(structType.Fields["b c"].Nullable);
-        Assert.Null(structType.Fields["b c"].Precision);
-        Assert.Null(structType.Fields["b c"].Scale);
+        Assert.That(structType.Fields, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
+            Assert.That(structType.Fields["a"].Nullable, Is.False);
+            Assert.That(structType.Fields["a"].Precision, Is.Null);
+            Assert.That(structType.Fields["a"].Scale, Is.Null);
+            Assert.That(structType.Fields["b c"].Type, Is.EqualTo(FireboltDataType.String));
+            Assert.That(structType.Fields["b c"].Nullable, Is.False);
+            Assert.That(structType.Fields["b c"].Precision, Is.Null);
+            Assert.That(structType.Fields["b c"].Scale, Is.Null);
+        });
     }
 
     [Test]
@@ -184,29 +221,35 @@ public class ColumnTypeTest
     {
         String type = "struct(a int, b struct(c array(int), d text))";
         ColumnType columnType = ColumnType.Of(type);
-        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
-        Assert.False(columnType.Nullable);
-        Assert.Null(columnType.Precision);
-        Assert.Null(columnType.Scale);
+        Assert.Multiple(() =>
+        {
+            Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+            Assert.That(columnType.Nullable, Is.False);
+            Assert.That(columnType.Precision, Is.Null);
+            Assert.That(columnType.Scale, Is.Null);
+        });
         if (columnType is not StructType structType)
         {
             Assert.Fail("StructType expected");
             return;
         }
 
-        Assert.That(structType.Fields.Count, Is.EqualTo(2));
-        Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
-        Assert.False(structType.Fields["a"].Nullable);
-        Assert.Null(structType.Fields["a"].Precision);
-        Assert.Null(structType.Fields["a"].Scale);
-        Assert.That(structType.Fields["b"].Type, Is.EqualTo(FireboltDataType.Struct));
+        Assert.That(structType.Fields, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(structType.Fields["a"].Type, Is.EqualTo(FireboltDataType.Int));
+            Assert.That(structType.Fields["a"].Nullable, Is.False);
+            Assert.That(structType.Fields["a"].Precision, Is.Null);
+            Assert.That(structType.Fields["a"].Scale, Is.Null);
+            Assert.That(structType.Fields["b"].Type, Is.EqualTo(FireboltDataType.Struct));
+        });
         if (structType.Fields["b"] is not StructType nestedStructType)
         {
             Assert.Fail("StructType expected");
             return;
         }
 
-        Assert.That(nestedStructType.Fields.Count, Is.EqualTo(2));
+        Assert.That(nestedStructType.Fields, Has.Count.EqualTo(2));
         Assert.That(nestedStructType.Fields["c"].Type, Is.EqualTo(FireboltDataType.Array));
         if (nestedStructType.Fields["c"] is not ArrayType arrayType)
         {
@@ -214,15 +257,18 @@ public class ColumnTypeTest
             return;
         }
 
-        Assert.That(arrayType.InnerType!.Type, Is.EqualTo(FireboltDataType.Int));
-        Assert.False(arrayType.InnerType.Nullable);
-        Assert.Null(arrayType.InnerType.Precision);
-        Assert.Null(arrayType.InnerType.Scale);
+        Assert.Multiple(() =>
+        {
+            Assert.That(arrayType.InnerType!.Type, Is.EqualTo(FireboltDataType.Int));
+            Assert.That(arrayType.InnerType.Nullable, Is.False);
+            Assert.That(arrayType.InnerType.Precision, Is.Null);
+            Assert.That(arrayType.InnerType.Scale, Is.Null);
 
-        Assert.That(nestedStructType.Fields["d"].Type, Is.EqualTo(FireboltDataType.String));
-        Assert.False(nestedStructType.Fields["d"].Nullable);
-        Assert.Null(nestedStructType.Fields["d"].Precision);
-        Assert.Null(nestedStructType.Fields["d"].Scale);
+            Assert.That(nestedStructType.Fields["d"].Type, Is.EqualTo(FireboltDataType.String));
+            Assert.That(nestedStructType.Fields["d"].Nullable, Is.False);
+            Assert.That(nestedStructType.Fields["d"].Precision, Is.Null);
+            Assert.That(nestedStructType.Fields["d"].Scale, Is.Null);
+        });
     }
 
     [Test]
@@ -230,23 +276,26 @@ public class ColumnTypeTest
     {
         String type = "struct(s struct(`a b` int))";
         ColumnType columnType = ColumnType.Of(type);
-        Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
-        Assert.False(columnType.Nullable);
-        Assert.Null(columnType.Precision);
-        Assert.Null(columnType.Scale);
+        Assert.Multiple(() =>
+        {
+            Assert.That(columnType.Type, Is.EqualTo(FireboltDataType.Struct));
+            Assert.That(columnType.Nullable, Is.False);
+            Assert.That(columnType.Precision, Is.Null);
+            Assert.That(columnType.Scale, Is.Null);
+        });
         if (columnType is not StructType structType)
         {
             Assert.Fail("StructType expected");
             return;
         }
-        Assert.That(structType.Fields.Count, Is.EqualTo(1));
+        Assert.That(structType.Fields, Has.Count.EqualTo(1));
         Assert.That(structType.Fields["s"].Type, Is.EqualTo(FireboltDataType.Struct));
         if (structType.Fields["s"] is not StructType nestedStructType)
         {
             Assert.Fail("StructType expected");
             return;
         }
-        Assert.That(nestedStructType.Fields.Count, Is.EqualTo(1));
+        Assert.That(nestedStructType.Fields, Has.Count.EqualTo(1));
         Assert.That(nestedStructType.Fields["a b"].Type, Is.EqualTo(FireboltDataType.Int));
     }
 }

@@ -2,7 +2,7 @@ using System.Data.Common;
 using System.Collections;
 using System.Data;
 using System.Text;
-using FireboltDoNetSdk.Utils;
+using System.Globalization;
 using FireboltDotNetSdk.Utils;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
@@ -817,6 +817,118 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(poco.TimestampVal, Is.EqualTo(default(DateTime)));
                 Assert.That(poco.DoubleVal, Is.EqualTo(0.0));
             });
+        }
+
+        [Test]
+        public void GetDouble_WithCzechCulture_NumericInDoubleColumn_Succeeds()
+        {
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("cs-CZ");
+                var result = new QueryResult
+                {
+                    Rows = 1,
+                    Meta = new List<Meta>() { new Meta() { Name = "val", Type = "double" } },
+                    Data = new List<List<object?>>() { new List<object?>() { 2.71828 } }
+                };
+
+                DbDataReader reader = new FireboltDataReader(null, result);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.EqualTo(true));
+                    Assert.That(Math.Abs(reader.GetDouble(0) - 2.71828), Is.LessThanOrEqualTo(0.000001));
+                    Assert.That(reader.GetString(0), Is.EqualTo("2,71828"));
+                });
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = originalCulture;
+            }
+        }
+
+        [Test]
+        public void GetQuotedDecimal_WithCzechCulture_Succeeds()
+        {
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("cs-CZ");
+                var result = new QueryResult
+                {
+                    Rows = 1,
+                    Meta = new List<Meta>() { new Meta() { Name = "val", Type = "Decimal(18, 5)" } },
+                    Data = new List<List<object?>>() { new List<object?>() { "2.71828" } }
+                };
+
+                DbDataReader reader = new FireboltDataReader(null, result);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.EqualTo(true));
+                    Assert.That(Math.Abs(reader.GetDouble(0) - 2.71828), Is.LessThanOrEqualTo(0.000001));
+                    Assert.That(reader.GetString(0), Is.EqualTo("2,71828"));
+                });
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = originalCulture;
+            }
+        }
+
+        [Test]
+        public void GetNumericDecimal_WithCzechCulture_Succeeds()
+        {
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("cs-CZ");
+                var result = new QueryResult
+                {
+                    Rows = 1,
+                    Meta = new List<Meta>() { new Meta() { Name = "val", Type = "Decimal(18, 5)" } },
+                    Data = new List<List<object?>>() { new List<object?>() { 2.71828 } }
+                };
+
+                DbDataReader reader = new FireboltDataReader(null, result);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.EqualTo(true));
+                    Assert.That(Math.Abs(reader.GetDouble(0) - 2.71828), Is.LessThanOrEqualTo(0.000001));
+                    Assert.That(reader.GetString(0), Is.EqualTo("2,71828"));
+                });
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = originalCulture;
+            }
+        }
+
+        [Test]
+        public void GetNumericDecimal_WithInvariantCulture_Succeeds()
+        {
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+                var result = new QueryResult
+                {
+                    Rows = 1,
+                    Meta = new List<Meta>() { new Meta() { Name = "val", Type = "Decimal(18, 5)" } },
+                    Data = new List<List<object?>>() { new List<object?>() { 2.71828 } }
+                };
+
+                DbDataReader reader = new FireboltDataReader(null, result);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.EqualTo(true));
+                    Assert.That(Math.Abs(reader.GetDouble(0) - 2.71828), Is.LessThanOrEqualTo(0.000001));
+                    Assert.That(reader.GetString(0), Is.EqualTo("2.71828"));
+                });
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = originalCulture;
+            }
         }
 
         class TestPoco

@@ -16,10 +16,8 @@
 #endregion
 
 using System.Collections;
-using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
-using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using FireboltNETSDK.Exception;
