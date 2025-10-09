@@ -5,7 +5,6 @@ using FireboltDotNetSdk.Utils;
 using System.Data.Common;
 using System.Data;
 using Moq;
-using FireboltDoNetSdk.Utils;
 using FireboltNETSDK.Exception;
 
 namespace FireboltDotNetSdk.Tests

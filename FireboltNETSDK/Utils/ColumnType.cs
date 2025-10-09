@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using FireboltDoNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Utils;
 
@@ -166,7 +165,7 @@ public class ArrayType : ColumnType
 
 public class StructType : ColumnType
 {
-    public readonly Dictionary<string, ColumnType> Fields;
+    internal Dictionary<string, ColumnType> Fields { get; }
 
     public StructType(Dictionary<string, ColumnType> fields, bool nullable) : base(null, null, FireboltDataType.Struct, nullable)
     {

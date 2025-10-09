@@ -2,17 +2,14 @@
  * Copyright (c) 2022 FireBolt All rights reserved.
  */
 
-using System.Collections;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
-using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NodaTime.Text;
 
-namespace FireboltDoNetSdk.Utils
+namespace FireboltDotNetSdk.Utils
 {
     public enum FireboltDataType
     {
@@ -278,7 +275,7 @@ namespace FireboltDoNetSdk.Utils
                 var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
                 return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
             }
-            catch (Exception e)
+            catch (System.Exception e)
             {
                 throw new FireboltException("Error while parsing response", e);
             }

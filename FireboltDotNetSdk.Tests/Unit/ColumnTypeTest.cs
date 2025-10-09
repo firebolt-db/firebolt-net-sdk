@@ -1,4 +1,3 @@
-using FireboltDoNetSdk.Utils;
 using FireboltDotNetSdk.Utils;
 
 namespace FireboltDotNetSdk.Tests;

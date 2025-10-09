@@ -4,7 +4,7 @@ using System.Data.Common;
 using System.Collections;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
-using FireboltDoNetSdk.Utils;
+using FireboltDotNetSdk.Utils;
 using NodaTime.Extensions;
 using FireboltNETSDK.Exception;
 
