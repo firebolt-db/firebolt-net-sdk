@@ -25,7 +25,7 @@ public class ColumnType
     {
         Tuple<int?, int?>? scaleAndPrecisionPair = null;
 
-        ColumnTypeWrapper columnTypeWrapper = ColumnTypeWrapper.Of(fullColumnType);
+        ColumnTypeWrapper columnTypeWrapper = ColumnTypeWrapper.FromType(fullColumnType);
         string typeWithoutNullKeyword = columnTypeWrapper.TypeWithoutNullKeyword;
         int typeEndIndex = GetTypeEndPosition(typeWithoutNullKeyword);
         FireboltDataType dataType = GetFireboltDataTypeFromColumnType(typeWithoutNullKeyword, typeEndIndex);
@@ -43,7 +43,7 @@ public class ColumnType
 
 
         if (dataType.Equals(FireboltDataType.Decimal) &&
-            (!ReachedEndOfTypeName(typeEndIndex, typeWithoutNullKeyword) || typeWithoutNullKeyword.Substring(typeEndIndex).StartsWith("(")))
+            (!ReachedEndOfTypeName(typeEndIndex, typeWithoutNullKeyword) || typeWithoutNullKeyword.Substring(typeEndIndex).StartsWith('(')))
         {
             String[] arguments = SplitArguments(typeWithoutNullKeyword, typeEndIndex);
             scaleAndPrecisionPair = GetScaleAndPrecision(arguments);
@@ -97,8 +97,8 @@ public class ColumnType
         field = field.Trim();
         var firstTickIndex = field.IndexOf("`", StringComparison.Ordinal);
         var secondTickIndex = firstTickIndex != -1 ? field.IndexOf("`", firstTickIndex + 1, StringComparison.Ordinal) : -1;
-        var splitIndex = (secondTickIndex != -1 && field.StartsWith("`")) ? secondTickIndex + 1 : field.IndexOf(" ", StringComparison.Ordinal);
-        return new[] { field[..splitIndex].Trim(new[] { ' ', '`' }), field[splitIndex..].Trim() };
+        var splitIndex = (secondTickIndex != -1 && field.StartsWith('`')) ? secondTickIndex + 1 : field.IndexOf(" ", StringComparison.Ordinal);
+        return new[] { field[..splitIndex].Trim(' ', '`'), field[splitIndex..].Trim() };
     }
 
     private static int GetTypeEndPosition(string type)
@@ -120,7 +120,7 @@ public class ColumnType
                                                || type.IndexOf(")", typeNameEndIndex) < 0;
     }
 
-    private class ColumnTypeWrapper
+    private sealed class ColumnTypeWrapper
     {
         internal string Type { get; }
         internal string TypeWithoutNullKeyword { get; }
@@ -133,7 +133,7 @@ public class ColumnType
             HasNullableKeyword = hasNullableKeyword;
         }
 
-        internal static ColumnTypeWrapper Of(string type)
+        internal static ColumnTypeWrapper FromType(string type)
         {
             bool containsNullableKeyword = false;
             string typeInUpperCase = type.ToUpper();

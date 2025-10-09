@@ -149,7 +149,7 @@ public class TypesConverterTest
         Assert.That(exception!.Message, Is.EqualTo("Input string was not in a correct format."));
     }
 
-    public static IEnumerable<TestCaseData> ArrayTestCases()
+    private static IEnumerable<TestCaseData> ArrayTestCases()
     {
         yield return new TestCaseData(JArray.Parse("[1, 2]"), new[] { 1, 2 }, "array(int)");
         yield return new TestCaseData("[1, 2]", new[] { 1, 2 }, "array(int)");
@@ -167,7 +167,7 @@ public class TypesConverterTest
         Assert.That(result, Is.EqualTo(expected));
     }
 
-    public static IEnumerable<TestCaseData> StructTestCase()
+    private static IEnumerable<TestCaseData> StructTestCase()
     {
         yield return new TestCaseData(
             JObject.Parse("{\"a\": 1, \"b\": \"value\"}"),
@@ -225,14 +225,17 @@ public class TypesConverterTest
     public void ParseWrongJsonResponse(string? json, string? expectedMessage, string? expectedBaseMessage)
     {
         FireboltException? exception = Assert.Throws<FireboltException>(() => TypesConverter.ParseJsonResponse(json));
-        Assert.That(exception?.Message, Is.EqualTo(expectedMessage));
-        Assert.That(exception?.GetBaseException().Message, Is.EqualTo(expectedBaseMessage));
+        Assert.Multiple(() =>
+        {
+            Assert.That(exception?.Message, Is.EqualTo(expectedMessage));
+            Assert.That(exception?.GetBaseException().Message, Is.EqualTo(expectedBaseMessage));
+        });
     }
 
     [Test]
     public void ParseNullJsonResponse()
     {
-        Assert.Null(TypesConverter.ParseJsonResponse("null"));
+        Assert.That(TypesConverter.ParseJsonResponse("null"), Is.Null);
     }
 
     [Test]
@@ -253,10 +256,10 @@ public class TypesConverterTest
             AssertQueryResult(res, expected[i], 0, i);
         }
 
-        Assert.NotNull(res);
+        Assert.That(res, Is.Not.Null);
     }
 
-    private void AssertQueryResult(QueryResult result, object? expectedValue, int line = 0, int column = 0)
+    private static void AssertQueryResult(QueryResult result, object? expectedValue, int line = 0, int column = 0)
     {
         var columnType = ColumnType.Of(TypesConverter.GetFullColumnTypeName(result.Meta[column]));
         var convertedValue = TypesConverter.ConvertToCSharpVal(result.Data[line][column], columnType);
@@ -285,7 +288,7 @@ public class TypesConverterTest
     public void ConvertByteAWhenNull()
     {
         ColumnType columnType = ColumnType.Of("ByteA");
-        Assert.Null(TypesConverter.ConvertToCSharpVal(null, columnType));
+        Assert.That(TypesConverter.ConvertToCSharpVal(null, columnType), Is.Null);
     }
 
     [Test]
