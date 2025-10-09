@@ -309,7 +309,6 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-
         [Test]
         [Category("engine-v2")]
         public async Task ExecuteReaderAsyncWithDifferentDataTypes()

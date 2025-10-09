@@ -576,6 +576,24 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void RegexPatternsArrayParameter_IsEscapedAndInsertedLiterally()
+        {
+            string response = "{\"query\":{\"query_id\": \"1\"},\"meta\":[], \"data\":[],\"rows\": 0}";
+            var mockClient = new MockClient(response);
+            var connection = new FireboltConnection(mockConnectionString) { Client = mockClient, EngineUrl = "engine", InfraVersion = 2 };
+
+            var cmdText = "SELECT id, name FROM table WHERE REGEXP_LIKE_ANY(name, @patterns)";
+
+            var command = new FireboltCommand(connection, cmdText, new FireboltParameterCollection());
+            command.Parameters.Add(new FireboltParameter("@patterns", new[] { "^Pa@", "ta\\$", "al.*?o" }.ToArray()));
+
+            using var reader = command.ExecuteReader();
+
+            // Ensure the parameter array is rendered literally with quotes and preserved backslash and dollar
+            Assert.That(mockClient.Query, Does.Contain("REGEXP_LIKE_ANY(name, ['^Pa@','ta\\$','al.*?o'])"));
+        }
+
+        [Test]
         public void ExecuteServerSidePreparedStatement_ReturnsExpectedResult()
         {
             string response = "{\"meta\":[{\"name\":\"?column?\",\"type\":\"int\"},{\"name\":\"?column?\",\"type\":\"long\"}],\"data\":[[1,\"2\"]]}";
