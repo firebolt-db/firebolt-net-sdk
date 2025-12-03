@@ -9,6 +9,7 @@ on:
         
 env:
   RELEASE_TAG: ${{ inputs.tag_version }}
+  RELEASE_NOTES_SLACK_CHANNELS: ${{ secrets.RELEASE_NOTES_SLACK_CHANNELS }} 
 
 jobs:
   integration-tests:
@@ -39,20 +40,20 @@ jobs:
 
       - name: Version bump
         run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ RELEASE_TAG }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ RELEASE_TAG }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ RELEASE_TAG }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ env.RELEASE_TAG }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ env.RELEASE_TAG }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ env.RELEASE_TAG }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ RELEASE_TAG }}"
+          git commit -m "Automatic version bump to ${{ env.RELEASE_TAG }}"
           git push origin main
         shell: bash
         
       - name: Publish tag on github
         run: |
-          git tag ${{ RELEASE_TAG }}
-          git push origin ${{ RELEASE_TAG }}
+          git tag ${{ env.RELEASE_TAG }}
+          git push origin ${{ env.RELEASE_TAG }}
         shell: bash
 
       - name: Set up .NET 6.0
@@ -76,7 +77,7 @@ jobs:
         env:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
         run: |
-           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ RELEASE_TAG }}.nupkg \
+           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ env.RELEASE_TAG }}.nupkg \
             --api-key ${{ env.PUBLISH_API_KEY }} \
             --source https://api.nuget.org/v3/index.json
         shell: bash
@@ -86,7 +87,7 @@ jobs:
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
          script: |
-           const tag = `${{ RELEASE_TAG }}`;
+           const tag = `${{ env.RELEASE_TAG }}`;
            const { owner, repo } = context.repo;
            
            // Try to fetch existing release by tag
@@ -125,7 +126,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      RELEASE_NOTES_SLACK_CHANNELS: ${{ secrets.RELEASE_NOTES_SLACK_CHANNELS }}
     strategy:
       matrix:
         # convert the comma separated values into a json
@@ -141,4 +141,4 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             channel: ${{ matrix.channel }}
-            "text": "Firebolt .NET SDK ${{ RELEASE_TAG }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ RELEASE_TAG }}|Release notes>"
+            "text": "Firebolt .NET SDK ${{ env.RELEASE_TAG }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}|Release notes>"
