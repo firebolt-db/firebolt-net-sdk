@@ -129,7 +129,7 @@ jobs:
     strategy:
       matrix:
         # convert the comma separated values into a json
-        channel: ${{ fromJson(env.RELEASE_NOTES_SLACK_CHANNELS) }}
+        channel: ${{ fromJson(vars.RELEASE_NOTES_SLACK_CHANNELS) }}
     steps:
       - run: test -n "${{ env.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
 
