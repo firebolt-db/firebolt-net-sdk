@@ -6,11 +6,18 @@ on:
       tag_version:
         required: true
         description: 'Release tag to use (e.g. 1.2.3)'
+        
+env:
+  RELEASE_TAG: ${{ inputs.tag_version }}
 
 jobs:
   integration-tests:
     uses: ./.github/workflows/integration-tests.yml
-    secrets: inherit
+    secrets:
+      FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
+      FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
+      FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
+      FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
 
   publish:
     runs-on: ubuntu-latest
@@ -32,20 +39,20 @@ jobs:
 
       - name: Version bump
         run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ inputs.tag_version }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ inputs.tag_version }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ inputs.tag_version }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ RELEASE_TAG }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ RELEASE_TAG }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ RELEASE_TAG }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ inputs.tag_version }}"
+          git commit -m "Automatic version bump to ${{ RELEASE_TAG }}"
           git push origin main
         shell: bash
         
       - name: Publish tag on github
         run: |
-          git tag ${{ inputs.tag_version }}
-          git push origin ${{ inputs.tag_version }}
+          git tag ${{ RELEASE_TAG }}
+          git push origin ${{ RELEASE_TAG }}
         shell: bash
 
       - name: Set up .NET 6.0
@@ -66,9 +73,11 @@ jobs:
         shell: bash
 
       - name: Publish package on Nuget
+        env:
+          PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
         run: |
-           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.tag_version }}.nupkg \
-            --api-key ${{ secrets.PUBLISH_API_KEY }} \
+           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ RELEASE_TAG }}.nupkg \
+            --api-key ${{ env.PUBLISH_API_KEY }} \
             --source https://api.nuget.org/v3/index.json
         shell: bash
 
@@ -77,7 +86,7 @@ jobs:
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
          script: |
-           const tag = `${{ inputs.tag_version }}`;
+           const tag = `${{ RELEASE_TAG }}`;
            const { owner, repo } = context.repo;
            
            // Try to fetch existing release by tag
@@ -114,12 +123,15 @@ jobs:
   notify:
     needs: publish
     runs-on: ubuntu-latest
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      RELEASE_NOTES_SLACK_CHANNELS: ${{ secrets.RELEASE_NOTES_SLACK_CHANNELS }}
     strategy:
       matrix:
         # convert the comma separated values into a json
-        channel: ${{ fromJson(secrets.RELEASE_NOTES_SLACK_CHANNELS) }}
+        channel: ${{ fromJson(env.RELEASE_NOTES_SLACK_CHANNELS) }}
     steps:
-      - run: test -n "${{ secrets.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
+      - run: test -n "${{ env.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
 
       - name: Notify Slack of Kafka Sink Connector
         # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
@@ -129,4 +141,4 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             channel: ${{ matrix.channel }}
-            "text": "Firebolt .NET SDK ${{ inputs.tag_version }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag_version }}|Release notes>"
+            "text": "Firebolt .NET SDK ${{ RELEASE_TAG }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ RELEASE_TAG }}|Release notes>"
