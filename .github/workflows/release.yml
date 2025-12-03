@@ -6,10 +6,6 @@ on:
       tag_version:
         required: true
         description: 'Release tag to use (e.g. 1.2.3)'
-        
-env:
-  RELEASE_TAG: ${{ inputs.tag_version }}
-  RELEASE_NOTES_SLACK_CHANNELS: ${{ secrets.RELEASE_NOTES_SLACK_CHANNELS }} 
 
 jobs:
   integration-tests:
@@ -39,6 +35,8 @@ jobs:
         shell: bash
 
       - name: Version bump
+        env:
+          RELEASE_TAG: ${{ inputs.tag_version }}
         run: |
           sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ env.RELEASE_TAG }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ env.RELEASE_TAG }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
@@ -51,6 +49,8 @@ jobs:
         shell: bash
         
       - name: Publish tag on github
+        env:
+          RELEASE_TAG: ${{ inputs.tag_version }}
         run: |
           git tag ${{ env.RELEASE_TAG }}
           git push origin ${{ env.RELEASE_TAG }}
@@ -76,6 +76,7 @@ jobs:
       - name: Publish package on Nuget
         env:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
+          RELEASE_TAG: ${{ inputs.tag_version }}
         run: |
            dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ env.RELEASE_TAG }}.nupkg \
             --api-key ${{ env.PUBLISH_API_KEY }} \
@@ -83,6 +84,8 @@ jobs:
         shell: bash
 
       - name: Generate and update GitHub release notes
+        env:
+          RELEASE_TAG: ${{ inputs.tag_version }}
         uses: actions/github-script@v7
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -125,6 +128,7 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     env:
+      RELEASE_TAG: ${{ inputs.tag_version }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     strategy:
       matrix:
