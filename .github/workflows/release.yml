@@ -3,9 +3,6 @@ name: Release new version
 on:
   workflow_dispatch:
     inputs:
-      major-release:
-        required: false
-        description: 'Trigger a major release (optional). Leave empty for regular release.'
       tag_version:
         required: false
         description: 'Optional release tag to use (e.g. 1.2.3). If provided, skip auto-generation.'
@@ -52,7 +49,6 @@ jobs:
         with:
           changes: ${{ steps.get_changes.outputs.changes }}
           old-tag: ${{ steps.get_changes.outputs.old_tag }}
-          major-release: ${{ inputs.major-release }}
 
       - name: Resolve release tag
         id: release_tag
@@ -146,13 +142,22 @@ jobs:
                });
              }
 
-       - name: Notify Slack of .NET SDK release
-         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
-         with:
-           method: chat.postMessage
-           token: ${{ secrets.SLACK_BOT_TOKEN }}
-           payload: |
-             {
-               "channel": "ecosystem-team",
-               "text": "Firebolt .NET SDK ${{ steps.release_tag.outputs.value }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ steps.release_tag.outputs.value }}|Release notes>"
-             }
+    notify:
+      needs: publish
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          # convert the comma separated values into a json
+          channel: ${{ fromJson(vars.RELEASE_NOTES_SLACK_CHANNELS) }}
+      steps:
+        - run: test -n "${{ secrets.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
+
+        - name: Notify Slack of Kafka Sink Connector
+          # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
+          uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+          with:
+            method: chat.postMessage
+            token: ${{ secrets.SLACK_BOT_TOKEN }}
+            payload: |
+              channel: ${{ matrix.channel }}
+              "text": "Firebolt .NET SDK ${{ steps.release_tag.outputs.value }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ steps.release_tag.outputs.value }}|Release notes>"
