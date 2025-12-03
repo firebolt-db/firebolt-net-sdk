@@ -3,9 +3,9 @@ name: Release new version
 on:
   workflow_dispatch:
     inputs:
-      major-release:
-        required: false
-        description: 'Trigger a major release (optional). Leave empty for regular release.'
+      tag_version:
+        required: true
+        description: 'Release tag to use (e.g. 1.2.3)'
 
 jobs:
   integration-tests:
@@ -30,43 +30,22 @@ jobs:
           git config user.email "<>"
         shell: bash
 
-      - name: Get changes since last release
-        id: get_changes
-        run: |
-          OLD_VERSION=$(git describe --tags --abbrev=0)
-          echo "Old version was ${OLD_VERSION}"
-          CHANGE_LOG=$(git log $OLD_VERSION..HEAD --pretty=format:%s)
-          echo "changes<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGE_LOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "old_tag=$OLD_VERSION" >> $GITHUB_OUTPUT
-        shell: bash
-        
-      - name: Generate new version tag
-        id: tag_generation
-        uses: firebolt-db/action-generate-version@main
-        with:
-          changes: ${{ steps.get_changes.outputs.changes }}
-          old-tag: ${{ steps.get_changes.outputs.old_tag }}
-          major-release: ${{ inputs.major-release }}
-
-
       - name: Version bump
         run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.tag_generation.outputs.new-tag }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.tag_generation.outputs.new-tag }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.tag_generation.outputs.new-tag }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ inputs.tag_version }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ inputs.tag_version }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ inputs.tag_version }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ steps.tag_generation.outputs.new-tag }}"
+          git commit -m "Automatic version bump to ${{ inputs.tag_version }}"
           git push origin main
         shell: bash
         
       - name: Publish tag on github
         run: |
-          git tag ${{ steps.tag_generation.outputs.new-tag }}
-          git push origin ${{ steps.tag_generation.outputs.new-tag }}
+          git tag ${{ inputs.tag_version }}
+          git push origin ${{ inputs.tag_version }}
         shell: bash
 
       - name: Set up .NET 6.0
@@ -88,7 +67,66 @@ jobs:
 
       - name: Publish package on Nuget
         run: |
-          dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.tag_generation.outputs.new-tag }}.nupkg \
+           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.tag_version }}.nupkg \
             --api-key ${{ secrets.PUBLISH_API_KEY }} \
             --source https://api.nuget.org/v3/index.json
         shell: bash
+
+       - name: Generate and update GitHub release notes
+         uses: actions/github-script@v7
+         with:
+           github-token: ${{ secrets.GITHUB_TOKEN }}
+           script: |
+             const tag = `${{ inputs.tag_version }}`;
+             const { owner, repo } = context.repo;
+             
+             // Try to fetch existing release by tag
+             let release = null;
+             try {
+               const res = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+               release = res.data;
+             } catch (err) {
+               if (err.status !== 404) throw err;
+             }
+             
+             // Generate notes based on PRs/commits between last release and this tag
+             const notes = await github.rest.repos.generateReleaseNotes({ owner, repo, tag_name: tag });
+             
+             // Sanitize internal JIRA links: [FIR-1234](...) -> `FIR-1234`, and wrap bare FIR-1234 in backticks
+             let body = notes.data.body || '';
+             body = body.replace(/\[(FIR-\d+)\]\([^)]*\)/g, '`$1`');
+             body = body.replace(/(?<!`)\bFIR-\d+\b(?!`)/g, (m) => `\`${m}\``);
+             
+             if (release) {
+               await github.rest.repos.updateRelease({ owner, repo, release_id: release.id, body });
+             } else {
+               await github.rest.repos.createRelease({
+                 owner,
+                 repo,
+                 tag_name: tag,
+                 name: tag,
+                 body,
+                 draft: false,
+                 prerelease: false
+               });
+             }
+
+    notify:
+      needs: publish
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          # convert the comma separated values into a json
+          channel: ${{ fromJson(secrets.RELEASE_NOTES_SLACK_CHANNELS) }}
+      steps:
+        - run: test -n "${{ secrets.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
+
+        - name: Notify Slack of Kafka Sink Connector
+          # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
+          uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+          with:
+            method: chat.postMessage
+            token: ${{ secrets.SLACK_BOT_TOKEN }}
+            payload: |
+              channel: ${{ matrix.channel }}
+              "text": "Firebolt .NET SDK ${{ inputs.tag_version }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag_version }}|Release notes>"
