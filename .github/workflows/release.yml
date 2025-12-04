@@ -8,7 +8,7 @@ on:
         description: 'Release tag to use (e.g. 1.2.3)'
 
 env:
-  RELEASE_TAG: ${{ inputs.tag_version }}
+  RELEASE_TAG: ${{ inputs.tag_version }}  # Will be overridden by sanitized value in publish job
 
 jobs:
   integration-tests:
@@ -24,6 +24,8 @@ jobs:
     permissions:
       contents: write
     needs: integration-tests
+    outputs:
+      release_tag: ${{ steps.sanitize.outputs.value }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -37,22 +39,34 @@ jobs:
           git config user.email "<>"
         shell: bash
 
+      - name: Sanitize tag_version
+        id: sanitize
+        shell: bash
+        run: |
+          RAW="${{ inputs.tag_version }}"
+          # strip optional leading 'v'/'V'
+          RAW="${RAW#v}"; RAW="${RAW#V}"
+          if [ -z "$SANITIZED" ]; then
+            echo "Sanitized tag_version is empty"; exit 1
+          fi
+          echo "value=$SANITIZED" >> "$GITHUB_OUTPUT"
+
       - name: Version bump
         run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${ env.RELEASE_TAG }<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${ env.RELEASE_TAG }<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${ env.RELEASE_TAG }<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.sanitize.outputs.value }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.sanitize.outputs.value }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.sanitize.outputs.value }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${ env.RELEASE_TAG }"
+          git commit -m "Automatic version bump to ${{ steps.sanitize.outputs.value }}"
           git push origin main
         shell: bash
         
       - name: Publish tag on github
         run: |
-          git tag ${ env.RELEASE_TAG }
-          git push origin ${ env.RELEASE_TAG }
+          git tag ${{ steps.sanitize.outputs.value }}
+          git push origin ${{ steps.sanitize.outputs.value }}
         shell: bash
 
       - name: Set up .NET 6.0
@@ -76,7 +90,7 @@ jobs:
         env:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
         run: |
-           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${ env.RELEASE_TAG }.nupkg \
+           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
             --api-key ${ env.PUBLISH_API_KEY } \
             --source https://api.nuget.org/v3/index.json
         shell: bash
@@ -86,7 +100,7 @@ jobs:
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
          script: |
-           const tag = `${ env.RELEASE_TAG }`;
+           const tag = `${{ steps.sanitize.outputs.value }}`;
            const { owner, repo } = context.repo;
            
            // Try to fetch existing release by tag
@@ -125,6 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
     strategy:
       matrix:
         # convert the comma separated values into a json
