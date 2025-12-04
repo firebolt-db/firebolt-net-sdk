@@ -129,15 +129,15 @@ namespace FireboltDotNetSdk.Tests
             // text
             typeof(string), typeof(string), typeof(string[]), typeof(string[]), typeof(string[]), typeof(string[][]), typeof(string[][]), typeof(string[][]),
             // date
-            typeof(DateTime), typeof(DateTime), typeof(DateTime[]), typeof(DateTime?[]), typeof(DateTime[]), typeof(DateTime?[][]), typeof(DateTime[][]), typeof(DateTime?[][]), typeof(DateTime[][]),
+            typeof(DateTime), typeof(DateTime), typeof(DateTime[]), typeof(DateTime?[]), typeof(DateTime[]), typeof(DateTime[][]), typeof(DateTime[][]), typeof(DateTime?[][]), typeof(DateTime[][]),
             // timestamp
-            typeof(DateTime), typeof(DateTime), typeof(DateTime[]), typeof(DateTime?[]), typeof(DateTime[]), typeof(DateTime?[][]), typeof(DateTime[][]), typeof(DateTime?[][]), typeof(DateTime[][]),
+            typeof(DateTime), typeof(DateTime), typeof(DateTime[]), typeof(DateTime?[]), typeof(DateTime[]), typeof(DateTime[][]), typeof(DateTime[][]), typeof(DateTime?[][]), typeof(DateTime[][]),
             // timestamptz
-            typeof(DateTime), typeof(DateTime), typeof(DateTime[]), typeof(DateTime?[]), typeof(DateTime[]), typeof(DateTime?[][]), typeof(DateTime[][]), typeof(DateTime?[][]), typeof(DateTime[][]),
+            typeof(DateTime), typeof(DateTime), typeof(DateTime[]), typeof(DateTime?[]), typeof(DateTime[]), typeof(DateTime[][]), typeof(DateTime[][]), typeof(DateTime?[][]), typeof(DateTime[][]),
             // boolean
             typeof(bool), typeof(bool), typeof(bool[]), typeof(bool?[]), typeof(bool[]), typeof(bool[][]), typeof(bool?[][]), typeof(bool[][]),
             // decimal
-            typeof(decimal), typeof(decimal), typeof(decimal[]), typeof(decimal?[]), typeof(decimal[]), typeof(decimal?[][]), typeof(decimal[][]), typeof(decimal?[][]), typeof(decimal[][]),
+            typeof(decimal), typeof(decimal), typeof(decimal[]), typeof(decimal?[]), typeof(decimal[]), typeof(decimal[][]), typeof(decimal[][]), typeof(decimal?[][]), typeof(decimal[][]),
             // bytea
             typeof(byte[]), typeof(byte[]),
             // geography
