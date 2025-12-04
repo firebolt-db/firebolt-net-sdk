@@ -7,16 +7,25 @@ on:
         required: true
         description: 'Release tag to use (e.g. 1.2.3)'
 
+env:
+  RELEASE_TAG: ${{ inputs.tag_version }}  # Will be overridden by sanitized value in publish job
+
 jobs:
   integration-tests:
     uses: ./.github/workflows/integration-tests.yml
-    secrets: inherit
+    secrets:
+      FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
+      FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
+      FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
+      FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
 
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     needs: integration-tests
+    outputs:
+      release_tag: ${{ steps.sanitize.outputs.value }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -30,22 +39,34 @@ jobs:
           git config user.email "<>"
         shell: bash
 
+      - name: Sanitize tag_version
+        id: sanitize
+        shell: bash
+        run: |
+          RAW="${ env.RELEASE_TAG }"
+          # strip optional leading 'v'/'V'
+          RAW="${RAW#v}"; RAW="${RAW#V}"
+          if [ -z "$SANITIZED" ]; then
+            echo "Sanitized tag_version is empty"; exit 1
+          fi
+          echo "value=$SANITIZED" >> "$GITHUB_OUTPUT"
+
       - name: Version bump
         run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ inputs.tag_version }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ inputs.tag_version }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ inputs.tag_version }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.sanitize.outputs.value }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.sanitize.outputs.value }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.sanitize.outputs.value }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ inputs.tag_version }}"
+          git commit -m "Automatic version bump to ${{ steps.sanitize.outputs.value }}"
           git push origin main
         shell: bash
         
       - name: Publish tag on github
         run: |
-          git tag ${{ inputs.tag_version }}
-          git push origin ${{ inputs.tag_version }}
+          git tag ${{ steps.sanitize.outputs.value }}
+          git push origin ${{ steps.sanitize.outputs.value }}
         shell: bash
 
       - name: Set up .NET 6.0
@@ -66,67 +87,72 @@ jobs:
         shell: bash
 
       - name: Publish package on Nuget
+        env:
+          PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
         run: |
-           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ inputs.tag_version }}.nupkg \
-            --api-key ${{ secrets.PUBLISH_API_KEY }} \
+           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
+            --api-key ${ env.PUBLISH_API_KEY } \
             --source https://api.nuget.org/v3/index.json
         shell: bash
 
-       - name: Generate and update GitHub release notes
-         uses: actions/github-script@v7
-         with:
-           github-token: ${{ secrets.GITHUB_TOKEN }}
-           script: |
-             const tag = `${{ inputs.tag_version }}`;
-             const { owner, repo } = context.repo;
-             
-             // Try to fetch existing release by tag
-             let release = null;
-             try {
-               const res = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-               release = res.data;
-             } catch (err) {
-               if (err.status !== 404) throw err;
-             }
-             
-             // Generate notes based on PRs/commits between last release and this tag
-             const notes = await github.rest.repos.generateReleaseNotes({ owner, repo, tag_name: tag });
-             
-             // Sanitize internal JIRA links: [FIR-1234](...) -> `FIR-1234`, and wrap bare FIR-1234 in backticks
-             let body = notes.data.body || '';
-             body = body.replace(/\[(FIR-\d+)\]\([^)]*\)/g, '`$1`');
-             body = body.replace(/(?<!`)\bFIR-\d+\b(?!`)/g, (m) => `\`${m}\``);
-             
-             if (release) {
-               await github.rest.repos.updateRelease({ owner, repo, release_id: release.id, body });
-             } else {
-               await github.rest.repos.createRelease({
-                 owner,
-                 repo,
-                 tag_name: tag,
-                 name: tag,
-                 body,
-                 draft: false,
-                 prerelease: false
-               });
-             }
+      - name: Generate and update GitHub release notes
+        uses: actions/github-script@v7
+        with:
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         script: |
+           const tag = `${{ steps.sanitize.outputs.value }}`;
+           const { owner, repo } = context.repo;
+           
+           // Try to fetch existing release by tag
+           let release = null;
+           try {
+             const res = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+             release = res.data;
+           } catch (err) {
+             if (err.status !== 404) throw err;
+           }
+           
+           // Generate notes based on PRs/commits between last release and this tag
+           const notes = await github.rest.repos.generateReleaseNotes({ owner, repo, tag_name: tag });
+           
+           // Sanitize internal JIRA links: [FIR-1234](...) -> `FIR-1234`, and wrap bare FIR-1234 in backticks
+           let body = notes.data.body || '';
+           body = body.replace(/\[(FIR-\d+)\]\([^)]*\)/g, '`$1`');
+           body = body.replace(/(?<!`)\bFIR-\d+\b(?!`)/g, (m) => `\`${m}\``);
+           
+           if (release) {
+             await github.rest.repos.updateRelease({ owner, repo, release_id: release.id, body });
+           } else {
+             await github.rest.repos.createRelease({
+               owner,
+               repo,
+               tag_name: tag,
+               name: tag,
+               body,
+               draft: false,
+               prerelease: false
+             });
+           }
 
-    notify:
-      needs: publish
-      runs-on: ubuntu-latest
-      strategy:
-        matrix:
-          # convert the comma separated values into a json
-          channel: ${{ fromJson(secrets.RELEASE_NOTES_SLACK_CHANNELS) }}
-      steps:
-        - run: test -n "${{ secrets.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
+  notify:
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
+    strategy:
+      matrix:
+        # convert the comma separated values into a json
+        channel: ${{ fromJson(vars.RELEASE_NOTES_SLACK_CHANNELS) }}
+    steps:
+      - run: test -n "${{ env.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
 
-        - name: Notify Slack of Kafka Sink Connector
-          # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
-          uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
-          with:
-            method: chat.postMessage
-            token: ${{ secrets.SLACK_BOT_TOKEN }}
-            payload: |
-              channel: ${{ matrix.channel }}
-              "text": "Firebolt .NET SDK ${{ inputs.tag_version }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag_version }}|Release notes>"
+      - name: Notify Slack of Kafka Sink Connector
+        # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ matrix.channel }}
+            "text": "Firebolt .NET SDK ${ env.RELEASE_TAG } has been released: <https://github.com/${{ github.repository }}/releases/tag/${ env.RELEASE_TAG }|Release notes>"
