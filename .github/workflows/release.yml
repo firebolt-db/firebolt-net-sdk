@@ -43,7 +43,7 @@ jobs:
         id: sanitize
         shell: bash
         run: |
-          RAW="${{ inputs.tag_version }}"
+          RAW="${ env.RELEASE_TAG }"
           # strip optional leading 'v'/'V'
           RAW="${RAW#v}"; RAW="${RAW#V}"
           if [ -z "$SANITIZED" ]; then
