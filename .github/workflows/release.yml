@@ -7,9 +7,6 @@ on:
         required: true
         description: 'Release tag to use (e.g. 1.2.3)'
 
-env:
-  RELEASE_TAG: ${{ inputs.tag_version }}  # Will be overridden by sanitized value in publish job
-
 jobs:
   integration-tests:
     uses: ./.github/workflows/integration-tests.yml
@@ -41,11 +38,13 @@ jobs:
 
       - name: Sanitize tag_version
         id: sanitize
+        env:
+          RELEASE_TAG: ${{ inputs.tag_version }}
         shell: bash
         run: |
-          RAW="${ env.RELEASE_TAG }"
+          RAW="$RELEASE_TAG"
           # strip optional leading 'v'/'V'
-          RAW="${RAW#v}"; RAW="${RAW#V}"
+          SANITIZED="${RAW#v}"; SANITIZED="${SANITIZED#V}"
           if [ -z "$SANITIZED" ]; then
             echo "Sanitized tag_version is empty"; exit 1
           fi
@@ -91,7 +90,7 @@ jobs:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
         run: |
            dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
-            --api-key ${ env.PUBLISH_API_KEY } \
+            --api-key "$env.PUBLISH_API_KEY" \
             --source https://api.nuget.org/v3/index.json
         shell: bash
 
@@ -155,4 +154,4 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             channel: ${{ matrix.channel }}
-            "text": "Firebolt .NET SDK ${ env.RELEASE_TAG } has been released: <https://github.com/${{ github.repository }}/releases/tag/${ env.RELEASE_TAG }|Release notes>"
+            "text": "Firebolt .NET SDK ${{ env.RELEASE_TAG }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}|Release notes>"
