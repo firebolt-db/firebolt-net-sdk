@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: integration-tests
+#    needs: integration-tests
     outputs:
       release_tag: ${{ steps.sanitize.outputs.value }}
     steps:
