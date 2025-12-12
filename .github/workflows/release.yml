@@ -50,17 +50,17 @@ jobs:
           fi
           echo "value=$SANITIZED" >> "$GITHUB_OUTPUT"
 
-      - name: Version bump
-        run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.sanitize.outputs.value }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.sanitize.outputs.value }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.sanitize.outputs.value }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          git branch
-          git diff
-          git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ steps.sanitize.outputs.value }}"
-          git push origin main
-        shell: bash
+#      - name: Version bump
+#        run: |
+#          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.sanitize.outputs.value }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+#          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.sanitize.outputs.value }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+#          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.sanitize.outputs.value }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+#          git branch
+#          git diff
+#          git add FireboltNETSDK/FireboltDotNetSdk.csproj
+#          git commit -m "Automatic version bump to ${{ steps.sanitize.outputs.value }}"
+#          git push origin main
+#        shell: bash
         
       - name: Publish tag on github
         run: |
@@ -68,31 +68,31 @@ jobs:
           git push origin ${{ steps.sanitize.outputs.value }}
         shell: bash
 
-      - name: Set up .NET 6.0
-        id: dotnet-setup
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 6.0
-          
-      - name: use .NET 6.0
-        run: |
-          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
-
-      - name: Build package
-        run: |
-          dotnet restore
-          dotnet build
-          dotnet pack
-        shell: bash
-
-      - name: Publish package on Nuget
-        env:
-          PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
-        run: |
-           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
-            --api-key "$env.PUBLISH_API_KEY" \
-            --source https://api.nuget.org/v3/index.json
-        shell: bash
+#      - name: Set up .NET 6.0
+#        id: dotnet-setup
+#        uses: actions/setup-dotnet@v4
+#        with:
+#          dotnet-version: 6.0
+#          
+#      - name: use .NET 6.0
+#        run: |
+#          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
+#
+#      - name: Build package
+#        run: |
+#          dotnet restore
+#          dotnet build
+#          dotnet pack
+#        shell: bash
+#
+#      - name: Publish package on Nuget
+#        env:
+#          PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
+#        run: |
+#           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
+#            --api-key "$env.PUBLISH_API_KEY" \
+#            --source https://api.nuget.org/v3/index.json
+#        shell: bash
 
       - name: Generate and update GitHub release notes
         uses: actions/github-script@v7
