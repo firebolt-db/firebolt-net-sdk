@@ -90,7 +90,7 @@ jobs:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
         run: |
            dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
-            --api-key "$env.PUBLISH_API_KEY" \
+            --api-key "$PUBLISH_API_KEY" \
             --source https://api.nuget.org/v3/index.json
         shell: bash
 
