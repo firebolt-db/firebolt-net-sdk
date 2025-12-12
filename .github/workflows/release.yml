@@ -59,7 +59,7 @@ jobs:
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
           git commit -m "Automatic version bump to ${{ steps.sanitize.outputs.value }}"
-          git push origin main
+          git push origin revert-back-to-release-pat
         shell: bash
         
       - name: Publish tag on github
