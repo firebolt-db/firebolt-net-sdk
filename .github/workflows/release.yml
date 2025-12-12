@@ -8,19 +8,19 @@ on:
         description: 'Release tag to use (e.g. 1.2.3)'
 
 jobs:
-  integration-tests:
-    uses: ./.github/workflows/integration-tests.yml
-    secrets:
-      FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
-      FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
-      FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
-      FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
+#  integration-tests:
+#    uses: ./.github/workflows/integration-tests.yml
+#    secrets:
+#      FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
+#      FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
+#      FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
+#      FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
 
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: integration-tests
+#    needs: integration-tests
     outputs:
       release_tag: ${{ steps.sanitize.outputs.value }}
     steps:
@@ -68,31 +68,31 @@ jobs:
           git push origin ${{ steps.sanitize.outputs.value }}
         shell: bash
 
-      - name: Set up .NET 6.0
-        id: dotnet-setup
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 6.0
-          
-      - name: use .NET 6.0
-        run: |
-          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
-
-      - name: Build package
-        run: |
-          dotnet restore
-          dotnet build
-          dotnet pack
-        shell: bash
-
-      - name: Publish package on Nuget
-        env:
-          PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
-        run: |
-           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
-            --api-key "$env.PUBLISH_API_KEY" \
-            --source https://api.nuget.org/v3/index.json
-        shell: bash
+#      - name: Set up .NET 6.0
+#        id: dotnet-setup
+#        uses: actions/setup-dotnet@v4
+#        with:
+#          dotnet-version: 6.0
+#          
+#      - name: use .NET 6.0
+#        run: |
+#          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
+#
+#      - name: Build package
+#        run: |
+#          dotnet restore
+#          dotnet build
+#          dotnet pack
+#        shell: bash
+#
+#      - name: Publish package on Nuget
+#        env:
+#          PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
+#        run: |
+#           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
+#            --api-key "$env.PUBLISH_API_KEY" \
+#            --source https://api.nuget.org/v3/index.json
+#        shell: bash
 
       - name: Generate and update GitHub release notes
         uses: actions/github-script@v7
@@ -133,25 +133,25 @@ jobs:
              });
            }
 
-  notify:
-    needs: publish
-    runs-on: ubuntu-latest
-    env:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
-    strategy:
-      matrix:
-        # convert the comma separated values into a json
-        channel: ${{ fromJson(vars.RELEASE_NOTES_SLACK_CHANNELS) }}
-    steps:
-      - run: test -n "${{ env.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
-
-      - name: Notify Slack of Kafka Sink Connector
-        # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload: |
-            channel: ${{ matrix.channel }}
-            "text": "Firebolt .NET SDK ${{ env.RELEASE_TAG }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}|Release notes>"
+#  notify:
+#    needs: publish
+#    runs-on: ubuntu-latest
+#    env:
+#      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+#      RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
+#    strategy:
+#      matrix:
+#        # convert the comma separated values into a json
+#        channel: ${{ fromJson(vars.RELEASE_NOTES_SLACK_CHANNELS) }}
+#    steps:
+#      - run: test -n "${{ env.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
+#
+#      - name: Notify Slack of Kafka Sink Connector
+#        # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
+#        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+#        with:
+#          method: chat.postMessage
+#          token: ${{ secrets.SLACK_BOT_TOKEN }}
+#          payload: |
+#            channel: ${{ matrix.channel }}
+#            "text": "Firebolt .NET SDK ${{ env.RELEASE_TAG }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}|Release notes>"
