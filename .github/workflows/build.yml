@@ -12,7 +12,7 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     
     - name: Set up .NET 6.0
       id: dotnet-setup
