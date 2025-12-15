@@ -39,7 +39,7 @@ jobs:
         dotnet-coverage collect 'dotnet test --filter "Category!=Integration" --logger trx' -f xml -o "coverage/coverage.xml"
 
     - name: Upload test artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: test-artifacts
         path: |
