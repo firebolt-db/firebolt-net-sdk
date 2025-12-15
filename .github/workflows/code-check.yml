@@ -27,5 +27,5 @@ jobs:
         dotnet tool install -g dotnet-format --version "6.*" --add-source https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet6/nuget/v3/index.json
 
     - name: Run pre-commit checks
-      uses: pre-commit/action@v3.0.0
+      uses: pre-commit/action@v3.0.1
 
