@@ -35,7 +35,7 @@ public class HttpClientSingleton
         // Disable timeouts
         client.Timeout = TimeSpan.FromMilliseconds(-1);
 
-        var version = Assembly.GetEntryAssembly()?.GetName()?.Version?.ToString();
+        var version = typeof(HttpClientSingleton).Assembly?.GetName().Version?.ToString();
         client.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_" + version);
         return client;
     }
