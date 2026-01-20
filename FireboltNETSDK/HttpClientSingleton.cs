@@ -5,7 +5,7 @@ using System.Net.Sockets;
 
 namespace FireboltDotNetSdk;
 
-public class HttpClientSingleton
+public static class HttpClientSingleton
 {
     private static HttpClient? _instance;
     private static readonly object Mutex = new();
@@ -16,11 +16,11 @@ public class HttpClientSingleton
     /// </summary>
     public static HttpClient GetInstance()
     {
-        if (_instance == null)
-            lock (Mutex)
-            {
-                _instance ??= CreateClient();
-            }
+        if (_instance != null) return _instance;
+        lock (Mutex)
+        {
+            _instance ??= CreateClient();
+        }
         return _instance;
     }
 
@@ -28,7 +28,7 @@ public class HttpClientSingleton
     {
         var httpHandler = new SocketsHttpHandler
         {
-            ConnectCallback = (context, token) => ConfigureSocketTcpKeepAlive(context, token),
+            ConnectCallback = ConfigureSocketTcpKeepAlive,
         };
         var client = new HttpClient(httpHandler);
 
@@ -44,7 +44,7 @@ public class HttpClientSingleton
         SocketsHttpConnectionContext context,
         CancellationToken token)
     {
-        Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
         try
         {
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
@@ -53,7 +53,7 @@ public class HttpClientSingleton
             // As a workaround for PlatformNotSupportedException, we use Dns.GetHostAddressesAsync to resolve and 
             // pass the IP address to Socket.ConnectAsync. 
             // see: https://github.com/dotnet/runtime/issues/24917 
-            var address = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host).ConfigureAwait(false);
+            var address = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, token).ConfigureAwait(false);
             await socket.ConnectAsync(address, context.DnsEndPoint.Port, token).ConfigureAwait(false);
 
             return new NetworkStream(socket, ownsSocket: true);
