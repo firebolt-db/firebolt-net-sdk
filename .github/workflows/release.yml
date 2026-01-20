@@ -25,7 +25,7 @@ jobs:
       release_tag: ${{ steps.sanitize.outputs.value }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT }}
@@ -70,7 +70,7 @@ jobs:
 
       - name: Set up .NET 6.0
         id: dotnet-setup
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 6.0
           
