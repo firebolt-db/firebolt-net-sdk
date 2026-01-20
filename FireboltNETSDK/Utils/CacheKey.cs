@@ -13,7 +13,7 @@ namespace FireboltDotNetSdk.Utils
             if (clientId == null) throw new ArgumentNullException(nameof(clientId));
             if (clientSecret == null) throw new ArgumentNullException(nameof(clientSecret));
             if (account == null) throw new ArgumentNullException(nameof(account));
-            
+
             _value = HashValues(clientId, clientSecret, account);
         }
 
