@@ -3,6 +3,8 @@ name: Pull request
 on:
   pull_request:
     branches: [ main, 0.x ]
+  push:
+    branches: [ main ]
 
 jobs:
   check-title:
