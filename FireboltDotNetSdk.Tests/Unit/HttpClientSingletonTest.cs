@@ -7,7 +7,7 @@ public class HttpClientSingletonTest
     {
         HttpClient client = HttpClientSingleton.GetInstance();
         HttpClient client2 = HttpClientSingleton.GetInstance();
-        Assert.True(ReferenceEquals(client, client2));
+        Assert.That(ReferenceEquals(client, client2), Is.True);
     }
 
     [Test]
@@ -22,7 +22,7 @@ public class HttpClientSingletonTest
     {
         // Verify the timeout is set correctly (infinite) as configured in CreateClient
         var client = HttpClientSingleton.GetInstance();
-        Assert.That(client.Timeout, Is.EqualTo(TimeSpan.FromMilliseconds(-1)), 
+        Assert.That(client.Timeout, Is.EqualTo(TimeSpan.FromMilliseconds(-1)),
             "HttpClient should have infinite timeout for long-running queries");
     }
 
@@ -32,7 +32,6 @@ public class HttpClientSingletonTest
         // Test that the socket properly handles connection failures
         // This verifies the error handling in ConfigureSocketTcpKeepAlive's catch block
         var client = HttpClientSingleton.GetInstance();
-        
         // Try to connect to an invalid host that should fail
         var exceptionThrown = false;
         try
@@ -46,7 +45,7 @@ public class HttpClientSingletonTest
             // Expected - socket should be properly disposed per the catch block in ConfigureSocketTcpKeepAlive
             exceptionThrown = true;
         }
-        
+
         Assert.That(exceptionThrown, Is.True, "Should throw exception for invalid host");
     }
 
