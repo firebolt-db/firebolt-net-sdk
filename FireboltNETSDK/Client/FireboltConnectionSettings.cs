@@ -63,12 +63,19 @@ namespace FireboltDotNetSdk.Client
         private const int RegexTimeoutSeconds = 60;
         public PreparedStatementParamStyleType PreparedStatementParamStyle { get; }
 
+        /// <summary>
+        /// Gets whether connection caching is enabled. 
+        /// Available only for Firebolt 2.0 connections. Default is true.
+        /// </summary>
+        public bool CacheConnection { get; }
+
         internal FireboltConnectionSettings()
         {
             Principal = string.Empty;
             Secret = string.Empty;
             TokenStorageType = TokenStorageType.Memory;
             PreparedStatementParamStyle = PreparedStatementParamStyleType.Native;
+            CacheConnection = true; // Default to true
         }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
@@ -83,6 +90,7 @@ namespace FireboltDotNetSdk.Client
             (Endpoint, Env) = ResolveEndpointAndEnv(builder);
             TokenStorageType = builder.TokenStorage ?? TokenStorageType.Memory;
             PreparedStatementParamStyle = builder.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
+            CacheConnection = builder.CacheConnection; // Defaults to true in builder
         }
 
         static string? ExtractEndpointEnv(string endpoint)

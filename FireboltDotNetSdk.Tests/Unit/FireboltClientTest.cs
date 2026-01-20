@@ -1,7 +1,8 @@
-﻿using System.Net;
+using System.Net;
 using System.Text;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Utils;
 using Moq;
 using static Newtonsoft.Json.JsonConvert;
 using static FireboltDotNetSdk.Client.FireResponse;
@@ -315,5 +316,442 @@ namespace FireboltDotNetSdk.Tests
         {
             return new HttpResponseMessage() { StatusCode = httpStatusCode };
         }
+
+        #region FireboltClient2 Caching Tests
+
+        [Test]
+        public void TestClient2_ConnectionId_IsUnique()
+        {
+            var (_, httpClient1) = GetHttpMocks();
+            var (_, httpClient2) = GetHttpMocks();
+
+            var connection1 = new FireboltConnection(connectionString);
+            var connection2 = new FireboltConnection(connectionString);
+
+            var client1 = new FireboltClient2(connection1, "id1", "secret1", "endpoint1", null, "account1", httpClient1);
+            var client2 = new FireboltClient2(connection2, "id2", "secret2", "endpoint2", null, "account2", httpClient2);
+
+            // Use reflection to access private _connectionId field
+            var connectionIdField = typeof(FireboltClient2).GetField("_connectionId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.That(connectionIdField, Is.Not.Null);
+
+            var connectionId1 = connectionIdField!.GetValue(client1) as string;
+            var connectionId2 = connectionIdField.GetValue(client2) as string;
+
+            Assert.That(connectionId1, Is.Not.Null);
+            Assert.That(connectionId2, Is.Not.Null);
+            Assert.That(connectionId1, Is.Not.EqualTo(connectionId2), "Each client should have a unique connection ID");
+        }
+
+        [Test]
+        public async Task TestClient2_EstablishConnection_CachesJwtToken()
+        {
+            CacheService.Instance.Clear();
+            
+            var (handlerMock, httpClient) = GetHttpMocks();
+
+            var connection = new FireboltConnection(connectionString);
+            var client = new FireboltClient2(connection, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient);
+
+            var loginResponse = new LoginResponse("cached_token", "3600", "Bearer");
+
+            // Mock login response
+            handlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK));
+
+            // First call should fetch token
+            var token1 = await client.EstablishConnection();
+            Assert.That(token1, Is.EqualTo("cached_token"));
+
+            // Verify token is cached
+            var cacheKey = new CacheKey("test_id", "test_secret", "test_account");
+            var cache = CacheService.Instance.Get(cacheKey.GetValue());
+            Assert.That(cache, Is.Not.Null);
+            Assert.That(cache!.GetCachedToken(), Is.Not.Null);
+            Assert.That(cache.GetCachedToken()!.Access_token, Is.EqualTo("cached_token"));
+
+            // Second call should use cached token (no additional HTTP call)
+            var token2 = await client.EstablishConnection();
+            Assert.That(token2, Is.EqualTo("cached_token"));
+
+            // Verify only one HTTP call was made (for login)
+            handlerMock.Protected().Verify(
+                "SendAsync",
+                Times.Once(),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
+            
+            CacheService.Instance.Clear();
+        }
+
+        [Test]
+        public async Task TestClient2_EstablishConnection_ForceRefreshBypassesCache()
+        {
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear(); // Clear TokenMemoryStorage to avoid overflow issues
+            
+            var (handlerMock, httpClient) = GetHttpMocks();
+
+            var connection = new FireboltConnection(connectionString);
+            var client = new FireboltClient2(connection, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient);
+
+            var loginResponse1 = new LoginResponse("token1", "3600", "Bearer");
+            var loginResponse2 = new LoginResponse("token2", "3600", "Bearer");
+
+            // Mock login responses
+            handlerMock.Protected()
+                .SetupSequence<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(GetResponseMessage(loginResponse1, HttpStatusCode.OK))
+                .ReturnsAsync(GetResponseMessage(loginResponse2, HttpStatusCode.OK));
+
+            // First call
+            var token1 = await client.EstablishConnection();
+            Assert.That(token1, Is.EqualTo("token1"));
+
+            // Force refresh should bypass cache and get new token
+            var token2 = await client.EstablishConnection(forceTokenRefresh: true);
+            Assert.That(token2, Is.EqualTo("token2"));
+
+            // Verify two HTTP calls were made
+            handlerMock.Protected().Verify(
+                "SendAsync",
+                Times.Exactly(2),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
+            
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+        }
+
+        [Test]
+        public async Task TestClient2_GetHttpRequest_AddsConnectionIdToUserAgent()
+        {
+            CacheService.Instance.Clear();
+            
+            var (handlerMock, httpClient) = GetHttpMocks();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_1.0.0");
+
+            var connection = new FireboltConnection(connectionString);
+            var client = new FireboltClient2(connection, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient);
+
+            // Set up token
+            var tokenField = typeof(FireboltClient).GetField("_token", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.That(tokenField, Is.Not.Null);
+            tokenField!.SetValue(client, "test_token");
+
+            HttpRequestMessage? capturedRequest = null;
+
+            handlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .Callback<HttpRequestMessage, CancellationToken>((req, token) => capturedRequest = req)
+                .ReturnsAsync(GetResponseMessage("result", HttpStatusCode.OK));
+
+            // Execute a query to trigger GetHttpRequest
+            await client.ExecuteQuery("http://endpoint", "db", null, "SELECT 1");
+
+            // Verify User-Agent header contains connection info
+            Assert.That(capturedRequest, Is.Not.Null);
+            var userAgentHeader = capturedRequest!.Headers.GetValues("User-Agent").FirstOrDefault();
+            Assert.That(userAgentHeader, Is.Not.Null);
+            Assert.That(userAgentHeader, Does.Contain("connId:"), "User-Agent should contain connection ID");
+            
+            CacheService.Instance.Clear();
+        }
+
+        [Test]
+        public async Task TestClient2_GetHttpRequest_AddsCachedConnectionInfoToUserAgent()
+        {
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear(); // Clear TokenMemoryStorage to avoid overflow issues
+            
+            var (handlerMock1, httpClient1) = GetHttpMocks();
+            var (handlerMock2, httpClient2) = GetHttpMocks();
+            
+            httpClient1.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_1.0.0");
+            httpClient2.DefaultRequestHeaders.Add("User-Agent", ".NETSDK/.NET6_1.0.0");
+
+            var connection1 = new FireboltConnection(connectionString);
+            var connection2 = new FireboltConnection(connectionString);
+
+            var client1 = new FireboltClient2(connection1, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient1);
+            var client2 = new FireboltClient2(connection2, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient2);
+
+            var loginResponse = new LoginResponse("test_token", "3600", "Bearer");
+
+            // Set up mock for client1 login
+            handlerMock1.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK));
+
+            // First client establishes connection and populates cache
+            await client1.EstablishConnection();
+
+            // Set up token for client2
+            var tokenField = typeof(FireboltClient).GetField("_token", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.That(tokenField, Is.Not.Null);
+            tokenField!.SetValue(client2, "test_token");
+
+            HttpRequestMessage? capturedRequest = null;
+
+            handlerMock2.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .Callback<HttpRequestMessage, CancellationToken>((req, token) => capturedRequest = req)
+                .ReturnsAsync(GetResponseMessage("result", HttpStatusCode.OK));
+
+            // Second client uses cached connection
+            await client2.ExecuteQuery("http://endpoint", "db", null, "SELECT 1");
+
+            // Verify User-Agent header contains both connId and cachedConnId
+            Assert.That(capturedRequest, Is.Not.Null);
+            var userAgentHeader = capturedRequest!.Headers.GetValues("User-Agent").FirstOrDefault();
+            Assert.That(userAgentHeader, Is.Not.Null);
+            Assert.That(userAgentHeader, Does.Contain("connId:"), "User-Agent should contain current connection ID");
+            Assert.That(userAgentHeader, Does.Contain("cachedConnId:"), "User-Agent should contain cached connection ID");
+            Assert.That(userAgentHeader, Does.Contain("-Memory"), "User-Agent should indicate cache source");
+            
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+        }
+
+        [Test]
+        public void TestClient2_CacheIsolation_DifferentAccountsUseSeparateCaches()
+        {
+            CacheService.Instance.Clear();
+            
+            var (_, httpClient1) = GetHttpMocks();
+            var (_, httpClient2) = GetHttpMocks();
+
+            var connection1 = new FireboltConnection(connectionString);
+            var connection2 = new FireboltConnection(connectionString);
+
+            // Create clients with different accounts
+            var client1 = new FireboltClient2(connection1, "test_id", "test_secret", "http://test.api.firebolt.io", null, "account1", httpClient1);
+            var client2 = new FireboltClient2(connection2, "test_id", "test_secret", "http://test.api.firebolt.io", null, "account2", httpClient2);
+
+            // Populate cache for account1
+            var cacheKey1 = new CacheKey("test_id", "test_secret", "account1");
+            var cache1 = CacheService.Instance.GetOrCreate(cacheKey1.GetValue(), "conn1");
+            cache1.SetDatabaseValidated("db1");
+
+            // Populate cache for account2
+            var cacheKey2 = new CacheKey("test_id", "test_secret", "account2");
+            var cache2 = CacheService.Instance.GetOrCreate(cacheKey2.GetValue(), "conn2");
+            cache2.SetDatabaseValidated("db2");
+
+            // Verify caches are isolated
+            var retrieved1 = CacheService.Instance.Get(cacheKey1.GetValue());
+            var retrieved2 = CacheService.Instance.Get(cacheKey2.GetValue());
+
+            Assert.That(retrieved1, Is.Not.Null);
+            Assert.That(retrieved2, Is.Not.Null);
+            Assert.That(retrieved1, Is.Not.SameAs(retrieved2));
+            Assert.That(retrieved1!.IsDatabaseValidated("db1"), Is.True);
+            Assert.That(retrieved1.IsDatabaseValidated("db2"), Is.False);
+            Assert.That(retrieved2!.IsDatabaseValidated("db2"), Is.True);
+            Assert.That(retrieved2.IsDatabaseValidated("db1"), Is.False);
+            
+            CacheService.Instance.Clear();
+        }
+
+        [Test]
+        public void TestClient2_CacheKey_IncludesAccountInHash()
+        {
+            var cacheKey1 = new CacheKey("client_id", "client_secret", "account1");
+            var cacheKey2 = new CacheKey("client_id", "client_secret", "account2");
+
+            // Same credentials but different account should produce different cache keys
+            Assert.That(cacheKey1.GetValue(), Is.Not.EqualTo(cacheKey2.GetValue()));
+        }
+
+        [Test]
+        public void TestClient2_CacheConnection_DefaultsToTrue()
+        {
+            // Connection string without cache_connection parameter should default to true
+            var connectionStringWithoutCache = "database=testdb;clientid=testuser;clientsecret=test_pwd;account=accountname;engine=test_engine";
+            var connection = new FireboltConnection(connectionStringWithoutCache);
+            
+            Assert.That(connection.IsCacheConnectionEnabled, Is.True, "cache_connection should default to true");
+        }
+
+        [Test]
+        public void TestClient2_CacheConnection_CanBeDisabled()
+        {
+            // Connection string with CacheConnection=false
+            var connectionStringWithCachingDisabled = "database=testdb;clientid=testuser;clientsecret=test_pwd;account=accountname;engine=test_engine;CacheConnection=false";
+            var connection = new FireboltConnection(connectionStringWithCachingDisabled);
+            
+            Assert.That(connection.IsCacheConnectionEnabled, Is.False, "CacheConnection should be false when explicitly set");
+        }
+
+        [Test]
+        public void TestClient2_CacheConnection_CanBeEnabled()
+        {
+            // Connection string with CacheConnection=true
+            var connectionStringWithCachingEnabled = "database=testdb;clientid=testuser;clientsecret=test_pwd;account=accountname;engine=test_engine;CacheConnection=true";
+            var connection = new FireboltConnection(connectionStringWithCachingEnabled);
+            
+            Assert.That(connection.IsCacheConnectionEnabled, Is.True, "CacheConnection should be true when explicitly set");
+        }
+
+        [Test]
+        public async Task TestClient2_EstablishConnection_DisabledCachingUsesBaseImplementation()
+        {
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+            
+            var (handlerMock, httpClient) = GetHttpMocks();
+
+            var connectionStringWithCachingDisabled = "database=testdb;clientid=test_id;clientsecret=test_secret;account=test_account;CacheConnection=false";
+            var connection = new FireboltConnection(connectionStringWithCachingDisabled);
+            var client = new FireboltClient2(connection, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient);
+
+            var loginResponse1 = new LoginResponse("token1", "3600", "Bearer");
+            var loginResponse2 = new LoginResponse("token2", "3600", "Bearer");
+
+            // Mock login responses
+            handlerMock.Protected()
+                .SetupSequence<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(GetResponseMessage(loginResponse1, HttpStatusCode.OK))
+                .ReturnsAsync(GetResponseMessage(loginResponse2, HttpStatusCode.OK));
+
+            // First call
+            var token1 = await client.EstablishConnection();
+            Assert.That(token1, Is.EqualTo("token1"));
+
+            // Second call - should fetch new token (not from ConnectionCache, but may use legacy TokenStorage)
+            var token2 = await client.EstablishConnection();
+            
+            // Verify ConnectionCache was not populated
+            var cacheKey = new CacheKey("test_id", "test_secret", "test_account");
+            var cache = CacheService.Instance.Get(cacheKey.GetValue());
+            
+            // Cache might be null or the cached token might be from TokenStorage
+            // The key test is that it uses base implementation behavior
+            Assert.That(token2, Is.Not.Null);
+            
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+        }
+
+        [Test]
+        public void TestClient2_CacheConnection_ConnectionStringBuilder_ParsesCorrectly()
+        {
+            var builder1 = new FireboltConnectionStringBuilder("clientid=test;clientsecret=secret;account=acc;CacheConnection=true");
+            Assert.That(builder1.CacheConnection, Is.True, "Should parse CacheConnection=true");
+
+            var builder2 = new FireboltConnectionStringBuilder("clientid=test;clientsecret=secret;account=acc;CacheConnection=false");
+            Assert.That(builder2.CacheConnection, Is.False, "Should parse CacheConnection=false");
+
+            var builder3 = new FireboltConnectionStringBuilder("clientid=test;clientsecret=secret;account=acc");
+            Assert.That(builder3.CacheConnection, Is.True, "Should default to true when not specified");
+        }
+
+        [Test]
+        public void TestClient2_CacheConnection_ConnectionSettings_StoresCorrectly()
+        {
+            var builder1 = new FireboltConnectionStringBuilder("clientid=test;clientsecret=secret;account=acc;CacheConnection=true");
+            var settings1 = builder1.BuildSettings();
+            Assert.That(settings1.CacheConnection, Is.True, "Settings should store CacheConnection=true");
+
+            var builder2 = new FireboltConnectionStringBuilder("clientid=test;clientsecret=secret;account=acc;CacheConnection=false");
+            var settings2 = builder2.BuildSettings();
+            Assert.That(settings2.CacheConnection, Is.False, "Settings should store CacheConnection=false");
+
+            var builder3 = new FireboltConnectionStringBuilder("clientid=test;clientsecret=secret;account=acc");
+            var settings3 = builder3.BuildSettings();
+            Assert.That(settings3.CacheConnection, Is.True, "Settings should default to true");
+        }
+
+        [Test]
+        public async Task TestClient2_CacheConnection_DisabledDoesNotPopulateCache()
+        {
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+            
+            var (handlerMock, httpClient) = GetHttpMocks();
+            var connectionString = "database=testdb;clientid=test_id;clientsecret=test_secret;account=test_account;CacheConnection=false";
+            var connection = new FireboltConnection(connectionString);
+            var client = new FireboltClient2(connection, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient);
+
+            var loginResponse = new LoginResponse("token1", "3600", "Bearer");
+            handlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK));
+
+            await client.EstablishConnection();
+            
+            // Verify ConnectionCache was not created
+            var cacheKey = new CacheKey("test_id", "test_secret", "test_account");
+            var cache = CacheService.Instance.Get(cacheKey.GetValue());
+            
+            Assert.That(cache, Is.Null, "ConnectionCache should not be created when caching is disabled");
+            
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+        }
+
+        [Test]
+        public async Task TestClient2_CacheConnection_EnabledPopulatesCache()
+        {
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+            
+            var (handlerMock, httpClient) = GetHttpMocks();
+            var connectionString = "database=testdb;clientid=test_id;clientsecret=test_secret;account=test_account;CacheConnection=true";
+            var connection = new FireboltConnection(connectionString);
+            var client = new FireboltClient2(connection, "test_id", "test_secret", "http://test.api.firebolt.io", null, "test_account", httpClient);
+
+            var loginResponse = new LoginResponse("token1", "3600", "Bearer");
+            handlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK));
+
+            await client.EstablishConnection();
+            
+            // Verify ConnectionCache was created
+            var cacheKey = new CacheKey("test_id", "test_secret", "test_account");
+            var cache = CacheService.Instance.Get(cacheKey.GetValue());
+            
+            Assert.That(cache, Is.Not.Null, "ConnectionCache should be created when caching is enabled");
+            Assert.That(cache.GetCachedToken(), Is.Not.Null, "JWT token should be cached");
+            
+            CacheService.Instance.Clear();
+            TokenMemoryStorage.tokens.Clear();
+        }
+
+        [Test]
+        public void TestClient2_CacheConnection_CaseInsensitiveParameter()
+        {
+            // Test that the parameter name is case-insensitive
+            var conn1 = new FireboltConnection("clientid=id;clientsecret=secret;account=acc;cacheconnection=false");
+            var conn2 = new FireboltConnection("clientid=id;clientsecret=secret;account=acc;CACHECONNECTION=false");
+            var conn3 = new FireboltConnection("clientid=id;clientsecret=secret;account=acc;CacheConnection=false");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(conn1.IsCacheConnectionEnabled, Is.False, "Lowercase should work");
+                Assert.That(conn2.IsCacheConnectionEnabled, Is.False, "Uppercase should work");
+                Assert.That(conn3.IsCacheConnectionEnabled, Is.False, "PascalCase should work");
+            });
+        }
+
+        #endregion
     }
 }

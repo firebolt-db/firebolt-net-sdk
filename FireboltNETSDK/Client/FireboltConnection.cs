@@ -1,4 +1,4 @@
-﻿#region License Apache 2.0
+#region License Apache 2.0
 /* Copyright 2022 
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -98,6 +98,15 @@ namespace FireboltDotNetSdk.Client
         internal TokenStorageType TokenStorageType
         {
             get => _connectionState.Settings?.TokenStorageType ?? TokenStorageType.Memory;
+        }
+
+        /// <summary>
+        /// Gets whether connection caching is enabled.
+        /// Available only for Firebolt 2.0 connections. Default is true.
+        /// </summary>
+        internal bool IsCacheConnectionEnabled
+        {
+            get => _connectionState.Settings?.CacheConnection ?? true;
         }
 
         internal PreparedStatementParamStyleType PreparedStatementParamStyle

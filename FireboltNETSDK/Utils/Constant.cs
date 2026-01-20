@@ -25,5 +25,10 @@ namespace FireboltDotNetSdk.Utils
 
         public static string AUTH_USERNAME_PASSWORD_URL = "/auth/v1/login";
         public static string AUTH_SERVICE_ACCOUNT_URL = "/oauth/token";
+
+        public static long GetCurrentEpoch()
+        {
+            return Convert.ToInt64(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+        }
     }
 }

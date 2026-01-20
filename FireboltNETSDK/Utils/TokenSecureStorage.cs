@@ -87,7 +87,7 @@ namespace FireboltDotNetSdk.Utils
                 CachedJSONData data = new(
                     paramToken: WebEncoders.Base64UrlEncode(token),
                     paramSalt: encryptor.salt,
-                    paramExpiration: Convert.ToInt32(tokenData.Expires_in) + Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds())
+                    paramExpiration: Convert.ToInt64(tokenData.Expires_in)
                 );
 
                 var cacheDir = GetCacheDir();
@@ -131,7 +131,7 @@ namespace FireboltDotNetSdk.Utils
 
     public class CachedJSONData
     {
-        public CachedJSONData(string paramToken, string paramSalt, int paramExpiration)
+        public CachedJSONData(string paramToken, string paramSalt, long paramExpiration)
         {
             token = paramToken;
             salt = paramSalt;
@@ -139,6 +139,6 @@ namespace FireboltDotNetSdk.Utils
         }
         public string token { get; set; }
         public string salt { get; set; }
-        public int expiration { get; set; }
+        public long expiration { get; set; }
     }
 }
