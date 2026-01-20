@@ -151,9 +151,11 @@ public class ConnectionCacheTest
         // Should retrieve correct options for each engine
         var retrieved1 = cache.GetEngineOptions("engine1");
         var retrieved2 = cache.GetEngineOptions("engine2");
-
-        Assert.That(retrieved1!.EngineUrl, Is.EqualTo("https://engine1.example.com"));
-        Assert.That(retrieved2!.EngineUrl, Is.EqualTo("https://engine2.example.com"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(retrieved1!.EngineUrl, Is.EqualTo("https://engine1.example.com"));
+            Assert.That(retrieved2!.EngineUrl, Is.EqualTo("https://engine2.example.com"));
+        });
     }
 
     [Test]

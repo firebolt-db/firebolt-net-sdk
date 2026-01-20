@@ -152,7 +152,7 @@ namespace FireboltDotNetSdk.Client
             get
             {
                 var s = GetString(nameof(CacheConnection));
-                return s == null ? true : bool.Parse(s); // Default to true if not specified
+                return s == null || bool.Parse(s); // Default to true if not specified
             }
             set => this[nameof(CacheConnection)] = value;
         }
