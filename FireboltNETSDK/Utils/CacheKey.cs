@@ -25,24 +25,6 @@ namespace FireboltDotNetSdk.Utils
             return _value;
         }
 
-        public override bool Equals(object? obj)
-        {
-            if (obj is not CacheKey other)
-                return false;
-
-            return _value == other._value;
-        }
-
-        public override int GetHashCode()
-        {
-            return _value.GetHashCode();
-        }
-
-        public override string ToString()
-        {
-            return _value;
-        }
-
         private static string HashValues(string clientId, string clientSecret, string account)
         {
             return string.Join("#", clientId, clientSecret, account);

@@ -118,8 +118,8 @@ namespace FireboltDotNetSdk.Utils
 
             try
             {
-                StreamReader r = new StreamReader(path);
-                string jsonString = await r.ReadToEndAsync();
+                using var r = new StreamReader(path);
+                var jsonString = await r.ReadToEndAsync();
                 var prettyJson = JToken.Parse(jsonString).ToString(Formatting.Indented);
                 var data = JsonConvert.DeserializeObject<CachedJSONData>(prettyJson);
                 return data;

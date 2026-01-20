@@ -325,8 +325,8 @@ public class FireboltClient2 : FireboltClient
         var cacheKey = new CacheKey(_id, _secret, _account);
         var connectionCache = CacheService.Instance.GetOrCreate(cacheKey.GetValue(), _connectionId);
 
-        if (!string.IsNullOrEmpty(database)) await GetAndSetDatabaseProperties(database, connectionCache, cacheKey);
-        await GetAndSetEngineProperties(engineName, connectionCache, cacheKey);
+        if (!string.IsNullOrEmpty(database)) await GetAndSetDatabaseProperties(database, connectionCache);
+        await GetAndSetEngineProperties(engineName, connectionCache);
         return new ConnectionResponse(_connection.EngineUrl, database ?? string.Empty, false);
     }
 
@@ -339,9 +339,7 @@ public class FireboltClient2 : FireboltClient
     /// </summary>
     /// <param name="databaseName">The name of the database to check</param>
     /// <param name="connectionCache">The connection cache to use</param>
-    /// <param name="cacheKey">The cache key for storing results</param>
-    private async Task GetAndSetDatabaseProperties(string databaseName, ConnectionCache connectionCache,
-        CacheKey cacheKey)
+    private async Task GetAndSetDatabaseProperties(string databaseName, ConnectionCache connectionCache)
     {
         // Check the cache first
         if (connectionCache.IsDatabaseValidated(databaseName))
@@ -375,8 +373,7 @@ public class FireboltClient2 : FireboltClient
     /// </summary>
     /// <param name="engineName">The name of the engine to check</param>
     /// <param name="connectionCache">The connection cache to use</param>
-    /// <param name="cacheKey">The cache key for storing results</param>
-    private async Task GetAndSetEngineProperties(string engineName, ConnectionCache connectionCache, CacheKey cacheKey)
+    private async Task GetAndSetEngineProperties(string engineName, ConnectionCache connectionCache)
     {
         // Check the cache first
         var engineOptions = connectionCache.GetEngineOptions(engineName);
