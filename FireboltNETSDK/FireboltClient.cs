@@ -506,7 +506,6 @@ public abstract class FireboltClient
         if (loginResponse == null)
         {
             loginResponse = await Login(_id, _secret, _env);
-            loginResponse.Expires_in = (Convert.ToInt32(loginResponse.Expires_in) + Constant.GetCurrentEpoch()).ToString();
             await _tokenStorage.CacheToken(loginResponse, _id, _secret);
         }
         _token = loginResponse.Access_token;

@@ -133,6 +133,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("v2-engine")]
+        [Category("slow")]
         public void AlterEngineTest()
         {
             var command = Connection.CreateCommand();

@@ -142,10 +142,7 @@ public class FireboltClient2 : FireboltClient
         {
             loginResponse = await Login(_id, _secret, _env);
             
-            // Set expiry before caching
-            loginResponse.Expires_in = (Convert.ToInt32(loginResponse.Expires_in) + Constant.GetCurrentEpoch()).ToString();
-            
-            // Cache in both ConnectionCache and legacy TokenStorage
+            // Cache in both ConnectionCache and legacy TokenStorage (conversion happens inside)
             connectionCache.SetCachedToken(loginResponse);
             await _tokenStorage.CacheToken(loginResponse, _id, _secret);
         }

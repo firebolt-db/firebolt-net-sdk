@@ -21,7 +21,9 @@ namespace FireboltDotNetSdk.Utils
 
         public Task CacheToken(LoginResponse tokenData, string username, string password)
         {
-            tokens[CreateKey(username, password)] = tokenData;
+            // Convert relative expiry to absolute expiry before storing
+            var absoluteExpiry = (Convert.ToInt32(tokenData.Expires_in) + Constant.GetCurrentEpoch()).ToString();
+            tokens[CreateKey(username, password)] = new LoginResponse(tokenData.Access_token, absoluteExpiry, tokenData.Token_type);
             return Task.CompletedTask;
         }
 

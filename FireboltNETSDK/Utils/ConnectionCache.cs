@@ -55,12 +55,14 @@ namespace FireboltDotNetSdk.Utils
         /// <summary>
         /// Caches the JWT token with its expiration time.
         /// </summary>
-        /// <param name="tokenData">The login response containing the token with absolute expiration time already set.</param>
+        /// <param name="tokenData">The login response containing the token.</param>
         public void SetCachedToken(LoginResponse tokenData)
         {
             lock (_tokenLock)
             {
-                _cachedToken = tokenData;
+                // Convert relative expiry to absolute expiry before storing
+                var absoluteExpiry = (Convert.ToInt32(tokenData.Expires_in) + Constant.GetCurrentEpoch()).ToString();
+                _cachedToken = new LoginResponse(tokenData.Access_token, absoluteExpiry, tokenData.Token_type);
             }
         }
 

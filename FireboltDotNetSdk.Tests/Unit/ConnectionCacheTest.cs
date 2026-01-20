@@ -15,7 +15,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             // Initially no cached token
             Assert.That(cache.GetCachedToken(), Is.Null);
             
-            // Set a token with future expiration
+            // Set a token with future expiration (relative time)
             var tokenData = new LoginResponse("test_token", "3600", "Bearer");
             
             cache.SetCachedToken(tokenData);
@@ -32,8 +32,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var connectionId = Guid.NewGuid().ToString();
             var cache = new ConnectionCache(connectionId);
             
-            // Set a token that has already expired
-            // Pass -3600 so that when SetCachedToken adds it to current epoch, it results in a past time
+            // Set a token that has already expired (negative relative time means it expired in the past)
             var expiredToken = new LoginResponse("expired_token", "-3600", "Bearer");
             
             cache.SetCachedToken(expiredToken);

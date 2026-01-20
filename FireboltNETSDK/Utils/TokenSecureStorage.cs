@@ -84,10 +84,12 @@ namespace FireboltDotNetSdk.Utils
             {
                 var encryptor = new FernetEncryptor(username + password);
                 var token = encryptor.Encrypt(tokenData.Access_token);
+                // Convert relative expiry to absolute expiry before storing
+                var absoluteExpiry = Convert.ToInt32(tokenData.Expires_in) + Constant.GetCurrentEpoch();
                 CachedJSONData data = new(
                     paramToken: WebEncoders.Base64UrlEncode(token),
                     paramSalt: encryptor.salt,
-                    paramExpiration: Convert.ToInt64(tokenData.Expires_in)
+                    paramExpiration: absoluteExpiry
                 );
 
                 var cacheDir = GetCacheDir();
