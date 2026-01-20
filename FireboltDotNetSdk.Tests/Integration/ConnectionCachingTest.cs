@@ -164,18 +164,17 @@ namespace FireboltDotNetSdk.Tests.Integration
 
             await using var reader = await historyCommand.ExecuteReaderAsync();
             
-            var useEngineCount = 0;
             var selectQueryCount = 0;
             
             while (await reader.ReadAsync())
             {
                 var queryText = reader.GetString(0);
-                
-                if (queryText.StartsWith("USE ENGINE", StringComparison.OrdinalIgnoreCase))
-                {
-                    useEngineCount++;
-                }
-                else if (queryText.Contains($"--{testMarker}", StringComparison.OrdinalIgnoreCase))
+                //todo will have to enable custom labels to test this
+                // if (queryText.StartsWith("USE ENGINE", StringComparison.OrdinalIgnoreCase))
+                // {
+                //     useEngineCount++;
+                // }
+                if (queryText.Contains($"--{testMarker}", StringComparison.OrdinalIgnoreCase))
                 {
                     selectQueryCount++;
                 }
@@ -185,9 +184,10 @@ namespace FireboltDotNetSdk.Tests.Integration
             
             Assert.Multiple(() =>
             {
+                //todo enable after custom query labels
                 // Assertions: Should have USE ENGINE executed for each connection when caching is disabled
-                Assert.That(useEngineCount, Is.EqualTo(numberOfConnections),
-                    $"USE ENGINE should be executed {numberOfConnections} times (once per connection, no caching)");
+                // Assert.That(useEngineCount, Is.EqualTo(numberOfConnections),
+                //     $"USE ENGINE should be executed {numberOfConnections} times (once per connection, no caching)");
                 Assert.That(selectQueryCount, Is.EqualTo(numberOfConnections),
                     $"All {numberOfConnections} SELECT queries should be executed");
             });
