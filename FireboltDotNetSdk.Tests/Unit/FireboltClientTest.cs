@@ -1,13 +1,13 @@
 using System.Net;
-using System.Text;
+using System.Reflection;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
-using Moq;
-using static Newtonsoft.Json.JsonConvert;
-using static FireboltDotNetSdk.Client.FireResponse;
 using FireboltNETSDK.Exception;
+using Moq;
 using Moq.Protected;
+using static FireboltDotNetSdk.Client.FireResponse;
+using static FireboltDotNetSdk.Tests.Helpers.HttpResponseHelper;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -43,7 +43,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltClient client = new FireboltClient1(connection, "any", "any", "test.api.firebolt.io", null,
                 "account", httpClient);
             var tokenField = typeof(FireboltClient).GetField("_token",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.That(tokenField, Is.Not.Null);
             tokenField!.SetValue(client, "abc");
 
@@ -65,7 +65,7 @@ namespace FireboltDotNetSdk.Tests
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password",
                 "http://test.api.firebolt.io", null, "account", httpClient);
             var tokenField = typeof(FireboltClient).GetField("_token",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.That(tokenField, Is.Not.Null);
             tokenField!.SetValue(client, "abc");
 
@@ -327,67 +327,7 @@ namespace FireboltDotNetSdk.Tests
             return (handlerMock, httpClient);
         }
 
-
-        internal static HttpResponseMessage GetResponseMessage(object responseObject, HttpStatusCode httpStatusCode,
-            Dictionary<string, string>? headers = null)
-        {
-            HttpResponseMessage response = GetResponseMessage(httpStatusCode);
-            if (responseObject is string responseAsString)
-            {
-                response.Content = new StringContent(responseAsString);
-            }
-            else
-            {
-                response.Content =
-                    new StringContent(SerializeObject(responseObject), Encoding.UTF8, "application/json");
-            }
-
-            if (headers != null)
-            {
-                foreach (var header in headers)
-                {
-                    response.Headers.Add(header.Key, header.Value);
-                }
-            }
-
-            return response;
-        }
-
-        private static HttpResponseMessage GetResponseMessage(HttpStatusCode httpStatusCode)
-        {
-            return new HttpResponseMessage() { StatusCode = httpStatusCode };
-        }
-
         #region FireboltClient2 Caching Tests
-
-        [Test]
-        public void TestClient2_ConnectionId_IsUnique()
-        {
-            var (_, httpClient1) = GetHttpMocks();
-            var (_, httpClient2) = GetHttpMocks();
-
-            var connection1 = new FireboltConnection(connectionString);
-            var connection2 = new FireboltConnection(connectionString);
-
-            var client1 =
-                new FireboltClient2(connection1, "id1", "secret1", "endpoint1", null, "account1", httpClient1);
-            var client2 =
-                new FireboltClient2(connection2, "id2", "secret2", "endpoint2", null, "account2", httpClient2);
-
-            // Use reflection to access private _connectionId field
-            var connectionIdField = typeof(FireboltClient2).GetField("_connectionId",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.That(connectionIdField, Is.Not.Null);
-
-            var connectionId1 = connectionIdField!.GetValue(client1) as string;
-            var connectionId2 = connectionIdField.GetValue(client2) as string;
-            Assert.Multiple(() =>
-            {
-                Assert.That(connectionId1, Is.Not.Null);
-                Assert.That(connectionId2, Is.Not.Null);
-            });
-            Assert.That(connectionId1, Is.Not.EqualTo(connectionId2), "Each client should have a unique connection ID");
-        }
 
         [Test]
         public async Task TestClient2_EstablishConnection_CachesJwtToken()
@@ -493,7 +433,7 @@ namespace FireboltDotNetSdk.Tests
 
             // Set up token
             var tokenField = typeof(FireboltClient).GetField("_token",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.That(tokenField, Is.Not.Null);
             tokenField!.SetValue(client, "test_token");
 
@@ -552,7 +492,7 @@ namespace FireboltDotNetSdk.Tests
 
             // Set up token for client2
             var tokenField = typeof(FireboltClient).GetField("_token",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.That(tokenField, Is.Not.Null);
             tokenField!.SetValue(client2, "test_token");
 

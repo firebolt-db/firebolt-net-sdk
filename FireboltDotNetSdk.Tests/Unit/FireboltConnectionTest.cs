@@ -7,6 +7,7 @@ using FireboltDotNetSdk.Utils;
 using Moq;
 using Moq.Protected;
 using Times = Moq.Times;
+using static FireboltDotNetSdk.Tests.Helpers.HttpResponseHelper;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -490,9 +491,9 @@ namespace FireboltDotNetSdk.Tests
             handlerMock.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
                     ItExpr.IsAny<HttpRequestMessage>(),
                     ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
+            .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
+            .ReturnsAsync(GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
+            .ReturnsAsync(GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             ;
             FireboltConnection.CleanupCache();
             client.CleanupCache();
@@ -526,9 +527,9 @@ namespace FireboltDotNetSdk.Tests
             handlerMock1.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
                     ItExpr.IsAny<HttpRequestMessage>(),
                     ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
+            .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
+            .ReturnsAsync(GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
+            .ReturnsAsync(GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             ;
             cs1.Open(); // should succeed
             // Due to Open does not return value the only way to validate that everything passed well is to validate that SendAsync was called exactly twice:
@@ -550,8 +551,8 @@ namespace FireboltDotNetSdk.Tests
             handlerMock2.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
                     ItExpr.IsAny<HttpRequestMessage>(),
                     ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
-            .ReturnsAsync(FireboltClientTest.GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
+            .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
+            .ReturnsAsync(GetResponseMessage("{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}", HttpStatusCode.OK)) // select 1 - to get infra version
             ;
             cs2.Open(); // should succeed
             handlerMock2.Protected().Verify(
@@ -578,13 +579,13 @@ namespace FireboltDotNetSdk.Tests
                     ItExpr.IsAny<HttpRequestMessage>(),
                     ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(
-                    FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
+                    GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
                 .ReturnsAsync(
-                    FireboltClientTest.GetResponseMessage(systemEngineResponse,
+                    GetResponseMessage(systemEngineResponse,
                         HttpStatusCode.OK)) // get system engine URL
-                .ReturnsAsync(FireboltClientTest.GetResponseMessage(
+                .ReturnsAsync(GetResponseMessage(
                     "{\"query\":{\"query_id\": \"3\"},\"meta\":[],\"data\":[]}", HttpStatusCode.OK)) // USE ENGINE
-                .ReturnsAsync(FireboltClientTest.GetResponseMessage(
+                .ReturnsAsync(GetResponseMessage(
                     "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"string\"}, {\"name\": \"version()\"}],\"data\":[[\"1.2.3\"]]}",
                     HttpStatusCode.OK)); // get version
 
@@ -620,9 +621,9 @@ namespace FireboltDotNetSdk.Tests
             var setupSequence = handlerMock.Protected().SetupSequence<Task<HttpResponseMessage>>("SendAsync",
                     ItExpr.IsAny<HttpRequestMessage>(),
                     ItExpr.IsAny<CancellationToken>())
-                .ReturnsAsync(FireboltClientTest.GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
-                .ReturnsAsync(FireboltClientTest.GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
-                .ReturnsAsync(FireboltClientTest.GetResponseMessage(
+                .ReturnsAsync(GetResponseMessage(loginResponse, HttpStatusCode.OK)) // retrieve access token
+                .ReturnsAsync(GetResponseMessage(systemEngineResponse, HttpStatusCode.OK)) // get system engine URL
+                .ReturnsAsync(GetResponseMessage(
                     "{\"query\":{\"query_id\": \"1\"},\"meta\":[{\"type\": \"int\", \"name\": \"1\"}],\"data\":[[\"1\"]]}",
                     HttpStatusCode.OK)); // select 1 - to get infra version
 
@@ -648,7 +649,7 @@ namespace FireboltDotNetSdk.Tests
             // Ensure the status in JSON matches exactly what the IsServerSideAsyncQueryRunning method expects
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var connection = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
+                GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool result = connection.IsServerSideAsyncQueryRunning("test-token");
@@ -664,7 +665,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var connection = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
+                GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool result = await connection.IsServerSideAsyncQueryRunningAsync("test-token");
@@ -680,7 +681,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var connection = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
+                GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool? result = connection.IsServerSideAsyncQuerySuccessful("test-token");
@@ -696,7 +697,7 @@ namespace FireboltDotNetSdk.Tests
         {
             string queryStatusJson = $"{{\"query\":{{\"query_id\":\"123\"}},\"meta\":[{{\"type\":\"string\",\"name\":\"status\"}},{{\"type\":\"string\",\"name\":\"query_id\"}}],\"data\":[[\"{status}\",\"456\"]]}}";
             var connection = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
+                GetResponseMessage(queryStatusJson, HttpStatusCode.OK)
             );
 
             bool? result = await connection.IsServerSideAsyncQuerySuccessfulAsync("test-token");
@@ -710,8 +711,8 @@ namespace FireboltDotNetSdk.Tests
             string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"RUNNING\",\"456\"]]}";
             string cancelResponseJson = "{\"query\":{\"query_id\":\"124\"},\"meta\":[],\"data\":[[]]}";
             var connection = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK),
-                FireboltClientTest.GetResponseMessage(cancelResponseJson, HttpStatusCode.OK)
+                GetResponseMessage(queryStatusJson, HttpStatusCode.OK),
+                GetResponseMessage(cancelResponseJson, HttpStatusCode.OK)
             );
 
             bool result = connection.CancelServerSideAsyncQuery("test-token");
@@ -725,8 +726,8 @@ namespace FireboltDotNetSdk.Tests
             string queryStatusJson = "{\"query\":{\"query_id\":\"123\"},\"meta\":[{\"type\":\"string\",\"name\":\"status\"},{\"type\":\"string\",\"name\":\"query_id\"}],\"data\":[[\"RUNNING\",\"456\"]]}";
             string cancelResponseJson = "{\"query\":{\"query_id\":\"124\"},\"meta\":[],\"data\":[[]]}";
             var connection = SetupFireboltConnection(
-                FireboltClientTest.GetResponseMessage(queryStatusJson, HttpStatusCode.OK),
-                FireboltClientTest.GetResponseMessage(cancelResponseJson, HttpStatusCode.OK)
+                GetResponseMessage(queryStatusJson, HttpStatusCode.OK),
+                GetResponseMessage(cancelResponseJson, HttpStatusCode.OK)
             );
 
             bool result = await connection.CancelServerSideAsyncQueryAsync("test-token");
