@@ -242,9 +242,9 @@ public class CacheServiceTest
         Assert.Multiple(() =>
         {
             Assert.That(newCache, Is.Not.Null, "Should create new cache");
-            Assert.That(newCache.ConnectionId, Is.EqualTo(newConnectionId), 
+            Assert.That(newCache.ConnectionId, Is.EqualTo(newConnectionId),
                 "Should have new connection ID, not the expired one");
-            Assert.That(newCache.IsDatabaseValidated("old_db"), Is.False, 
+            Assert.That(newCache.IsDatabaseValidated("old_db"), Is.False,
                 "New cache should not have data from expired cache");
         });
     }
