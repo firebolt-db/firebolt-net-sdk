@@ -70,7 +70,7 @@ public class CacheService
         _caches.Clear();
     }
 
-    private class CacheEntry
+    private sealed class CacheEntry
     {
         public CacheEntry(ConnectionCache cache)
         {
