@@ -32,6 +32,7 @@ internal class ConnectionCachingTest : IntegrationTest
         command1.CommandText = $"SELECT 1 AS result --{testMarker}_Query1";
         var result1 = await command1.ExecuteScalarAsync();
         Assert.That(result1, Is.Not.Null);
+        Assert.That(result1, Is.EqualTo(1));
 
         await connection1.CloseAsync();
 
@@ -43,6 +44,7 @@ internal class ConnectionCachingTest : IntegrationTest
         command2.CommandText = $"SELECT 1 AS result --{testMarker}_Query2";
         var result2 = await command2.ExecuteScalarAsync();
         Assert.That(result2, Is.Not.Null);
+        Assert.That(result2, Is.EqualTo(1));
 
         await connection2.CloseAsync();
 
@@ -125,6 +127,7 @@ internal class ConnectionCachingTest : IntegrationTest
             command.CommandText = $"SELECT 1 AS result --{testMarker}_Query{i + 1}";
             var result = await command.ExecuteScalarAsync();
             Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.EqualTo(1));
 
             await connection.CloseAsync();
         }
