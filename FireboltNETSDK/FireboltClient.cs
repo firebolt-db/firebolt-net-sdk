@@ -33,9 +33,9 @@ public abstract class FireboltClient
 {
 
     private readonly Lazy<JsonSerializerSettings> _settings;
-    private readonly HttpClient _httpClient;
+    protected readonly HttpClient _httpClient;
 
-    private string? _token;
+    protected string? _token;
     protected readonly string _endpoint;
     protected readonly FireboltConnection _connection;
     protected readonly string _id;
@@ -336,7 +336,7 @@ public abstract class FireboltClient
         }
     }
 
-    private async Task<HttpRequestMessage> GetHttpRequest(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken)
+    protected virtual async Task<HttpRequestMessage> GetHttpRequest(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken)
     {
         HttpRequestMessage? request = null;
         try
@@ -500,7 +500,7 @@ public abstract class FireboltClient
         public string? Text { get; }
     }
 
-    public async Task<string> EstablishConnection(bool forceTokenRefresh = false)
+    public virtual async Task<string> EstablishConnection(bool forceTokenRefresh = false)
     {
         var loginResponse = forceTokenRefresh ? null : await _tokenStorage.GetCachedToken(_id, _secret);
         if (loginResponse == null)

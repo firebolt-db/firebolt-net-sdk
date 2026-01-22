@@ -11,7 +11,7 @@ namespace FireboltDotNetSdk.Utils
         {
             LoginResponse? lr;
             tokens.TryGetValue(CreateKey(username, password), out lr);
-            if (lr != null && Convert.ToInt32(lr.Expires_in) < epoch())
+            if (lr != null && Convert.ToInt64(lr.Expires_in) < Constant.GetCurrentEpoch())
             {
                 // Token has expired, returning null
                 lr = null;
@@ -21,19 +21,15 @@ namespace FireboltDotNetSdk.Utils
 
         public Task CacheToken(LoginResponse tokenData, string username, string password)
         {
-            tokenData.Expires_in = (Convert.ToInt32(tokenData.Expires_in) + epoch()).ToString();
-            tokens[CreateKey(username, password)] = tokenData;
+            // Convert relative expiry to absolute expiry before storing
+            var absoluteExpiry = (Convert.ToInt32(tokenData.Expires_in) + Constant.GetCurrentEpoch()).ToString();
+            tokens[CreateKey(username, password)] = new LoginResponse(tokenData.Access_token, absoluteExpiry, tokenData.Token_type);
             return Task.CompletedTask;
         }
 
         private string CreateKey(string username, string password)
         {
             return $"{username}:{password}";
-        }
-
-        private long epoch()
-        {
-            return Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
         }
     }
 }

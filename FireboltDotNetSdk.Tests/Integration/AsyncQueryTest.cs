@@ -40,9 +40,9 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("engine-v2")]
+        [Category("slow")]
         public async Task ExecuteServerSideAsyncNonQueryTest()
         {
-
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
             await connection.OpenAsync();
 
@@ -52,22 +52,31 @@ namespace FireboltDotNetSdk.Tests
 
             await command.ExecuteServerSideAsyncNonQueryAsync();
 
-            string? token = command.AsyncToken;
+            string token = command.AsyncToken ?? string.Empty;
+            Assert.Multiple(() =>
+            {
 
-            // Verify we received a token
-            Assert.That(token, Is.Not.Null);
-            Assert.That(string.IsNullOrEmpty(token), Is.False);
-            Assert.That(token.Length, Is.GreaterThan(0));
+                // Verify we received a token
+                Assert.That(token, Is.Not.Null);
+                Assert.That(string.IsNullOrEmpty(token), Is.False);
+            });
+            Assert.Multiple(async () =>
+            {
+                Assert.That(token, Is.Not.Empty);
 
-            // Check that the query status is initially running
-            Assert.That(await connection.IsServerSideAsyncQueryRunningAsync(token), Is.True);
+                // Check that the query status is initially running
+                Assert.That(await connection.IsServerSideAsyncQueryRunningAsync(token), Is.True);
+            });
 
             // Wait a bit for the query to make progress
             await Task.Delay(5000);
+            Assert.Multiple(async () =>
+            {
 
-            // Check the status again - it should be finished
-            Assert.That(await connection.IsServerSideAsyncQueryRunningAsync(token), Is.False);
-            Assert.That(await connection.IsServerSideAsyncQuerySuccessfulAsync(token), Is.True);
+                // Check the status again - it should be finished
+                Assert.That(await connection.IsServerSideAsyncQueryRunningAsync(token), Is.False);
+                Assert.That(await connection.IsServerSideAsyncQuerySuccessfulAsync(token), Is.True);
+            });
 
             // Verify the data was written to the table
             DbCommand countCommand = connection.CreateCommand();
@@ -78,6 +87,7 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("engine-v2")]
+        [Category("slow")]
         public void ExecuteServerSideAsyncNonQuerySyncTest()
         {
             using var connection = new FireboltConnection(USER_CONNECTION_STRING);
@@ -97,7 +107,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(string.IsNullOrEmpty(token), Is.False);
-                Assert.That(token.Length, Is.GreaterThan(0));
+                Assert.That(token, Is.Not.Empty);
             });
 
             // Check that the query status is initially running

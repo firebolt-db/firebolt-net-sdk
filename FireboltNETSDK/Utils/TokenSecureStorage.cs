@@ -84,10 +84,12 @@ namespace FireboltDotNetSdk.Utils
             {
                 var encryptor = new FernetEncryptor(username + password);
                 var token = encryptor.Encrypt(tokenData.Access_token);
+                // Convert relative expiry to absolute expiry before storing
+                var absoluteExpiry = Convert.ToInt32(tokenData.Expires_in) + Constant.GetCurrentEpoch();
                 CachedJSONData data = new(
                     paramToken: WebEncoders.Base64UrlEncode(token),
                     paramSalt: encryptor.salt,
-                    paramExpiration: Convert.ToInt32(tokenData.Expires_in) + Convert.ToInt32(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds())
+                    paramExpiration: absoluteExpiry
                 );
 
                 var cacheDir = GetCacheDir();
@@ -116,8 +118,8 @@ namespace FireboltDotNetSdk.Utils
 
             try
             {
-                StreamReader r = new StreamReader(path);
-                string jsonString = await r.ReadToEndAsync();
+                using var r = new StreamReader(path);
+                var jsonString = await r.ReadToEndAsync();
                 var prettyJson = JToken.Parse(jsonString).ToString(Formatting.Indented);
                 var data = JsonConvert.DeserializeObject<CachedJSONData>(prettyJson);
                 return data;
@@ -131,7 +133,7 @@ namespace FireboltDotNetSdk.Utils
 
     public class CachedJSONData
     {
-        public CachedJSONData(string paramToken, string paramSalt, int paramExpiration)
+        public CachedJSONData(string paramToken, string paramSalt, long paramExpiration)
         {
             token = paramToken;
             salt = paramSalt;
@@ -139,6 +141,6 @@ namespace FireboltDotNetSdk.Utils
         }
         public string token { get; set; }
         public string salt { get; set; }
-        public int expiration { get; set; }
+        public long expiration { get; set; }
     }
 }

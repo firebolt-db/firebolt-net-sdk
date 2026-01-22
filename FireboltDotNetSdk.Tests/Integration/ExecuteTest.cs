@@ -116,6 +116,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(null, false)] // timeout is not set, i.e. default = 30 sec is used
         [TestCase(null, true)]
         [Category("general")]
+        [Category("slow")]
         public void WithTimeout(int? timeout, bool runAsync)
         {
             using var conn = new FireboltConnection(SYSTEM_CONNECTION_STRING);

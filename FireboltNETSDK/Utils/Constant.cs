@@ -23,7 +23,12 @@ namespace FireboltDotNetSdk.Utils
         public static string DEFAULT_ENV = "app";
         public static string DEFAULT_ENDPOINT = "https://api.app.firebolt.io";
 
-        public static string AUTH_USERNAME_PASSWORD_URL = "/auth/v1/login";
+        public static string AUTH_USERNAME_PASSWORD_URL = "/auth/v1/login";//NOSONAR
         public static string AUTH_SERVICE_ACCOUNT_URL = "/oauth/token";
+
+        public static long GetCurrentEpoch()
+        {
+            return Convert.ToInt64(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+        }
     }
 }

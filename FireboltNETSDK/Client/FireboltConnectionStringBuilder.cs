@@ -1,4 +1,4 @@
-﻿#region License Apache 2.0
+#region License Apache 2.0
 /* Copyright 2022 
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -142,6 +142,21 @@ namespace FireboltDotNetSdk.Client
             set => this[nameof(PreparedStatementParamStyle)] = value;
         }
 
+        /// <summary>
+        /// Gets or sets whether connection caching is enabled. 
+        /// Available only for Firebolt 2.0 connections. If true, the connection will be cached for 1 hour.
+        /// Default value is true.
+        /// </summary>
+        public bool CacheConnection
+        {
+            get
+            {
+                var s = GetString(nameof(CacheConnection));
+                return s == null || bool.Parse(s); // Default to true if not specified
+            }
+            set => this[nameof(CacheConnection)] = value;
+        }
+
         static FireboltConnectionStringBuilder()
         {
             AllProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -156,7 +171,8 @@ namespace FireboltDotNetSdk.Client
                 nameof(Engine),
                 nameof(Env),
                 nameof(TokenStorage),
-                nameof(PreparedStatementParamStyle)
+                nameof(PreparedStatementParamStyle),
+                nameof(CacheConnection)
             };
         }
 
