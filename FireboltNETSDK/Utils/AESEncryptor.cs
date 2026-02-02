@@ -54,7 +54,7 @@ namespace FireboltDotNetSdk.Utils
         /// <returns>Key</returns>
         private static byte[] generateKey(string password, string salt)
         {
-            Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.UTF8.GetBytes(password), Convert.FromBase64String(salt), iterations: 39000, System.Security.Cryptography.HashAlgorithmName.SHA256);
+            Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(Encoding.UTF8.GetBytes(password), Convert.FromBase64String(salt), iterations: 100000, System.Security.Cryptography.HashAlgorithmName.SHA256);
             return pbkdf2.GetBytes(32);
         }
 
