@@ -224,7 +224,9 @@ namespace FireboltDotNetSdk.Client
                 return await Task.FromResult<T?>(default);
             }
             var newCommandText = commandText;
-            var paramList = SetParamList;
+            // Start from a copy so request-scoped parameters (for example query_parameters and async)
+            // are not persisted on the connection-level SET parameter list.
+            var paramList = new HashSet<string>(SetParamList);
             if (Parameters.Any())
             {
                 if (Connection!.PreparedStatementParamStyle == PreparedStatementParamStyleType.FbNumeric)
@@ -239,10 +241,7 @@ namespace FireboltDotNetSdk.Client
             // Need to tell the backend we are running async
             if (isServerAsync)
             {
-                paramList = new HashSet<string>(SetParamList)
-                {
-                    "async=true"
-                };
+                paramList.Add("async=true");
             }
 
             return await Connection!.Client.ExecuteQueryAsync<T>(engineUrl, GetDatabase(), Connection.AccountId, newCommandText, paramList, cancellationToken);

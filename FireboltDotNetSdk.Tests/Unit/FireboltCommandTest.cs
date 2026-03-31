@@ -616,6 +616,43 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void ExecuteServerSidePreparedStatement_DoesNotPersistQueryParametersInConnectionState()
+        {
+            string response = "{\"meta\":[],\"data\":[],\"rows\":0}";
+            var mockClient = new MockClient(response);
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = mockClient, EngineUrl = "engine" };
+
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT $1";
+            command.Parameters.Add(new FireboltParameter("$1", 1));
+            command.ExecuteNonQuery();
+
+            Assert.That(mockClient.CapturedSetParamList.Any(param => param.StartsWith("query_parameters=")), Is.True);
+            Assert.That(connection.SetParamList.Any(param => param.StartsWith("query_parameters=")), Is.False);
+        }
+
+        [Test]
+        public void ExecuteServerSidePreparedStatement_QueryParametersDoNotLeakAcrossCommands()
+        {
+            string response = "{\"meta\":[],\"data\":[],\"rows\":0}";
+            var mockClient = new MockClient(response);
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = mockClient, EngineUrl = "engine" };
+
+            var command1 = connection.CreateCommand();
+            command1.CommandText = "SELECT $1";
+            command1.Parameters.Add(new FireboltParameter("$1", 1));
+            command1.ExecuteNonQuery();
+            Assert.That(mockClient.CapturedSetParamList.Any(param => param.StartsWith("query_parameters=")), Is.True);
+
+            var command2 = connection.CreateCommand();
+            command2.CommandText = "SELECT 1";
+            command2.ExecuteNonQuery();
+
+            Assert.That(mockClient.CapturedSetParamList.Any(param => param.StartsWith("query_parameters=")), Is.False);
+            Assert.That(connection.SetParamList.Any(param => param.StartsWith("query_parameters=")), Is.False);
+        }
+
+        [Test]
         public void ExecuteStreamingCommand_ReturnsExpectedResult()
         {
             const string response = "{\"message_type\":\"START\",\"result_columns\":[{\"name\":\"?column?\",\"type\":\"integer\"}]}\n{\"message_type\":\"DATA\",\"data\":[[1],[1]]}\n{\"message_type\":\"FINISH_SUCCESSFULLY\"}";
