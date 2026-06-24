@@ -41,7 +41,15 @@ jobs:
           installer="/tmp/get-firebolt.sh"
           expected_sha256="7c8d1d70c3783ccc6befdfbd5517c67408c438271bb5d622ea32001e09559040"
 
-          curl --fail --silent --show-error --location https://get.firebolt.io/ --output "$installer"
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            --proto '=https' \
+            --proto-redir '=https' \
+            https://get.firebolt.io/ \
+            --output "$installer"
           echo "$expected_sha256  $installer" | sha256sum --check -
 
           # Run the verified installer non-interactively to pull the official image, then start it for CI.
