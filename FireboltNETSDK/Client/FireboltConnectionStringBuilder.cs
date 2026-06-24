@@ -28,6 +28,7 @@ namespace FireboltDotNetSdk.Client
     public class FireboltConnectionStringBuilder : DbConnectionStringBuilder
     {
         private static readonly HashSet<string> AllProperties;
+        private static readonly IDictionary<string, string> PropertyAliases;
 
         /// <summary>
         /// Gets or sets the name of the user.
@@ -99,6 +100,33 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
+        /// Gets or sets a discovery or direct engine endpoint URL for the new connection flow.
+        /// </summary>
+        public string? Url
+        {
+            get => GetString(nameof(Url));
+            set => this[nameof(Url)] = value;
+        }
+
+        /// <summary>
+        /// Gets or sets a direct engine endpoint URL for the new connection flow.
+        /// </summary>
+        public string? EngineEndpoint
+        {
+            get => GetString(nameof(EngineEndpoint));
+            set => this[nameof(EngineEndpoint)] = value;
+        }
+
+        /// <summary>
+        /// Gets or sets TLS validation mode. Supported values are "strict" and "none".
+        /// </summary>
+        public string? SslMode
+        {
+            get => GetString(nameof(SslMode));
+            set => this[nameof(SslMode)] = value;
+        }
+
+        /// <summary>
         /// Get the name of the default Account.
         /// </summary>
         public string? Account
@@ -167,12 +195,27 @@ namespace FireboltDotNetSdk.Client
                 nameof(ClientId),
                 nameof(ClientSecret),
                 nameof(Endpoint),
+                nameof(Url),
+                nameof(EngineEndpoint),
+                nameof(SslMode),
                 nameof(Account),
                 nameof(Engine),
                 nameof(Env),
                 nameof(TokenStorage),
                 nameof(PreparedStatementParamStyle),
                 nameof(CacheConnection)
+            };
+            PropertyAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "client_id", nameof(ClientId) },
+                { "client_secret", nameof(ClientSecret) },
+                { "account_name", nameof(Account) },
+                { "engine_name", nameof(Engine) },
+                { "engine_endpoint", nameof(EngineEndpoint) },
+                { "ssl_mode", nameof(SslMode) },
+                { "token_storage", nameof(TokenStorage) },
+                { "prepared_statement_param_style", nameof(PreparedStatementParamStyle) },
+                { "cache_connection", nameof(CacheConnection) }
             };
         }
 
@@ -194,13 +237,14 @@ namespace FireboltDotNetSdk.Client
         [AllowNull]
         public override object this[string keyword]
         {
-            get => base[keyword];
+            get => base[NormalizeKeyword(keyword)];
             set
             {
-                if (!AllProperties.Contains(keyword))
+                var normalizedKeyword = NormalizeKeyword(keyword);
+                if (!AllProperties.Contains(normalizedKeyword))
                     throw new ArgumentException($"\"{keyword}\" is not a valid connection parameter name.", nameof(keyword));
 
-                base[keyword] = value;
+                base[normalizedKeyword] = value;
             }
         }
 
@@ -218,8 +262,18 @@ namespace FireboltDotNetSdk.Client
             return TryGetValue(key, out var value) ? (string)value : null;
         }
 
+        private static string NormalizeKeyword(string keyword)
+        {
+            return PropertyAliases.TryGetValue(keyword, out var propertyName) ? propertyName : keyword;
+        }
+
         private void InitVersion()
         {
+            if (!string.IsNullOrEmpty(Url) || !string.IsNullOrEmpty(EngineEndpoint))
+            {
+                Version = 3;
+                return;
+            }
             if (ClientId != null && ClientSecret != null && UserName == null && Password == null)
             {
                 Version = 2;

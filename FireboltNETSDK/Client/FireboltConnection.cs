@@ -85,6 +85,16 @@ namespace FireboltDotNetSdk.Client
             get => _connectionState.Settings.Endpoint ?? Constant.DEFAULT_ENDPOINT;
         }
 
+        internal string? Url
+        {
+            get => _connectionState.Settings.Url;
+        }
+
+        internal string SslMode
+        {
+            get => _connectionState.Settings.SslMode;
+        }
+
         public string Env
         {
             get => _connectionState.Settings.Env ?? Constant.DEFAULT_ENV;
@@ -212,6 +222,7 @@ namespace FireboltDotNetSdk.Client
                     && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
                     && connectionSettings.Account == Account
                     && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
+                    && connectionSettings.Url == Url && connectionSettings.SslMode == SslMode
                     )
                 {
                     _connectionString = value;
@@ -354,10 +365,14 @@ namespace FireboltDotNetSdk.Client
         private FireboltClient CreateClient()
         {
             var builder = new FireboltConnectionStringBuilder(_connectionString);
+            var settings = builder.BuildSettings();
             switch (builder.Version)
             {
                 case 1: return new FireboltClient1(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
                 case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
+                case 3:
+                    var httpClient = settings.SslMode == "none" ? HttpClientSingleton.GetUnsafeInstance() : HttpClientSingleton.GetInstance();
+                    return new FireboltClientCore(this, settings.Url!, settings.SslMode, httpClient);
                 default: throw new NotSupportedException("Unsupported DB version");
             }
         }
@@ -463,6 +478,7 @@ namespace FireboltDotNetSdk.Client
         {
             _connectionString = builder.ToConnectionString();
             FireboltConnectionSettings settings = builder.BuildSettings();
+            _connectionState.Settings = settings;
             _database = settings.Database ?? string.Empty;
             EngineName = settings.Engine;
             _isSystem = EngineName == null || SYSTEM_ENGINE.Equals(EngineName);

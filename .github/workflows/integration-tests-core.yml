@@ -1,0 +1,60 @@
+name: Integration tests Firebolt Core
+on:
+  workflow_dispatch:
+    inputs:
+      core-url:
+        description: 'Firebolt Core URL override'
+        required: false
+        default: 'http://localhost:3473'
+        type: string
+  workflow_call:
+    inputs:
+      core-url:
+        description: 'Firebolt Core URL override'
+        required: false
+        default: 'http://localhost:3473'
+        type: string
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up .NET 6.0
+        id: dotnet-setup
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 6.0
+
+      - name: use .NET 6.0
+        run: |
+          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
+
+      - name: Install dependencies
+        run: |
+          dotnet restore
+
+      - name: Install Firebolt Core
+        run: |
+          bash <(curl -s https://get.firebolt.io/)
+
+      - name: Wait for Firebolt Core
+        env:
+          FIREBOLT_CORE_URL: ${{ inputs.core-url }}
+        run: |
+          for attempt in {1..60}; do
+            if curl --silent --fail --data-binary "SELECT 1" "$FIREBOLT_CORE_URL" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Firebolt Core did not become ready" >&2
+          exit 1
+
+      - name: Run Firebolt Core integration tests
+        env:
+          FIREBOLT_CORE_URL: ${{ inputs.core-url }}
+        run: |
+          dotnet test --filter 'Category=FireboltCore' -l "console;verbosity=normal"

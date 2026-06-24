@@ -46,6 +46,16 @@ namespace FireboltDotNetSdk.Client
         public string? Endpoint { get; }
 
         /// <summary>
+        /// Gets a discovery or direct engine endpoint URL for the new connection flow.
+        /// </summary>
+        public string? Url { get; }
+
+        /// <summary>
+        /// Gets TLS validation mode. Supported values are "strict" and "none".
+        /// </summary>
+        public string SslMode { get; }
+
+        /// <summary>
         /// Get the name of the default Account.
         /// </summary>
         public string? Account { get; }
@@ -76,18 +86,21 @@ namespace FireboltDotNetSdk.Client
             TokenStorageType = TokenStorageType.Memory;
             PreparedStatementParamStyle = PreparedStatementParamStyleType.Native;
             CacheConnection = true; // Default to true
+            SslMode = "strict";
         }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
         {
             ConnectionString = builder.ConnectionString;
             ValidateValues(builder);
-            Principal = GetNotNullValue(builder.UserName, builder.ClientId);
-            Secret = GetNotNullValue(builder.Password, builder.ClientSecret);
+            Principal = GetOptionalValue(builder.UserName, builder.ClientId);
+            Secret = GetOptionalValue(builder.Password, builder.ClientSecret);
             Database = string.IsNullOrEmpty(builder.Database) ? null : builder.Database;
             Account = builder.Account;
             Engine = string.IsNullOrEmpty(builder.Engine) ? null : builder.Engine;
             (Endpoint, Env) = ResolveEndpointAndEnv(builder);
+            Url = string.IsNullOrEmpty(builder.Url) ? builder.EngineEndpoint : builder.Url;
+            SslMode = string.IsNullOrEmpty(builder.SslMode) ? "strict" : builder.SslMode!.ToLowerInvariant();
             TokenStorageType = builder.TokenStorage ?? TokenStorageType.Memory;
             PreparedStatementParamStyle = builder.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
             CacheConnection = builder.CacheConnection; // Defaults to true in builder
@@ -122,6 +135,12 @@ namespace FireboltDotNetSdk.Client
             return GetNotNullValues(firstValue, secondValue)[0];
         }
 
+        private static string GetOptionalValue(string? firstValue, string? secondValue)
+        {
+            var values = GetNotNullValues(firstValue, secondValue);
+            return values.Length == 0 ? string.Empty : values[0];
+        }
+
         private static string[] GetNotNullValues(string? firstValue, string? secondValue)
         {
             return new string?[] { firstValue, secondValue }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToArray();
@@ -129,6 +148,11 @@ namespace FireboltDotNetSdk.Client
 
         private static void ValidateValues(FireboltConnectionStringBuilder builder)
         {
+            if (builder.Version == 3)
+            {
+                ValidateDiscoveryValues(builder);
+                return;
+            }
             if (AreBothProvided(builder.UserName, builder.ClientId) || AreBothMissing(builder.UserName, builder.ClientId))
             {
                 throw new FireboltException("Configuration error: either UserName or ClientId must be provided but not both");
@@ -140,6 +164,35 @@ namespace FireboltDotNetSdk.Client
             if (builder.Version == 2 && builder.Account == null)
             {
                 throw new FireboltException("Account parameter is missing in the connection string");
+            }
+        }
+
+        private static void ValidateDiscoveryValues(FireboltConnectionStringBuilder builder)
+        {
+            if (AreBothProvided(builder.Url, builder.EngineEndpoint))
+            {
+                throw new FireboltException("Configuration error: either Url or EngineEndpoint must be provided but not both");
+            }
+            if (AreBothProvided(builder.UserName, builder.ClientId))
+            {
+                throw new FireboltException("Configuration error: either UserName or ClientId must be provided but not both");
+            }
+            if (AreBothProvided(builder.Password, builder.ClientSecret))
+            {
+                throw new FireboltException("Configuration error: either Password or ClientSecret must be provided but not both");
+            }
+            if (AreBothProvided(builder.UserName, builder.ClientSecret) || AreBothProvided(builder.ClientId, builder.Password))
+            {
+                throw new FireboltException("Configuration error: credential parameters must be provided as UserName/Password or ClientId/ClientSecret");
+            }
+            if (AreBothMissing(builder.UserName, builder.ClientId) != AreBothMissing(builder.Password, builder.ClientSecret))
+            {
+                throw new FireboltException("Configuration error: credentials must include both principal and secret");
+            }
+            var sslMode = builder.SslMode?.ToLowerInvariant();
+            if (!string.IsNullOrEmpty(sslMode) && sslMode != "strict" && sslMode != "none")
+            {
+                throw new FireboltException("Configuration error: ssl_mode must be either 'strict' or 'none'");
             }
         }
 

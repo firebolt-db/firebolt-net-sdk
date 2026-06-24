@@ -51,7 +51,7 @@ public abstract class FireboltClient
     private readonly string HEADER_RESET_SESSION = "Firebolt-Reset-Session";
     private readonly string HEADER_REMOVE_PARAMETERS = "Firebolt-Remove-Parameters";
 
-    private readonly IDictionary<string, string> _queryParameters = new Dictionary<string, string>();
+    protected readonly IDictionary<string, string> _queryParameters = new Dictionary<string, string>();
     internal readonly TokenStorage _tokenStorage;
 
     protected FireboltClient(FireboltConnection connection, string id, string secret, string endpoint, string? env, string? protocolVersion, HttpClient httpClient)
@@ -123,7 +123,7 @@ public abstract class FireboltClient
         return await SendAsync<T>(HttpMethod.Post, url, query, _textContentType, needsAccessToken: true, retryUnauthorized: true, cancellationToken);
     }
 
-    private string GetUrl(string engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, bool isStreamingRequest)
+    protected virtual string GetUrl(string engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, bool isStreamingRequest)
     {
         var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
         var urlBuilder = new UriBuilder(engineEndpoint)
@@ -139,7 +139,7 @@ public abstract class FireboltClient
         return urlBuilder.Uri.ToString();
     }
 
-    private StringBuilder GetQueryString(string? databaseName, string? accountId, bool isStreamingRequest)
+    protected virtual StringBuilder GetQueryString(string? databaseName, string? accountId, bool isStreamingRequest)
     {
         var outputFormat = isStreamingRequest ? "JSONLines_Compact" : "JSON_Compact";
         var parameters = new Dictionary<string, string>() { { "output_format", outputFormat } };
