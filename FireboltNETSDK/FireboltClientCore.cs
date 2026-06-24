@@ -155,7 +155,8 @@ public class FireboltClientCore : FireboltClient
 
     private static Uri BuildConfiguredUri(string url, string sslMode)
     {
-        var hasScheme = Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Scheme);
+        var hasScheme = Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         if (hasScheme)
         {
             return uri!;
