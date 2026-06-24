@@ -3,6 +3,7 @@ using FireboltDotNetSdk.Client;
 namespace FireboltDotNetSdk.Tests
 {
     [TestFixture]
+    [Category("Integration")]
     [Category("FireboltCore")]
     public class CoreConnectionTest
     {
