@@ -38,7 +38,25 @@ jobs:
 
       - name: Install Firebolt Core
         run: |
-          bash <(curl -s https://get.firebolt.io/)
+          installer="/tmp/get-firebolt.sh"
+          expected_sha256="7c8d1d70c3783ccc6befdfbd5517c67408c438271bb5d622ea32001e09559040"
+
+          curl --fail --silent --show-error --location https://get.firebolt.io/ --output "$installer"
+          echo "$expected_sha256  $installer" | sha256sum --check -
+
+          # Run the verified installer non-interactively to pull the official image, then start it for CI.
+          printf 'n\n' | bash "$installer"
+          docker rm --force firebolt >/dev/null 2>&1 || true
+          mkdir -p -m 777 firebolt-data
+          docker run \
+            --detach \
+            --name firebolt \
+            --rm \
+            --ulimit memlock=8589934592:8589934592 \
+            --security-opt seccomp=unconfined \
+            --volume "$PWD/firebolt-data:/var/lib/firebolt" \
+            --publish 3473:3473 \
+            ghcr.io/firebolt-db/engine:dev
 
       - name: Wait for Firebolt Core
         env:
@@ -58,3 +76,8 @@ jobs:
           FIREBOLT_CORE_URL: ${{ inputs.core-url }}
         run: |
           dotnet test --filter 'Category=FireboltCore' -l "console;verbosity=normal"
+
+      - name: Stop Firebolt Core
+        if: always()
+        run: |
+          docker rm --force firebolt >/dev/null 2>&1 || true
