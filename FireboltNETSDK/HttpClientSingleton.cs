@@ -8,9 +8,7 @@ namespace FireboltDotNetSdk;
 public static class HttpClientSingleton
 {
     private static HttpClient? _instance;
-    private static HttpClient? _unsafeInstance;
     private static readonly object Mutex = new();
-    private static readonly object UnsafeMutex = new();
     private const int KEEPALIVE_TIME = 60;
 
     /// <summary>
@@ -26,29 +24,12 @@ public static class HttpClientSingleton
         return _instance;
     }
 
-    /// <summary>
-    ///     Returns a shared instance that does not validate TLS certificates.
-    /// </summary>
-    public static HttpClient GetUnsafeInstance()
-    {
-        if (_unsafeInstance != null) return _unsafeInstance;
-        lock (UnsafeMutex)
-        {
-            _unsafeInstance ??= CreateClient(validateServerCertificate: false);
-        }
-        return _unsafeInstance;
-    }
-
-    private static HttpClient CreateClient(bool validateServerCertificate = true)
+    private static HttpClient CreateClient()
     {
         var httpHandler = new SocketsHttpHandler
         {
             ConnectCallback = ConfigureSocketTcpKeepAlive,
         };
-        if (!validateServerCertificate)
-        {
-            httpHandler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
-        }
         var client = new HttpClient(httpHandler);
 
         // Disable timeouts

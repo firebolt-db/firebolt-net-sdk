@@ -85,7 +85,7 @@ public class FireboltClientCore : FireboltClient
             isStreamingRequest);
         foreach (var parameter in _connectionParameters)
         {
-            AppendQueryParameter(queryStr, parameter.Key, parameter.Value, overwrite: false);
+            AppendQueryParameter(queryStr, parameter.Key, parameter.Value);
         }
         foreach (var parameter in setParamList)
         {
@@ -94,11 +94,6 @@ public class FireboltClientCore : FireboltClient
 
         urlBuilder.Query = queryStr.ToString();
         return urlBuilder.Uri.ToString();
-    }
-
-    protected override StringBuilder GetQueryString(string? databaseName, string? accountId, bool isStreamingRequest)
-    {
-        return base.GetQueryString(databaseName, accountId, isStreamingRequest);
     }
 
     internal override void CleanupCache()
@@ -191,10 +186,10 @@ public class FireboltClientCore : FireboltClient
                 StringComparer.OrdinalIgnoreCase);
     }
 
-    private static void AppendQueryParameter(StringBuilder query, string key, string value, bool overwrite)
+    private static void AppendQueryParameter(StringBuilder query, string key, string value)
     {
         var existingParameters = QueryHelpers.ParseQuery("?" + query);
-        if (!overwrite && existingParameters.ContainsKey(key))
+        if (existingParameters.ContainsKey(key))
         {
             return;
         }

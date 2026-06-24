@@ -371,8 +371,7 @@ namespace FireboltDotNetSdk.Client
                 case 1: return new FireboltClient1(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
                 case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
                 case 3:
-                    var httpClient = settings.SslMode == "none" ? HttpClientSingleton.GetUnsafeInstance() : HttpClientSingleton.GetInstance();
-                    return new FireboltClientCore(this, settings.Url!, settings.SslMode, httpClient);
+                    return new FireboltClientCore(this, settings.Url!, settings.SslMode, HttpClientSingleton.GetInstance());
                 default: throw new NotSupportedException("Unsupported DB version");
             }
         }
