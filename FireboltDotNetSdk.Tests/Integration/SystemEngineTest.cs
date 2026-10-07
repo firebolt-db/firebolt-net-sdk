@@ -326,29 +326,21 @@ namespace FireboltDotNetSdk.Tests
         [Category("engine-v2")]
         public void ConnectToAccountWithoutUser()
         {
-            string sa_account_name = $"{Database}_sa_no_user_{new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds()}";
-            try
-            {
-                CreateCommand($"CREATE SERVICE ACCOUNT \"{sa_account_name}\" WITH DESCRIPTION = 'Ecosytem test with no user'").ExecuteNonQuery();
-                DbDataReader reader = CreateCommand($"CALL fb_GENERATESERVICEACCOUNTKEY('{sa_account_name}')").ExecuteReader();
-                Assert.That(reader.Read(), Is.True);
+            // Pre-provisioned service account that has no user attached
+            string? clientId = Environment.GetEnvironmentVariable("FIREBOLT_SA_NO_USER_CLIENT_ID");
+            string? clientSecret = Environment.GetEnvironmentVariable("FIREBOLT_SA_NO_USER_CLIENT_SECRET");
+            Assert.That(clientId, Is.Not.Null, "FIREBOLT_SA_NO_USER_CLIENT_ID is not set");
+            Assert.That(clientSecret, Is.Not.Null, "FIREBOLT_SA_NO_USER_CLIENT_SECRET is not set");
 
-                string clientId = reader.GetString(1);
-                string clientSecret = reader.GetString(2);
-                string connectionString = ConnectionString(new Tuple<string, string?>[]
-                {
-                    Tuple.Create<string, string?>(nameof(ClientId), clientId),
-                    Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
-                });
-                var badConnection = new FireboltConnection(connectionString);
-                FireboltConnection.CleanupCache();
-
-                Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => badConnection.Open()))?.Message, Does.Contain("not authorized"));
-            }
-            finally
+            string connectionString = ConnectionString(new Tuple<string, string?>[]
             {
-                CreateCommand($"DROP SERVICE ACCOUNT {sa_account_name}").ExecuteNonQuery();
-            }
+                Tuple.Create<string, string?>(nameof(ClientId), clientId),
+                Tuple.Create<string, string?>(nameof(ClientSecret), clientSecret)
+            });
+            var badConnection = new FireboltConnection(connectionString);
+            FireboltConnection.CleanupCache();
+
+            Assert.That(((FireboltException?)Assert.Throws(Is.InstanceOf<FireboltException>(), () => badConnection.Open()))?.Message, Does.Contain("not authorized"));
         }
 
         private string? GetTableDbName(string table)
