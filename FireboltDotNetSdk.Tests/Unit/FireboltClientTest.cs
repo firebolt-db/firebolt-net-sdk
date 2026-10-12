@@ -108,6 +108,29 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void ExecuteQuery_EngineErrorWithLocation_ReportsTheLocation()
+        {
+            var (handlerMock, httpClient) = GetHttpMocks();
+            var connection = new FireboltConnection(connectionString);
+            FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password",
+                "http://test.api.firebolt.io", null, "account", httpClient);
+            var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
+            tokenField!.SetValue(client, "abc");
+
+            const string engineError = "{\"errors\":[{\"location\":{\"failing_line\":1,\"start_offset\":9}," +
+                                       "\"description\":\"Line 1, Column 9: syntax error\"}]}";
+            handlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(GetResponseMessage(engineError, HttpStatusCode.BadRequest));
+
+            var exception = Assert.ThrowsAsync<FireboltStructuredException>(() =>
+                client.ExecuteQuery("endpoint_url", "DBName", null, "select *1"));
+            Assert.That(exception!.Message, Is.EqualTo("Line 1, Column 9: syntax error at FailingLine: 1, StartOffset: 9\n"));
+        }
+
+        [Test]
         public async Task ExecuteQueryWithRetryWhenUnauthorizedTest()
         {
             var (handlerMock, httpClient) = GetHttpMocks();

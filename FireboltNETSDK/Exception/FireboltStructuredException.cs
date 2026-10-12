@@ -17,6 +17,7 @@ namespace FireboltNETSDK.Exception
             // "{severity}: {name} ({code}) - {source}, {description}, resolution: {resolution} at {location} see {helpLink}"
             foreach (var error in errors)
             {
+                var errorStart = parsedErrors.Length;
                 if (!string.IsNullOrEmpty(error.Severity))
                 {
                     parsedErrors += $"{error.Severity}:";
@@ -35,15 +36,17 @@ namespace FireboltNETSDK.Exception
                 }
                 if (!string.IsNullOrEmpty(error.Description))
                 {
-                    parsedErrors += $", {error.Description}";
+                    // The engine often sends only a description, which should not start with a separator.
+                    parsedErrors += parsedErrors.Length > errorStart ? $", {error.Description}" : error.Description;
                 }
                 if (!string.IsNullOrEmpty(error.Resolution))
                 {
                     parsedErrors += $", resolution: {error.Resolution}";
                 }
-                if (error.Location != null)
+                var readableLocation = error.Location != null ? GetReadableLocation(error.Location) : "";
+                if (readableLocation.Length > 0)
                 {
-                    parsedErrors += $" at {GetReadableLocation(error.Location)}";
+                    parsedErrors += $" at {readableLocation}";
                 }
                 if (!string.IsNullOrEmpty(error.HelpLink))
                 {

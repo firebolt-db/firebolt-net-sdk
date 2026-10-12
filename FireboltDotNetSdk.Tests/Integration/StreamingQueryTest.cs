@@ -72,6 +72,8 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(e, Is.TypeOf(typeof(FireboltStructuredException)));
                 Assert.That(e.Message, Does.Contain("Line 1, Column 9: Division by zero\n" +
                                                              "select 1/(i-100000) as a from generate_series(1,...\n"));
+                Assert.That(e.Message, Does.Not.StartWith(", "));
+                Assert.That(e.Message, Does.Not.Contain(" at \n"));
             }
             Assert.Multiple(() =>
             {
@@ -224,6 +226,8 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(e, Is.TypeOf(typeof(FireboltStructuredException)));
                 Assert.That(e.Message, Does.Contain("Line 1, Column 9: Division by zero\n" +
                                                              "select 1/(i-100000) as a from generate_series(1,...\n"));
+                Assert.That(e.Message, Does.Not.StartWith(", "));
+                Assert.That(e.Message, Does.Not.Contain(" at \n"));
             }
             Assert.Multiple(() =>
             {

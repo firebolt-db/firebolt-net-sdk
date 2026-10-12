@@ -333,6 +333,26 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public async Task JsonLines_ErrorInEngineFormat_ReportsEveryError()
+        {
+            // The shape the engine writes: snake_case location and a description that already names the position.
+            const string engineError = "{\"message_type\":\"FINISH_WITH_ERRORS\",\"errors\":[" +
+                "{\"location\":{\"failing_line\":1,\"start_offset\":9},\"description\":\"Line 1, Column 9: Division by zero\"}," +
+                "{\"description\":\"Query was cancelled\"}]," +
+                "\"query_id\":\"q1\",\"request_id\":\"r1\",\"query_label\":null,\"statistics\":{\"elapsed\":0.1}}";
+            RespondWith(StreamResponse(new JsonLinesStream(new[] { StartLine, DataLine(0, 1), engineError })));
+
+            await using var reader = await CreateCommand().ExecuteStreamedQueryAsync();
+            Assert.That(reader.Read(), Is.True);
+            var exception = Assert.Throws<FireboltStructuredException>(() => reader.Read());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Is.EqualTo(
+                    "Line 1, Column 9: Division by zero at FailingLine: 1, StartOffset: 9\nQuery was cancelled\n"));
+            });
+        }
+
+        [Test]
         public async Task JsonLines_UnknownMessageTypeMidStream_Throws()
         {
             RespondWith(StreamResponse(new JsonLinesStream(new[] { StartLine, DataLine(0, 1), "{\"message_type\":\"PROGRESS\"}", FinishLine })));

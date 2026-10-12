@@ -1,5 +1,6 @@
 using FireboltNETSDK.Exception;
 using FireboltDotNetSdk.Utils;
+using Newtonsoft.Json;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -81,6 +82,43 @@ namespace FireboltDotNetSdk.Tests
             var exception = new FireboltStructuredException(input.ToList());
             string expected = "ERROR: MissingFieldsError (3001)\n";
             Assert.That(exception.Message, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ParseError_OnlyDescription_HasNoLeadingSeparator()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError> { new() { Description = "Division by zero" } });
+            Assert.That(exception.Message, Is.EqualTo("Division by zero\n"));
+        }
+
+        [Test]
+        public void ParseError_EmptyLocation_IsLeftOut()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError>
+            {
+                new() { Description = "Division by zero", Location = new Location() }
+            });
+            Assert.That(exception.Message, Is.EqualTo("Division by zero\n"));
+        }
+
+        [TestCase("{\"failing_line\":1,\"start_offset\":9,\"end_offset\":12}")]
+        [TestCase("{\"failingLine\":1,\"startOffset\":9,\"endOffset\":12}")]
+        public void DeserializeLocation_EngineSnakeCaseAndCamelCase_AreBothRead(string json)
+        {
+            var location = JsonConvert.DeserializeObject<Location>(json)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(location.FailingLine, Is.EqualTo(1));
+                Assert.That(location.StartOffset, Is.EqualTo(9));
+                Assert.That(location.EndOffset, Is.EqualTo(12));
+            });
+        }
+
+        [Test]
+        public void SerializeLocation_WritesEachFieldOnce()
+        {
+            var json = JsonConvert.SerializeObject(new Location { FailingLine = 1, StartOffset = 9, EndOffset = 12 });
+            Assert.That(json, Is.EqualTo("{\"FailingLine\":1,\"StartOffset\":9,\"EndOffset\":12}"));
         }
 
         [Test]

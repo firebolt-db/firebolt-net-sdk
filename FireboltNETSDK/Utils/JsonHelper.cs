@@ -124,6 +124,14 @@ namespace FireboltDotNetSdk.Utils
         public int? FailingLine { get; set; }
         public int? StartOffset { get; set; }
         public int? EndOffset { get; set; }
+
+        // The engine writes snake_case names; the public properties keep binding camelCase payloads too.
+        [JsonProperty("failing_line")]
+        private int? FailingLineSnakeCase { set => FailingLine = value; }
+        [JsonProperty("start_offset")]
+        private int? StartOffsetSnakeCase { set => StartOffset = value; }
+        [JsonProperty("end_offset")]
+        private int? EndOffsetSnakeCase { set => EndOffset = value; }
     }
 }
 
