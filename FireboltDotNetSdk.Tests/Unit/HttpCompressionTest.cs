@@ -46,8 +46,11 @@ namespace FireboltDotNetSdk.Tests
         public void ConnectionString_Compression_IsParsed(string? value, bool expected)
         {
             var connectionString = value == null ? ConnectionString : $"{ConnectionString};Compression={value}";
-            Assert.That(new FireboltConnectionStringBuilder(connectionString).Compression, Is.EqualTo(expected));
-            Assert.That(new FireboltConnection(connectionString).IsCompressionEnabled, Is.EqualTo(expected));
+            Assert.Multiple(() =>
+            {
+                Assert.That(new FireboltConnectionStringBuilder(connectionString).Compression, Is.EqualTo(expected));
+                Assert.That(new FireboltConnection(connectionString).IsCompressionEnabled, Is.EqualTo(expected));
+            });
         }
 
         [Test]
