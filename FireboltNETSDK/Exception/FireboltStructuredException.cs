@@ -1,3 +1,4 @@
+using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using Newtonsoft.Json;
@@ -13,48 +14,48 @@ namespace FireboltNETSDK.Exception
 
         private static string ParseErrors(List<StructuredError> errors)
         {
-            string parsedErrors = "";
+            var parsedErrors = new StringBuilder();
             // "{severity}: {name} ({code}) - {source}, {description}, resolution: {resolution} at {location} see {helpLink}"
             foreach (var error in errors)
             {
                 var errorStart = parsedErrors.Length;
                 if (!string.IsNullOrEmpty(error.Severity))
                 {
-                    parsedErrors += $"{error.Severity}:";
+                    parsedErrors.Append($"{error.Severity}:");
                 }
                 if (!string.IsNullOrEmpty(error.Name))
                 {
-                    parsedErrors += $" {error.Name}";
+                    parsedErrors.Append($" {error.Name}");
                 }
                 if (!string.IsNullOrEmpty(error.Code))
                 {
-                    parsedErrors += $" ({error.Code})";
+                    parsedErrors.Append($" ({error.Code})");
                 }
                 if (!string.IsNullOrEmpty(error.Source))
                 {
-                    parsedErrors += $" - {error.Source}";
+                    parsedErrors.Append($" - {error.Source}");
                 }
                 if (!string.IsNullOrEmpty(error.Description))
                 {
                     // The engine often sends only a description, which should not start with a separator.
-                    parsedErrors += parsedErrors.Length > errorStart ? $", {error.Description}" : error.Description;
+                    parsedErrors.Append(parsedErrors.Length > errorStart ? $", {error.Description}" : error.Description);
                 }
                 if (!string.IsNullOrEmpty(error.Resolution))
                 {
-                    parsedErrors += $", resolution: {error.Resolution}";
+                    parsedErrors.Append($", resolution: {error.Resolution}");
                 }
                 var readableLocation = error.Location != null ? GetReadableLocation(error.Location) : "";
                 if (readableLocation.Length > 0)
                 {
-                    parsedErrors += $" at {readableLocation}";
+                    parsedErrors.Append($" at {readableLocation}");
                 }
                 if (!string.IsNullOrEmpty(error.HelpLink))
                 {
-                    parsedErrors += $", see {error.HelpLink}";
+                    parsedErrors.Append($", see {error.HelpLink}");
                 }
-                parsedErrors += "\n";
+                parsedErrors.Append('\n');
             }
-            return parsedErrors;
+            return parsedErrors.ToString();
         }
         private static string GetReadableLocation(Location location)
         {
