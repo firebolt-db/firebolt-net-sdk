@@ -299,7 +299,8 @@ namespace FireboltDotNetSdk.Tests
             {
                 Assert.That(rows, Is.EqualTo(3_000));
                 Assert.That(exception!.Message, Does.Contain("division by zero"));
-                Assert.That(reader.Read(), Is.False, "the reader must stay finished after reporting the error");
+                Assert.That(() => reader.Read(), Throws.InstanceOf<FireboltException>().With.InnerException.SameAs(exception),
+                    "the reader must keep failing after reporting the error");
             });
             await reader.DisposeAsync();
             Assert.That(stream.IsDisposed, Is.True);
@@ -378,7 +379,7 @@ namespace FireboltDotNetSdk.Tests
                 {
                     while (reader.Read()) { }
                 });
-                Assert.That(reader.Read(), Is.False);
+                Assert.That(() => reader.Read(), Throws.InstanceOf<FireboltException>());
             });
         }
 
@@ -603,7 +604,7 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public async Task Read_ConnectionBreaksMidStream_ThrowsFireboltExceptionAndStaysFinished()
+        public async Task Read_ConnectionBreaksMidStream_ThrowsFireboltExceptionAndKeepsFailing()
         {
             var broken = new IOException("The response ended prematurely.");
             var stream = new JsonLinesStream(new[] { StartLine, DataLine(0, 1) }, failAtEnd: broken);
@@ -615,7 +616,7 @@ namespace FireboltDotNetSdk.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.InnerException, Is.SameAs(broken));
-                Assert.That(reader.Read(), Is.False);
+                Assert.That(() => reader.Read(), Throws.InstanceOf<FireboltException>().With.InnerException.SameAs(exception));
                 Assert.That(stream.IsDisposed, Is.True);
             });
         }
@@ -660,7 +661,7 @@ namespace FireboltDotNetSdk.Tests
             {
                 Assert.That(exception!.Message, Does.StartWith("Failed to parse JSON from stream on line"));
                 Assert.That(stream.IsDisposed, Is.True, "the connection must be released without disposing the reader");
-                Assert.That(reader.Read(), Is.False);
+                Assert.That(() => reader.Read(), Throws.InstanceOf<FireboltException>(), "a cut-off result must not look complete");
             });
         }
 
@@ -686,6 +687,109 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(stream.IsDisposed, Is.True);
                 Assert.That(reader.Read(), Is.False);
             });
+        }
+
+        [Test]
+        public async Task Read_EmptyDataMessages_AreSkipped()
+        {
+            var emptyData = JsonLinesMessages.Data(Array.Empty<object?[]>());
+            RespondWith(StreamResponse(new JsonLinesStream(new[] { StartLine, emptyData, DataLine(0, 1), emptyData, FinishLine })));
+
+            await using var reader = await CreateCommand().ExecuteStreamedQueryAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.HasRows, Is.True);
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(reader.GetInt32(0), Is.EqualTo(0));
+                Assert.That(reader.Read(), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task JsonLines_OnlyEmptyDataMessages_HasNoRows()
+        {
+            var emptyData = JsonLinesMessages.Data(Array.Empty<object?[]>());
+            RespondWith(StreamResponse(new JsonLinesStream(new[] { StartLine, emptyData, FinishLine })));
+
+            await using var reader = await CreateCommand().ExecuteStreamedQueryAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.HasRows, Is.False);
+                Assert.That(reader.Read(), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task Read_DataMessageWithoutData_ThrowsAndReleasesTheStream()
+        {
+            var stream = new JsonLinesStream(new[] { StartLine, DataLine(0, 1), "{\"message_type\":\"DATA\"}", FinishLine });
+            RespondWith(StreamResponse(stream));
+
+            var reader = await CreateCommand().ExecuteStreamedQueryAsync();
+            Assert.That(reader.Read(), Is.True);
+            var exception = Assert.Throws<FireboltException>(() => reader.Read());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.StartWith("Missing data in DATA message"));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
+        }
+
+        [Test]
+        public void ExecuteStreamedQuery_MultiLineJsonErrorWithOkStatus_ThrowsStructuredErrorAndReleasesStream()
+        {
+            var stream = new JsonLinesStream(new[] { "{", "  \"errors\": [", "    {\"description\": \"out of memory\"}", "  ]", "}" });
+            RespondWith(StreamResponse(stream));
+
+            var exception = Assert.ThrowsAsync<FireboltStructuredException>(() => CreateCommand().ExecuteStreamedQueryAsync());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.Contain("out of memory"));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
+        }
+
+        [Test]
+        public void ExecuteStreamedQuery_MalformedStartLine_ThrowsFireboltExceptionAndReleasesStream()
+        {
+            var stream = new JsonLinesStream(new[] { "{\"message_type\":\"START\",", FinishLine });
+            RespondWith(StreamResponse(stream));
+
+            var exception = Assert.ThrowsAsync<FireboltException>(() => CreateCommand().ExecuteStreamedQueryAsync());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.StartWith("Failed to parse JSON from stream on line"));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task CommandTimeout_SingleLineTricklingInLongerThanTheTimeout_IsReadCompletely()
+        {
+            var line = DataLine(0, 1);
+            var pieces = Enumerable.Range(0, 8).Select(i => line.Substring(i * line.Length / 8, (i + 1) * line.Length / 8 - i * line.Length / 8));
+            RespondWith(StreamResponse(new JsonLinesStream(TricklingChunks(pieces, delayMillis: 100), appendNewlines: false)));
+
+            await using var reader = await CreateCommand(commandTimeoutMillis: 400).ExecuteStreamedQueryAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.HasRows, Is.True);
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(reader.Read(), Is.False);
+            });
+        }
+
+        [Test]
+        public void Constructor_StreamReaderThatAlreadyBufferedData_ReadsFromItsBuffer()
+        {
+            var body = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(string.Join("\n", ResultLines(3, rowsPerLine: 2)) + "\n")).ToArray();
+            var streamReader = new StreamReader(new MemoryStream(body));
+            Assert.That(streamReader.Peek(), Is.EqualTo('{'));
+
+            using var reader = new FireboltStreamingDataReader(streamReader);
+            var rows = 0;
+            while (reader.Read()) rows++;
+            Assert.That(rows, Is.EqualTo(3));
         }
 
         private FireboltCommand CreateCommand(int commandTimeoutMillis = 30_000)
@@ -752,6 +856,17 @@ namespace FireboltDotNetSdk.Tests
             yield return FinishLine;
         }
 
+        private static IEnumerable<string> TricklingChunks(IEnumerable<string> dataLinePieces, int delayMillis)
+        {
+            yield return StartLine + "\n";
+            foreach (var piece in dataLinePieces)
+            {
+                Thread.Sleep(delayMillis);
+                yield return piece;
+            }
+            yield return "\n" + FinishLine + "\n";
+        }
+
         private static string DataLine(int firstId, int rowCount)
         {
             return JsonLinesMessages.Data(Enumerable.Range(firstId, rowCount).Select(id => new object?[] { id, Payload }));
@@ -765,13 +880,17 @@ namespace FireboltDotNetSdk.Tests
             private readonly IEnumerator<string> _lines;
             private readonly bool _stallAtEnd;
             private readonly System.Exception? _failAtEnd;
+            private readonly string _separator;
             private byte[] _current = Array.Empty<byte>();
             private int _offset;
 
             /// <param name="stallAtEnd">Instead of ending, wait like a server that stopped sending, until the read is cancelled.</param>
             /// <param name="failAtEnd">Instead of ending, fail like a broken connection.</param>
-            public JsonLinesStream(IEnumerable<string> lines, bool stallAtEnd = false, System.Exception? failAtEnd = null)
+            /// <param name="appendNewlines">False to send each element as a raw chunk, so a line can arrive in pieces.</param>
+            public JsonLinesStream(IEnumerable<string> lines, bool stallAtEnd = false, System.Exception? failAtEnd = null,
+                bool appendNewlines = true)
             {
+                _separator = appendNewlines ? "\n" : "";
                 _lines = lines.GetEnumerator();
                 _stallAtEnd = stallAtEnd;
                 _failAtEnd = failAtEnd;
@@ -810,7 +929,7 @@ namespace FireboltDotNetSdk.Tests
                 while (_offset == _current.Length)
                 {
                     if (!_lines.MoveNext()) return false;
-                    _current = Encoding.UTF8.GetBytes(_lines.Current + "\n");
+                    _current = Encoding.UTF8.GetBytes(_lines.Current + _separator);
                     _offset = 0;
                 }
                 return true;

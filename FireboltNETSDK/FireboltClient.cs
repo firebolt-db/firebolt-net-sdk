@@ -181,7 +181,7 @@ public abstract class FireboltClient
         if (typeof(T) == typeof(StreamReader))
         {
             var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            return new ObjectResponseResult<T>((T)(object)new StreamReader(stream), string.Empty);
+            return new ObjectResponseResult<T>((T)(object)new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 64 * 1024), string.Empty);
         }
 
         if (readResponseAsString)
