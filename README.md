@@ -256,6 +256,8 @@ while (await reader.ReadAsync())
 }
 ```
 
+`CommandTimeout` limits the wait for the first response and each later wait for more data, not the total time it takes to read the result, so long-running exports are not cut off. Pass a `CancellationToken` to `ExecuteStreamedQueryAsync` to stop a stream at any point; disposing the reader before the end also stops the server from sending the rest.
+
 ### Transaction Support
 
 The Firebolt .NET SDK provides full support for database transactions, allowing you to group multiple operations into atomic units of work.

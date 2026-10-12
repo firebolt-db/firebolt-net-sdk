@@ -538,28 +538,32 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Executes a query which returns it's results without storing them in memory.
+        /// Executes a query and streams its results instead of loading them all into memory.
+        /// <see cref="CommandTimeout"/> limits the wait for the first response and each later wait for more data
+        /// while reading, not the total time it takes to read the result.
         /// </summary>
-        /// <returns>Always returns 0.</returns>
+        /// <returns>A reader over the streamed result; dispose it to release the connection.</returns>
         public FireboltDataReader ExecuteStreamedQuery()
         {
             return ExecuteStreamedQueryAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
-        /// Executes a query which returns it's results without storing them in memory.
+        /// Executes a query and streams its results instead of loading them all into memory.
+        /// <see cref="CommandTimeout"/> limits the wait for the first response and each later wait for more data
+        /// while reading, not the total time it takes to read the result.
         /// </summary>
-        /// <returns>A task representing the asynchronous operation. Always returns 0.</returns>
+        /// <param name="cancellationToken">Cancels the query, including while the returned reader is being read.</param>
+        /// <returns>A reader over the streamed result; dispose it to release the connection.</returns>
         public async Task<FireboltDataReader> ExecuteStreamedQueryAsync(CancellationToken cancellationToken = default)
         {
-            // Execute the query with the async parameter
             var streamReader = await ExecuteCommandAsyncWithCommandTimeout<StreamReader>(StrictCommandText, cancellationToken);
             if (streamReader == null)
             {
                 throw new FireboltException("Failed to execute streamed query: no response received");
             }
 
-            return new FireboltStreamingDataReader(streamReader);
+            return await FireboltStreamingDataReader.CreateAsync(streamReader, CommandTimeoutMillis, cancellationToken);
         }
     }
 }

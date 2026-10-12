@@ -82,6 +82,61 @@ namespace FireboltDotNetSdk.Tests
 
         [Test]
         [Category("engine-v2")]
+        [Category("slow")]
+        public async Task ExecuteStreamedQueryAsync_LargeResult_IsNotBufferedInMemory()
+        {
+            const int rowCount = 1_000_000;
+            await using var connection = new FireboltConnection(UserConnectionString);
+            await connection.OpenAsync();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            // About 220 MB of JSON; buffering it as a string would take roughly three times that on the heap.
+            command.CommandText = $"select i, '{new string('x', 200)}' as payload from generate_series(1, {rowCount}) as i";
+
+            var baseline = GC.GetTotalMemory(forceFullCollection: true);
+            long peak = 0;
+            var rows = 0;
+            await using (var reader = await command.ExecuteStreamedQueryAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    if (rows++ % 100_000 == 0)
+                        peak = Math.Max(peak, GC.GetTotalMemory(forceFullCollection: true) - baseline);
+                }
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rows, Is.EqualTo(rowCount));
+                Assert.That(peak, Is.LessThan(100L * 1024 * 1024), $"Managed heap grew by {peak / 1024 / 1024} MB while streaming");
+            });
+        }
+
+        [Test]
+        [Category("engine-v2")]
+        public async Task ExecuteStreamedQueryAsync_CancelledMidStream_StopsReading()
+        {
+            await using var connection = new FireboltConnection(UserConnectionString);
+            await connection.OpenAsync();
+
+            var command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = "select i from generate_series(1, 50000000) as i";
+            using var cancellation = new CancellationTokenSource();
+
+            await using var reader = await command.ExecuteStreamedQueryAsync(cancellation.Token);
+            Assert.That(await reader.ReadAsync(), Is.True);
+            cancellation.Cancel();
+
+            var rowsAfterCancel = 0;
+            Assert.CatchAsync<OperationCanceledException>(async () =>
+            {
+                while (await reader.ReadAsync()) rowsAfterCancel++;
+            });
+            Assert.That(rowsAfterCancel, Is.LessThan(50000000 - 1), "Reading must stop well before the end of the result");
+        }
+
+        [Test]
+        [Category("engine-v2")]
         public async Task ExecuteStreamedQueryAsyncWithPreparedStatement()
         {
             await using var connection = new FireboltConnection(UserConnectionString);
