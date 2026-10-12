@@ -117,6 +117,10 @@ namespace FireboltDotNetSdk.Utils
         public string? Resolution { get; set; }
         public string? HelpLink { get; set; }
         public Location? Location { get; set; }
+
+        // Same snake_case alias as on Location, in case the engine writes help_link.
+        [JsonProperty("help_link", NullValueHandling = NullValueHandling.Ignore)]
+        private string? HelpLinkSnakeCase { get => null; set => HelpLink = value; }
     }
 
     public class Location

@@ -15,64 +15,68 @@ namespace FireboltNETSDK.Exception
         private static string ParseErrors(List<StructuredError> errors)
         {
             var parsedErrors = new StringBuilder();
-            // "{severity}: {name} ({code}) - {source}, {description}, resolution: {resolution} at {location} see {helpLink}"
+            // "{severity}: {name} ({code}) - {source}, {description}, resolution: {resolution} at {location}, see {helpLink}"
             foreach (var error in errors)
             {
-                var errorStart = parsedErrors.Length;
-                if (!string.IsNullOrEmpty(error.Severity))
-                {
-                    parsedErrors.Append($"{error.Severity}:");
-                }
-                if (!string.IsNullOrEmpty(error.Name))
-                {
-                    parsedErrors.Append($" {error.Name}");
-                }
-                if (!string.IsNullOrEmpty(error.Code))
-                {
-                    parsedErrors.Append($" ({error.Code})");
-                }
-                if (!string.IsNullOrEmpty(error.Source))
-                {
-                    parsedErrors.Append($" - {error.Source}");
-                }
-                if (!string.IsNullOrEmpty(error.Description))
-                {
-                    // The engine often sends only a description, which should not start with a separator.
-                    parsedErrors.Append(parsedErrors.Length > errorStart ? $", {error.Description}" : error.Description);
-                }
-                if (!string.IsNullOrEmpty(error.Resolution))
-                {
-                    parsedErrors.Append($", resolution: {error.Resolution}");
-                }
-                var readableLocation = error.Location != null ? GetReadableLocation(error.Location) : "";
-                if (readableLocation.Length > 0)
-                {
-                    parsedErrors.Append($" at {readableLocation}");
-                }
-                if (!string.IsNullOrEmpty(error.HelpLink))
-                {
-                    parsedErrors.Append($", see {error.HelpLink}");
-                }
-                parsedErrors.Append('\n');
+                parsedErrors.Append(ParseError(error)).Append('\n');
             }
             return parsedErrors.ToString();
         }
+
+        private static string ParseError(StructuredError error)
+        {
+            var segments = new List<string>();
+            var header = JoinPresent(" ", error.Name, Wrap("(", error.Code, ")"), Wrap("- ", error.Source));
+            AddIfPresent(segments, header);
+            // The engine's description can end with a newline after its query snippet.
+            AddIfPresent(segments, error.Description?.TrimEnd());
+            AddIfPresent(segments, Wrap("resolution: ", error.Resolution));
+            var location = error.Location != null ? GetReadableLocation(error.Location) : "";
+            if (location.Length > 0)
+            {
+                if (segments.Count > 0)
+                {
+                    segments[^1] += $" at {location}";
+                }
+                else
+                {
+                    segments.Add($"at {location}");
+                }
+            }
+            AddIfPresent(segments, Wrap("see ", error.HelpLink));
+
+            var body = string.Join(", ", segments);
+            if (string.IsNullOrEmpty(error.Severity))
+            {
+                return body;
+            }
+            return body.Length > 0 ? $"{error.Severity}: {body}" : error.Severity;
+        }
+
         private static string GetReadableLocation(Location location)
         {
-            string readableLocation = "";
-            if (location.FailingLine != null)
+            return JoinPresent(", ",
+                location.FailingLine != null ? $"FailingLine: {location.FailingLine}" : null,
+                location.StartOffset != null ? $"StartOffset: {location.StartOffset}" : null,
+                location.EndOffset != null ? $"EndOffset: {location.EndOffset}" : null);
+        }
+
+        private static string? Wrap(string prefix, string? value, string suffix = "")
+        {
+            return string.IsNullOrEmpty(value) ? null : prefix + value + suffix;
+        }
+
+        private static string JoinPresent(string separator, params string?[] parts)
+        {
+            return string.Join(separator, parts.Where(part => !string.IsNullOrEmpty(part)));
+        }
+
+        private static void AddIfPresent(List<string> segments, string? segment)
+        {
+            if (!string.IsNullOrEmpty(segment))
             {
-                readableLocation += $"FailingLine: {location.FailingLine}";
+                segments.Add(segment);
             }
-            if (location.StartOffset != null)
-            {
-                readableLocation += $", StartOffset: {location.StartOffset}";
-            }
-            if (location.EndOffset != null)
-            {
-                readableLocation += $", EndOffset: {location.EndOffset}";
-            }
-            return readableLocation;
         }
     }
 }
