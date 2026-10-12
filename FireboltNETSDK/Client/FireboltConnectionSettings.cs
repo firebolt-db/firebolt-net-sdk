@@ -69,6 +69,11 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public bool CacheConnection { get; }
 
+        /// <summary>
+        /// Gets whether query results are sent gzip-compressed. Default is true.
+        /// </summary>
+        public bool Compression { get; }
+
         internal FireboltConnectionSettings()
         {
             Principal = string.Empty;
@@ -76,6 +81,7 @@ namespace FireboltDotNetSdk.Client
             TokenStorageType = TokenStorageType.Memory;
             PreparedStatementParamStyle = PreparedStatementParamStyleType.Native;
             CacheConnection = true; // Default to true
+            Compression = true;
         }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
@@ -91,6 +97,7 @@ namespace FireboltDotNetSdk.Client
             TokenStorageType = builder.TokenStorage ?? TokenStorageType.Memory;
             PreparedStatementParamStyle = builder.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
             CacheConnection = builder.CacheConnection; // Defaults to true in builder
+            Compression = builder.Compression;
         }
 
         static string? ExtractEndpointEnv(string endpoint)

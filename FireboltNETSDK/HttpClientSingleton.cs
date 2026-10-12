@@ -29,6 +29,7 @@ public static class HttpClientSingleton
         var httpHandler = new SocketsHttpHandler
         {
             ConnectCallback = ConfigureSocketTcpKeepAlive,
+            AutomaticDecompression = DecompressionMethods.GZip,
         };
         var client = new HttpClient(httpHandler);
 

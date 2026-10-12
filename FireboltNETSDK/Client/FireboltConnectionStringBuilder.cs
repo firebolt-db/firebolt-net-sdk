@@ -149,12 +149,18 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public bool CacheConnection
         {
-            get
-            {
-                var s = GetString(nameof(CacheConnection));
-                return s == null || bool.Parse(s); // Default to true if not specified
-            }
+            get => GetBool(nameof(CacheConnection), true);
             set => this[nameof(CacheConnection)] = value;
+        }
+
+        /// <summary>
+        /// Gets or sets whether query results are sent gzip-compressed, which trades a little CPU for much less
+        /// network traffic. Default value is true.
+        /// </summary>
+        public bool Compression
+        {
+            get => GetBool(nameof(Compression), true);
+            set => this[nameof(Compression)] = value;
         }
 
         static FireboltConnectionStringBuilder()
@@ -172,7 +178,8 @@ namespace FireboltDotNetSdk.Client
                 nameof(Env),
                 nameof(TokenStorage),
                 nameof(PreparedStatementParamStyle),
-                nameof(CacheConnection)
+                nameof(CacheConnection),
+                nameof(Compression)
             };
         }
 
@@ -216,6 +223,24 @@ namespace FireboltDotNetSdk.Client
         private string? GetString(string key)
         {
             return TryGetValue(key, out var value) ? (string)value : null;
+        }
+
+        private bool GetBool(string key, bool defaultValue)
+        {
+            var value = GetString(key);
+            switch (value?.Trim().ToLowerInvariant())
+            {
+                case null:
+                    return defaultValue;
+                case "true":
+                case "1":
+                    return true;
+                case "false":
+                case "0":
+                    return false;
+                default:
+                    throw new FormatException($"Invalid value '{value}' for {key}, expected true, false, 1 or 0.");
+            }
         }
 
         private void InitVersion()

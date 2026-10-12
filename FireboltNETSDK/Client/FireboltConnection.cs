@@ -109,6 +109,11 @@ namespace FireboltDotNetSdk.Client
             get => _connectionState.Settings?.CacheConnection ?? true;
         }
 
+        internal bool IsCompressionEnabled
+        {
+            get => _connectionState.Settings?.Compression ?? true;
+        }
+
         internal PreparedStatementParamStyleType PreparedStatementParamStyle
         {
             get => _connectionState.Settings?.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
@@ -214,7 +219,10 @@ namespace FireboltDotNetSdk.Client
                     && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
                     )
                 {
+                    // A new connection string with the same database, engine and credentials needs no reconnect, but its other
+                    // options (Compression, PreparedStatementParamStyle, ...) must still replace the old ones.
                     _connectionString = value;
+                    _connectionState.Settings = connectionSettings;
                     return;
                 }
                 bool isOpen = Client != null;

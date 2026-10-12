@@ -270,7 +270,7 @@ namespace FireboltDotNetSdk.Client
 
         private string ValidateSetCommand(string setCommand)
         {
-            string name = setCommand.Split("=")[0].Trim();
+            string name = SetParameter.NameOf(setCommand);
             ISet<string> forbiddenParameters = Connection!.InfraVersion < 2 ? forbiddenParameters1 : forbiddenParameters2;
             if (forbiddenParameters.Contains(name))
             {
