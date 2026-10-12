@@ -320,11 +320,14 @@ namespace FireboltDotNetSdk.Tests
             });
 
             var rows = 1;
-            Assert.Throws<FireboltStructuredException>(() =>
+            Assert.Multiple(() =>
             {
-                while (reader.Read()) rows++;
+                Assert.Throws<FireboltStructuredException>(() =>
+                {
+                    while (reader.Read()) rows++;
+                });
+                Assert.That(rows, Is.EqualTo(rowCount));
             });
-            Assert.That(rows, Is.EqualTo(rowCount));
         }
 
         [Test]
@@ -642,6 +645,47 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(execution.IsCompleted, Is.False);
             cancellation.Cancel();
             Assert.CatchAsync<OperationCanceledException>(() => execution);
+        }
+
+        [Test]
+        public async Task Read_StreamCutOffInsideALine_ThrowsFireboltExceptionAndReleasesTheStream()
+        {
+            var stream = new JsonLinesStream(new[] { StartLine, DataLine(0, 1), "{\"message_type\":\"DATA\",\"data\":[[1," });
+            RespondWith(StreamResponse(stream));
+
+            var reader = await CreateCommand().ExecuteStreamedQueryAsync();
+            Assert.That(reader.Read(), Is.True);
+            var exception = Assert.Throws<FireboltException>(() => reader.Read());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.StartWith("Failed to parse JSON from stream on line"));
+                Assert.That(stream.IsDisposed, Is.True, "the connection must be released without disposing the reader");
+                Assert.That(reader.Read(), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task Close_CalledConcurrently_ShutsDownOnce()
+        {
+            var stream = new JsonLinesStream(new[] { StartLine, DataLine(0, 1) }, stallAtEnd: true);
+            RespondWith(StreamResponse(stream));
+
+            var reader = await CreateCommand(commandTimeoutMillis: 0).ExecuteStreamedQueryAsync();
+            using var start = new ManualResetEventSlim(false);
+            var closes = Enumerable.Range(0, 16).Select(_ => Task.Run(() =>
+            {
+                start.Wait();
+                reader.Close();
+            })).ToArray();
+            start.Set();
+
+            Assert.Multiple(() =>
+            {
+                Assert.DoesNotThrow(() => Task.WaitAll(closes, TimeSpan.FromSeconds(10)));
+                Assert.That(reader.IsClosed, Is.True);
+                Assert.That(stream.IsDisposed, Is.True);
+                Assert.That(reader.Read(), Is.False);
+            });
         }
 
         private FireboltCommand CreateCommand(int commandTimeoutMillis = 30_000)

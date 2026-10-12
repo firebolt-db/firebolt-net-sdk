@@ -51,7 +51,8 @@ namespace FireboltDotNetSdk.Client
         private readonly Queue<List<object?>> _currentRowQueue = new();
         private List<object?>? _currentRow;
         private bool _endOfStream;
-        private volatile bool _closing;
+        // 1 once Close has started; set atomically so concurrent Close calls shut down only once.
+        private int _closing;
 
         public FireboltStreamingDataReader(StreamReader streamReader) : this(streamReader.BaseStream, 0, CancellationToken.None)
         {
@@ -172,6 +173,7 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
         {
+            if (IsClosing) return false;
             if (_currentRowQueue.Count == 0 && !await FetchRowAsync(cancellationToken).ConfigureAwait(false))
                 return false;
 
@@ -226,7 +228,16 @@ namespace FireboltDotNetSdk.Client
                 if (line == null) throw Fail("Stream ended before the server signalled the end of the result");
                 if (string.IsNullOrWhiteSpace(line)) throw Fail("Failed to read line from stream");
 
-                var json = JsonConvert.DeserializeObject<StreamingJsonData>(line);
+                StreamingJsonData? json;
+                try
+                {
+                    json = JsonConvert.DeserializeObject<StreamingJsonData>(line);
+                }
+                catch (JsonException e)
+                {
+                    // Also how a stream cut off inside a line shows up, so release it like any other failure.
+                    throw Fail("Failed to parse JSON from stream on line: " + line, e);
+                }
                 switch (json?.MessageType)
                 {
                     case Data:
@@ -327,7 +338,7 @@ namespace FireboltDotNetSdk.Client
         private System.Exception ReadFailure(System.Exception cause, CancellationToken cancellationToken)
         {
             Finish();
-            if (_closing)
+            if (IsClosing)
                 return new OperationCanceledException("The reader was closed while reading.", cause);
             if (cancellationToken.IsCancellationRequested)
                 return new OperationCanceledException("The streamed query was cancelled.", cause, cancellationToken);
@@ -337,6 +348,8 @@ namespace FireboltDotNetSdk.Client
                 return new FireboltTimeoutException(_readTimeoutMillis);
             return new FireboltException("Failed to read the query result from the server.", cause);
         }
+
+        private bool IsClosing => Volatile.Read(ref _closing) == 1;
 
         private FireboltException Fail(string message, System.Exception? cause = null)
         {
@@ -354,14 +367,12 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override void Close()
         {
-            if (_closing) return;
-            _closing = true;
+            if (Interlocked.Exchange(ref _closing, 1) == 1) return;
             // Cancelling first ends a read that is waiting on the server, so the lock is not held for long.
             _cancellation.Cancel();
             _readLock.Wait(CancellationToken.None);
             try
             {
-                _currentRowQueue.Clear();
                 // Disposing before the end aborts the HTTP response, so the server stops sending the rest.
                 Finish();
                 _cancellation.Dispose();
