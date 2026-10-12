@@ -58,8 +58,11 @@ namespace FireboltDotNetSdk.Tests
                     "ExecuteStreamedQueryAsync must not wait for the whole response body");
 
                 using var reader = execution.Result;
-                Assert.That(reader.Read(), Is.True);
-                Assert.That(reader.GetInt32(0), Is.EqualTo(0));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.Read(), Is.True);
+                    Assert.That(reader.GetInt32(0), Is.EqualTo(0));
+                });
 
                 releaseRest.Set();
                 var rows = 1;
@@ -108,8 +111,11 @@ namespace FireboltDotNetSdk.Tests
             RespondWith(StreamResponse(stream, HttpStatusCode.BadRequest));
 
             var exception = Assert.ThrowsAsync<FireboltStructuredException>(() => CreateCommand().ExecuteStreamedQueryAsync());
-            Assert.That(exception!.Message, Does.Contain("syntax error"));
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.Contain("syntax error"));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -135,8 +141,11 @@ namespace FireboltDotNetSdk.Tests
             RespondWith(StreamResponse(stream));
 
             var exception = Assert.ThrowsAsync<FireboltStructuredException>(() => CreateCommand().ExecuteStreamedQueryAsync());
-            Assert.That(exception!.Message, Does.Contain("out of memory"));
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.Contain("out of memory"));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -264,9 +273,12 @@ namespace FireboltDotNetSdk.Tests
             RespondWith(StreamResponse(new JsonLinesStream(ResultLines(1, rowsPerLine: 1))));
 
             await using var reader = await CreateCommand().ExecuteStreamedQueryAsync();
-            Assert.That(reader.HasRows, Is.True);
-            Assert.That(reader.Read(), Is.True);
-            Assert.That(reader.HasRows, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.HasRows, Is.True);
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(reader.HasRows, Is.True);
+            });
         }
 
         [Test]
@@ -301,8 +313,11 @@ namespace FireboltDotNetSdk.Tests
             RespondWith(StreamResponse(stream));
 
             await using var reader = await CreateCommand().ExecuteStreamedQueryAsync();
-            Assert.That(reader.Read(), Is.True);
-            Assert.That(stream.BytesProduced, Is.LessThan(1024 * 1024), "rows must be readable before the error at the end is received");
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(stream.BytesProduced, Is.LessThan(1024 * 1024), "rows must be readable before the error at the end is received");
+            });
 
             var rows = 1;
             Assert.Throws<FireboltStructuredException>(() =>
@@ -335,9 +350,12 @@ namespace FireboltDotNetSdk.Tests
             var blockedRead = Task.Run(() => reader.Read());
             cancellation.CancelAfter(100);
 
-            Assert.That(() => blockedRead.Wait(TimeSpan.FromSeconds(10)),
-                Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<OperationCanceledException>());
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => blockedRead.Wait(TimeSpan.FromSeconds(10)),
+                    Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<OperationCanceledException>());
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -351,11 +369,14 @@ namespace FireboltDotNetSdk.Tests
             cancellation.Cancel();
 
             // Rows already parsed from the current DATA line may still be served; fetching more must stop.
-            Assert.Throws<OperationCanceledException>(() =>
+            Assert.Multiple(() =>
             {
-                while (reader.Read()) { }
+                Assert.Throws<OperationCanceledException>(() =>
+                {
+                    while (reader.Read()) { }
+                });
+                Assert.That(reader.Read(), Is.False);
             });
-            Assert.That(reader.Read(), Is.False);
         }
 
         [Test]
@@ -368,9 +389,12 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(reader.Read(), Is.True);
             var read = Task.Run(() => reader.Read());
 
-            Assert.That(() => read.Wait(TimeSpan.FromSeconds(10)),
-                Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<FireboltTimeoutException>());
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => read.Wait(TimeSpan.FromSeconds(10)),
+                    Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<FireboltTimeoutException>());
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -402,10 +426,13 @@ namespace FireboltDotNetSdk.Tests
             var elapsed = System.Diagnostics.Stopwatch.StartNew();
             var read = Task.Run(() => reader.Read());
 
-            Assert.That(() => read.Wait(TimeSpan.FromSeconds(10)),
-                Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<FireboltTimeoutException>());
-            // Aborting through the token closes the connection at once instead of waiting for a response drain.
-            Assert.That(elapsed.ElapsedMilliseconds, Is.LessThan(2_000));
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => read.Wait(TimeSpan.FromSeconds(10)),
+                    Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<FireboltTimeoutException>());
+                // Aborting through the token closes the connection at once instead of waiting for a response drain.
+                Assert.That(elapsed.ElapsedMilliseconds, Is.LessThan(2_000));
+            });
         }
 
         [Test]
@@ -414,8 +441,11 @@ namespace FireboltDotNetSdk.Tests
             var stream = new JsonLinesStream(Array.Empty<string>(), stallAtEnd: true);
             RespondWith(StreamResponse(stream));
 
-            Assert.ThrowsAsync<FireboltTimeoutException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQueryAsync());
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.ThrowsAsync<FireboltTimeoutException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQueryAsync());
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -424,8 +454,11 @@ namespace FireboltDotNetSdk.Tests
             var stream = new JsonLinesStream(Array.Empty<string>(), stallAtEnd: true);
             RespondWith(StreamResponse(stream));
 
-            Assert.Throws<FireboltTimeoutException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQuery());
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<FireboltTimeoutException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQuery());
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -436,9 +469,12 @@ namespace FireboltDotNetSdk.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.CancelAfter(100);
 
-            Assert.CatchAsync<OperationCanceledException>(() =>
-                CreateCommand(commandTimeoutMillis: 0).ExecuteStreamedQueryAsync(cancellation.Token));
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.CatchAsync<OperationCanceledException>(() =>
+                    CreateCommand(commandTimeoutMillis: 0).ExecuteStreamedQueryAsync(cancellation.Token));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -508,9 +544,12 @@ namespace FireboltDotNetSdk.Tests
 
             var reader = await CreateCommand().ExecuteStreamedQueryAsync();
             reader.Close();
-            Assert.DoesNotThrow(() => reader.Close());
-            Assert.DoesNotThrowAsync(() => reader.DisposeAsync().AsTask());
-            Assert.That(stream.IsDisposed, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.DoesNotThrow(() => reader.Close());
+                Assert.DoesNotThrowAsync(() => reader.DisposeAsync().AsTask());
+                Assert.That(stream.IsDisposed, Is.True);
+            });
         }
 
         [Test]
@@ -531,11 +570,14 @@ namespace FireboltDotNetSdk.Tests
             RespondWith(StreamResponse(stream));
 
             var reader = await CreateCommand().ExecuteStreamedQueryAsync();
-            Assert.Throws<FireboltStructuredException>(() =>
+            Assert.Multiple(() =>
             {
-                while (reader.Read()) { }
+                Assert.Throws<FireboltStructuredException>(() =>
+                {
+                    while (reader.Read()) { }
+                });
+                Assert.That(stream.IsDisposed, Is.True);
             });
-            Assert.That(stream.IsDisposed, Is.True);
         }
 
         [Test]
@@ -547,12 +589,11 @@ namespace FireboltDotNetSdk.Tests
             var reader = await CreateCommand(commandTimeoutMillis: 0).ExecuteStreamedQueryAsync();
             Assert.That(reader.Read(), Is.True);
             var blockedRead = reader.ReadAsync();
-            Assert.That(blockedRead.IsCompleted, Is.False);
-
-            Assert.That(Task.Run(reader.Close).Wait(TimeSpan.FromSeconds(10)), Is.True, "Close must not wait for the server");
-            Assert.CatchAsync<OperationCanceledException>(() => blockedRead);
             Assert.Multiple(() =>
             {
+                Assert.That(blockedRead.IsCompleted, Is.False);
+                Assert.That(Task.Run(reader.Close).Wait(TimeSpan.FromSeconds(10)), Is.True, "Close must not wait for the server");
+                Assert.CatchAsync<OperationCanceledException>(() => blockedRead);
                 Assert.That(stream.IsDisposed, Is.True);
                 Assert.That(reader.IsClosed, Is.True);
             });

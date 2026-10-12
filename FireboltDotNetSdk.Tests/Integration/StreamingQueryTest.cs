@@ -128,11 +128,14 @@ namespace FireboltDotNetSdk.Tests
             cancellation.Cancel();
 
             var rowsAfterCancel = 0;
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            Assert.Multiple(() =>
             {
-                while (await reader.ReadAsync()) rowsAfterCancel++;
+                Assert.CatchAsync<OperationCanceledException>(async () =>
+                {
+                    while (await reader.ReadAsync()) rowsAfterCancel++;
+                });
+                Assert.That(rowsAfterCancel, Is.LessThan(50000000 - 1), "Reading must stop well before the end of the result");
             });
-            Assert.That(rowsAfterCancel, Is.LessThan(50000000 - 1), "Reading must stop well before the end of the result");
         }
 
         [Test]

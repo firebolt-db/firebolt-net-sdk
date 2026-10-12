@@ -91,7 +91,7 @@ namespace FireboltDotNetSdk.Client
             }
             catch
             {
-                reader.Close();
+                await reader.CloseAsync().ConfigureAwait(false);
                 throw;
             }
         }
@@ -197,7 +197,7 @@ namespace FireboltDotNetSdk.Client
 
         private async Task InitializeAsync()
         {
-            await _readLock.WaitAsync().ConfigureAwait(false);
+            await _readLock.WaitAsync(_cancellationToken).ConfigureAwait(false);
             try
             {
                 var line = await NextLineAsync(CancellationToken.None).ConfigureAwait(false);
@@ -217,7 +217,7 @@ namespace FireboltDotNetSdk.Client
 
         private async Task<bool> FetchRowAsync(CancellationToken cancellationToken)
         {
-            await _readLock.WaitAsync().ConfigureAwait(false);
+            await _readLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if (_endOfStream) return false;
@@ -259,7 +259,7 @@ namespace FireboltDotNetSdk.Client
             }
             // A plain JSON error body (no message_type) can still arrive if the server failed before streaming.
             if (json?.MessageType == FinishWithErrors || (json?.MessageType == null && json?.Errors != null))
-                return new FireboltStructuredException(json!.Errors);
+                return new FireboltStructuredException(json.Errors);
             return new FireboltException("Failed to parse JSON from stream. Unexpected messageType: " + json?.MessageType + " in line: " + line);
         }
 
@@ -298,7 +298,7 @@ namespace FireboltDotNetSdk.Client
                     return line;
                 }
 
-                _partialLine.Write(_buffer, _bufferStart, _bufferEnd - _bufferStart);
+                await _partialLine.WriteAsync(_buffer.AsMemory(_bufferStart, _bufferEnd - _bufferStart), cancellationToken).ConfigureAwait(false);
                 _bufferStart = _bufferEnd = 0;
                 // The token reaches the HTTP stack, which aborts the connection itself when it is cancelled.
                 var read = await _stream.ReadAsync(_buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
@@ -358,7 +358,7 @@ namespace FireboltDotNetSdk.Client
             _closing = true;
             // Cancelling first ends a read that is waiting on the server, so the lock is not held for long.
             _cancellation.Cancel();
-            _readLock.Wait();
+            _readLock.Wait(CancellationToken.None);
             try
             {
                 _currentRowQueue.Clear();
