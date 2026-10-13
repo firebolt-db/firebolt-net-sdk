@@ -58,6 +58,18 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(new FireboltConnectionStringBuilder(builder.ConnectionString).Compression, Is.False);
         }
 
+        [Test]
+        public void ConnectionStringBuilder_SetBoolOptions_CanBeReadFromTheSameBuilder()
+        {
+            var builder = new FireboltConnectionStringBuilder(ConnectionString) { Compression = false, CacheConnection = false };
+            Assert.Multiple(() =>
+            {
+                Assert.That(builder.Compression, Is.False);
+                Assert.That(builder.CacheConnection, Is.False);
+                Assert.That(builder.BuildSettings().Compression, Is.False);
+            });
+        }
+
         [TestCase("1", true)]
         [TestCase("0", false)]
         [TestCase(" TRUE ", true)]

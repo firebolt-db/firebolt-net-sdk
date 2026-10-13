@@ -342,6 +342,26 @@ namespace FireboltDotNetSdk.Tests
             });
         }
 
+        [TestCase("compression=false", true)]
+        [TestCase("tokenstorage=None", true)]
+        [TestCase("cacheconnection=false", true)]
+        [TestCase("preparedstatementparamstyle=FbNumeric", false)]
+        public void SetConnectionStringChangingOnlyAnOption_ReconnectsIfTheClientDependsOnIt(string option, bool reconnects)
+        {
+            const string connectionString1 = "clientid=testuser;clientsecret=testpwd;account=account1;engine=diesel;database=db;env=test";
+            var cs = new MockFireboltConnection(connectionString1);
+            cs.Open();
+            var connectionString2 = $"{connectionString1};{option}";
+
+            cs.ConnectionString = connectionString2;
+            Assert.Multiple(() =>
+            {
+                Assert.That(cs.ClosedWithConnectionString, Is.EqualTo(reconnects ? connectionString1 : null));
+                Assert.That(cs.OpenedWithConnectionString, Is.EqualTo(reconnects ? connectionString2 : connectionString1));
+                Assert.That(cs.ConnectionString, Is.EqualTo(connectionString2));
+            });
+        }
+
         [Test]
         public void SetSameDatabase()
         {

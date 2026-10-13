@@ -218,11 +218,13 @@ namespace FireboltDotNetSdk.Client
                     && connectionSettings.Account == Account
                     && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
                     && connectionSettings.Compression == IsCompressionEnabled
+                    && connectionSettings.TokenStorageType == TokenStorageType
+                    && connectionSettings.CacheConnection == IsCacheConnectionEnabled
                     )
                 {
-                    // A new connection string with the same database, engine and credentials needs no reconnect, but its other
-                    // options (PreparedStatementParamStyle, ...) must still replace the old ones. Changing Compression
-                    // does reconnect, because it decides which shared HttpClient the client is created with.
+                    // Only options the running client reads on every use, such as PreparedStatementParamStyle, can change
+                    // without a reconnect. Compression, TokenStorageType and CacheConnection are fixed when the client is
+                    // created or connects.
                     _connectionString = value;
                     _connectionState.Settings = connectionSettings;
                     return;
