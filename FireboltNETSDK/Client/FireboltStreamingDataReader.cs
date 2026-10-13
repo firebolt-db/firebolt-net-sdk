@@ -290,7 +290,9 @@ namespace FireboltDotNetSdk.Client
             }
             // A plain JSON error body (no message_type) can still arrive if the server failed before streaming.
             if (json?.MessageType == FinishWithErrors || (json?.MessageType == null && json?.Errors != null))
-                return Failed(new FireboltStructuredException(json.Errors));
+                return json.Errors != null
+                    ? Failed(new FireboltStructuredException(json.Errors))
+                    : Fail("Missing errors in " + FinishWithErrors + " message on line: " + line);
             return Fail("Failed to parse JSON from stream. Unexpected messageType: " + json?.MessageType + " in line: " + line);
         }
 

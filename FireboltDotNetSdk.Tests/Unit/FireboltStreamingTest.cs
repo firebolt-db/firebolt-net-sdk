@@ -736,6 +736,23 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public async Task Read_FinishWithErrorsWithoutErrors_ThrowsAndReleasesTheStream()
+        {
+            var stream = new JsonLinesStream(new[] { StartLine, DataLine(0, 1), "{\"message_type\":\"FINISH_WITH_ERRORS\"}" });
+            RespondWith(StreamResponse(stream));
+
+            var reader = await CreateCommand().ExecuteStreamedQueryAsync();
+            Assert.That(reader.Read(), Is.True);
+            var exception = Assert.Throws<FireboltException>(() => reader.Read());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.StartWith("Missing errors in FINISH_WITH_ERRORS message"));
+                Assert.That(stream.IsDisposed, Is.True, "the connection must be released without disposing the reader");
+                Assert.That(() => reader.Read(), Throws.InstanceOf<FireboltException>());
+            });
+        }
+
+        [Test]
         public void ExecuteStreamedQuery_MultiLineJsonErrorWithOkStatus_ThrowsStructuredErrorAndReleasesStream()
         {
             var stream = new JsonLinesStream(new[] { "{", "  \"errors\": [", "    {\"description\": \"out of memory\"}", "  ]", "}" });
