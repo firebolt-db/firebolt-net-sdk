@@ -20,24 +20,22 @@ namespace FireboltDotNetSdk.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task Query_ByDefault_AsksTheEngineToCompress(bool streaming)
+        public async Task Query_LeavesCompressionToTheRequestHeader(bool streaming)
         {
             var uri = await CapturedQueryUri(ConnectionString, new HashSet<string>(), streaming);
-            Assert.That(uri.Query, Does.Contain("enable_http_compression=true"));
-        }
-
-        [Test]
-        public async Task Query_CompressionDisabled_DoesNotAskTheEngineToCompress()
-        {
-            var uri = await CapturedQueryUri(ConnectionString + ";compression=false", new HashSet<string>(), streaming: false);
             Assert.That(uri.Query, Does.Not.Contain("enable_http_compression"));
         }
 
-        [Test]
-        public async Task Query_UserSetsTheSetting_UsesOnlyTheUserValue()
+        [TestCase(null, true)]
+        [TestCase("false", false)]
+        public void Connection_UsesTheSharedHttpClientMatchingCompression(string? value, bool compression)
         {
-            var uri = await CapturedQueryUri(ConnectionString, new HashSet<string> { "enable_http_compression = 0" }, streaming: false);
-            Assert.That(uri.Query.Split("enable_http_compression").Length - 1, Is.EqualTo(1), uri.Query);
+            var connection = new FireboltConnection(value == null ? ConnectionString : $"{ConnectionString};compression={value}");
+            var client = typeof(FireboltConnection).GetMethod("CreateClient", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(connection, null);
+            var httpClient = typeof(FireboltClient).GetField("_httpClient", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(client);
+            Assert.That(httpClient, Is.SameAs(HttpClientSingleton.GetInstance(compression)));
         }
 
         [TestCase(null, true)]
@@ -58,35 +56,6 @@ namespace FireboltDotNetSdk.Tests
         {
             var builder = new FireboltConnectionStringBuilder(ConnectionString) { Compression = false };
             Assert.That(new FireboltConnectionStringBuilder(builder.ConnectionString).Compression, Is.False);
-        }
-
-        [Test]
-        public async Task Query_ServerPushesTheSetting_UsesOnlyTheServerValue()
-        {
-            var (handlerMock, httpClient) = FireboltClientTest.GetHttpMocks();
-            var client = CreateClient(new FireboltConnection(ConnectionString), httpClient);
-            var uris = new List<Uri>();
-            handlerMock.Protected()
-                .SetupSequence<Task<HttpResponseMessage>>("SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>())
-                .ReturnsAsync(GetResponseMessage(StartLine + FinishLine, HttpStatusCode.OK,
-                    new Dictionary<string, string> { { "Firebolt-Update-Parameters", "enable_http_compression=false" } }))
-                .ReturnsAsync(GetResponseMessage(StartLine + FinishLine, HttpStatusCode.OK));
-            handlerMock.Protected()
-                .Setup("Dispose", ItExpr.IsAny<bool>());
-            handlerMock.Invocations.Clear();
-
-            await client.ExecuteQueryAsync<string>("engine.mock.firebolt.io", "db", null, "select 1", new HashSet<string>(), CancellationToken.None);
-            await client.ExecuteQueryAsync<string>("engine.mock.firebolt.io", "db", null, "select 1", new HashSet<string>(), CancellationToken.None);
-            uris.AddRange(handlerMock.Invocations.Where(i => i.Method.Name == "SendAsync").Select(i => ((HttpRequestMessage)i.Arguments[0]).RequestUri!));
-
-            var secondQuery = uris[1].Query;
-            Assert.Multiple(() =>
-            {
-                Assert.That(secondQuery, Does.Contain("enable_http_compression=false"));
-                Assert.That(secondQuery.Split("enable_http_compression").Length - 1, Is.EqualTo(1), secondQuery);
-            });
         }
 
         [TestCase("1", true)]
@@ -148,6 +117,14 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.GetInt32(0), Is.EqualTo(2));
                 Assert.That(reader.Read(), Is.False);
             });
+        }
+
+        [Test]
+        public async Task SharedHttpClient_WithoutCompression_DoesNotAcceptGzip()
+        {
+            await using var server = new LoopbackHttpServer();
+            _ = HttpClientSingleton.GetInstance(compression: false).GetAsync(server.Url);
+            Assert.That(await server.RequestHead, Does.Not.Match("(?im)^Accept-Encoding:"));
         }
 
         [Test]

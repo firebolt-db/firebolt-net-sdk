@@ -33,19 +33,5 @@ namespace FireboltDotNetSdk.Tests
             while (await reader.ReadAsync()) sum += reader.GetInt64(0);
             Assert.That(sum, Is.EqualTo(5000050000L));
         }
-
-        [Test]
-        [Category("engine-v2")]
-        public async Task Query_UserSetsTheCompressionSetting_IsAccepted()
-        {
-            await using var connection = new FireboltConnection(ConnectionString());
-            await connection.OpenAsync();
-
-            var command = connection.CreateCommand();
-            command.CommandText = "SET enable_http_compression=0";
-            await command.ExecuteNonQueryAsync();
-            command.CommandText = "select 42";
-            Assert.That(Convert.ToInt32(await command.ExecuteScalarAsync()), Is.EqualTo(42));
-        }
     }
 }

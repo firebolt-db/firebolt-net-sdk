@@ -50,7 +50,6 @@ public abstract class FireboltClient
     private readonly string HEADER_UPDATE_ENDPOINT = "Firebolt-Update-Endpoint";
     private readonly string HEADER_RESET_SESSION = "Firebolt-Reset-Session";
     private readonly string HEADER_REMOVE_PARAMETERS = "Firebolt-Remove-Parameters";
-    private const string EnableHttpCompression = "enable_http_compression";
 
     private readonly IDictionary<string, string> _queryParameters = new Dictionary<string, string>();
     internal readonly TokenStorage _tokenStorage;
@@ -133,24 +132,17 @@ public abstract class FireboltClient
             Port = -1
         };
 
-        var compress = _connection.IsCompressionEnabled &&
-                       !setParamList.Any(p => SetParameter.NameOf(p).Equals(EnableHttpCompression, StringComparison.OrdinalIgnoreCase));
-        var queryStr = GetQueryString(databaseName, accountId, isStreamingRequest, compress);
+        var queryStr = GetQueryString(databaseName, accountId, isStreamingRequest);
         if (setParams.Length > 0)
             queryStr.Append('&').Append(setParams);
         urlBuilder.Query = queryStr.ToString();
         return urlBuilder.Uri.ToString();
     }
 
-    private StringBuilder GetQueryString(string? databaseName, string? accountId, bool isStreamingRequest, bool compress)
+    private StringBuilder GetQueryString(string? databaseName, string? accountId, bool isStreamingRequest)
     {
         var outputFormat = isStreamingRequest ? "JSONLines_Compact" : "JSON_Compact";
         var parameters = new Dictionary<string, string>() { { "output_format", outputFormat } };
-        if (compress)
-        {
-            // The engine gzips only when this is set and the request accepts gzip, which HttpClientSingleton does.
-            parameters[EnableHttpCompression] = "true";
-        }
         if (databaseName != null)
         {
             parameters["database"] = databaseName;

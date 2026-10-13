@@ -217,10 +217,12 @@ namespace FireboltDotNetSdk.Client
                     && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
                     && connectionSettings.Account == Account
                     && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
+                    && connectionSettings.Compression == IsCompressionEnabled
                     )
                 {
                     // A new connection string with the same database, engine and credentials needs no reconnect, but its other
-                    // options (Compression, PreparedStatementParamStyle, ...) must still replace the old ones.
+                    // options (PreparedStatementParamStyle, ...) must still replace the old ones. Changing Compression
+                    // does reconnect, because it decides which shared HttpClient the client is created with.
                     _connectionString = value;
                     _connectionState.Settings = connectionSettings;
                     return;
@@ -364,8 +366,8 @@ namespace FireboltDotNetSdk.Client
             var builder = new FireboltConnectionStringBuilder(_connectionString);
             switch (builder.Version)
             {
-                case 1: return new FireboltClient1(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
-                case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
+                case 1: return new FireboltClient1(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance(IsCompressionEnabled));
+                case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance(IsCompressionEnabled));
                 default: throw new NotSupportedException("Unsupported DB version");
             }
         }

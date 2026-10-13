@@ -8,28 +8,41 @@ namespace FireboltDotNetSdk;
 public static class HttpClientSingleton
 {
     private static HttpClient? _instance;
+    private static HttpClient? _uncompressedInstance;
     private static readonly object Mutex = new();
     private const int KEEPALIVE_TIME = 60;
 
     /// <summary>
-    ///     Returns a shared instance of the Firebolt client.
+    ///     Returns a shared instance of the Firebolt client, which accepts gzip-compressed responses.
     /// </summary>
     public static HttpClient GetInstance()
     {
-        if (_instance != null) return _instance;
-        lock (Mutex)
-        {
-            _instance ??= CreateClient();
-        }
-        return _instance;
+        return GetInstance(compression: true);
     }
 
-    private static HttpClient CreateClient()
+    /// <summary>
+    ///     Returns the shared instance of the Firebolt client that accepts gzip-compressed responses or the one that does not.
+    /// </summary>
+    public static HttpClient GetInstance(bool compression)
+    {
+        var instance = compression ? _instance : _uncompressedInstance;
+        if (instance != null) return instance;
+        lock (Mutex)
+        {
+            // AutomaticDecompression also sends Accept-Encoding: gzip with every request, which is what makes the
+            // engine compress, so connections with compression turned off need a client of their own.
+            return compression
+                ? _instance ??= CreateClient(DecompressionMethods.GZip)
+                : _uncompressedInstance ??= CreateClient(DecompressionMethods.None);
+        }
+    }
+
+    private static HttpClient CreateClient(DecompressionMethods decompression)
     {
         var httpHandler = new SocketsHttpHandler
         {
             ConnectCallback = ConfigureSocketTcpKeepAlive,
-            AutomaticDecompression = DecompressionMethods.GZip,
+            AutomaticDecompression = decompression,
         };
         var client = new HttpClient(httpHandler);
 
