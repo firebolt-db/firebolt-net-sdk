@@ -539,9 +539,8 @@ namespace FireboltDotNetSdk.Client
 
         /// <summary>
         /// Executes a query and streams its results instead of loading them all into memory.
-        /// <see cref="CommandTimeout"/> limits each wait on the server, not the total time: this call waits once for
-        /// the response and then for each part of the schema and first rows, so it can take longer than the timeout,
-        /// and reading the result is likewise bounded per wait for more data.
+        /// <see cref="CommandTimeout"/> limits only the wait for the response to start; reading the schema and the rows
+        /// has no timeout, since a slow query can go long without sending data.
         /// </summary>
         /// <returns>A reader over the streamed result; dispose it to release the connection.</returns>
         public FireboltDataReader ExecuteStreamedQuery()
@@ -551,9 +550,8 @@ namespace FireboltDotNetSdk.Client
 
         /// <summary>
         /// Executes a query and streams its results instead of loading them all into memory.
-        /// <see cref="CommandTimeout"/> limits each wait on the server, not the total time: this call waits once for
-        /// the response and then for each part of the schema and first rows, so it can take longer than the timeout,
-        /// and reading the result is likewise bounded per wait for more data.
+        /// <see cref="CommandTimeout"/> limits only the wait for the response to start; reading the schema and the rows
+        /// has no timeout, since a slow query can go long without sending data.
         /// </summary>
         /// <param name="cancellationToken">Cancels the query, including while the returned reader is being read.</param>
         /// <returns>A reader over the streamed result; dispose it to release the connection.</returns>
@@ -565,7 +563,7 @@ namespace FireboltDotNetSdk.Client
                 throw new FireboltException("Failed to execute streamed query: no response received");
             }
 
-            return await FireboltStreamingDataReader.CreateAsync(streamReader, CommandTimeoutMillis, cancellationToken);
+            return await FireboltStreamingDataReader.CreateAsync(streamReader, cancellationToken);
         }
     }
 }

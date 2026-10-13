@@ -384,36 +384,18 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public async Task CommandTimeout_ServerStopsSendingMidStream_ThrowsTimeout()
+        public async Task CommandTimeout_ServerPausesLongerThanTheTimeout_StreamIsReadCompletely()
         {
-            var stream = new JsonLinesStream(new[] { StartLine, DataLine(0, 1) }, stallAtEnd: true);
-            RespondWith(StreamResponse(stream));
+            RespondWith(StreamResponse(new JsonLinesStream(SlowLines(lineCount: 3, delayMillis: 500))));
 
             await using var reader = await CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQueryAsync();
-            Assert.That(reader.Read(), Is.True);
-            var read = Task.Run(() => reader.Read());
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(() => read.Wait(TimeSpan.FromSeconds(10)),
-                    Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<FireboltTimeoutException>());
-                Assert.That(stream.IsDisposed, Is.True);
-            });
-        }
-
-        [Test]
-        public async Task CommandTimeout_SteadyStreamLongerThanTheTimeout_IsReadCompletely()
-        {
-            RespondWith(StreamResponse(new JsonLinesStream(SlowLines(lineCount: 8, delayMillis: 100))));
-
-            await using var reader = await CreateCommand(commandTimeoutMillis: 400).ExecuteStreamedQueryAsync();
             var rows = 0;
             while (reader.Read()) rows++;
-            Assert.That(rows, Is.EqualTo(8));
+            Assert.That(rows, Is.EqualTo(3));
         }
 
         [Test]
-        public async Task CommandTimeout_StalledRealHttpResponse_AbortsTheSocketRead()
+        public async Task Cancel_StalledRealHttpResponse_AbortsTheSocketRead()
         {
             // A real socket shows that cancelling the read's token makes SocketsHttpHandler abort a read waiting on the network.
             await using var server = new LoopbackHttpServer();
@@ -425,43 +407,19 @@ namespace FireboltDotNetSdk.Tests
 
             using var response = await responseTask;
             var streamReader = new StreamReader(await response.Content.ReadAsStreamAsync());
-            using var reader = await FireboltStreamingDataReader.CreateAsync(streamReader, 300, CancellationToken.None);
+            using var cancellation = new CancellationTokenSource();
+            using var reader = await FireboltStreamingDataReader.CreateAsync(streamReader, cancellation.Token);
             Assert.That(reader.Read(), Is.True);
             var elapsed = System.Diagnostics.Stopwatch.StartNew();
             var read = Task.Run(() => reader.Read());
+            cancellation.CancelAfter(300);
 
             Assert.Multiple(() =>
             {
                 Assert.That(() => read.Wait(TimeSpan.FromSeconds(10)),
-                    Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<FireboltTimeoutException>());
+                    Throws.InstanceOf<AggregateException>().With.InnerException.InstanceOf<OperationCanceledException>());
                 // Aborting through the token closes the connection at once instead of waiting for a response drain.
                 Assert.That(elapsed.ElapsedMilliseconds, Is.LessThan(2_000));
-            });
-        }
-
-        [Test]
-        public void CommandTimeout_ServerSendsNothingAfterTheHeaders_ExecuteTimesOutAndReleasesTheStream()
-        {
-            var stream = new JsonLinesStream(Array.Empty<string>(), stallAtEnd: true);
-            RespondWith(StreamResponse(stream));
-
-            Assert.Multiple(() =>
-            {
-                Assert.ThrowsAsync<FireboltTimeoutException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQueryAsync());
-                Assert.That(stream.IsDisposed, Is.True);
-            });
-        }
-
-        [Test]
-        public void CommandTimeout_ServerSendsNothingAfterTheHeaders_SynchronousExecuteTimesOut()
-        {
-            var stream = new JsonLinesStream(Array.Empty<string>(), stallAtEnd: true);
-            RespondWith(StreamResponse(stream));
-
-            Assert.Multiple(() =>
-            {
-                Assert.Throws<FireboltTimeoutException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQuery());
-                Assert.That(stream.IsDisposed, Is.True);
             });
         }
 
@@ -781,13 +739,13 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public async Task CommandTimeout_SingleLineTricklingInLongerThanTheTimeout_IsReadCompletely()
+        public async Task Read_SingleLineArrivingInPieces_IsReadCompletely()
         {
             var line = DataLine(0, 1);
             var pieces = Enumerable.Range(0, 8).Select(i => line.Substring(i * line.Length / 8, (i + 1) * line.Length / 8 - i * line.Length / 8));
-            RespondWith(StreamResponse(new JsonLinesStream(TricklingChunks(pieces, delayMillis: 100), appendNewlines: false)));
+            RespondWith(StreamResponse(new JsonLinesStream(TricklingChunks(pieces, delayMillis: 10), appendNewlines: false)));
 
-            await using var reader = await CreateCommand(commandTimeoutMillis: 400).ExecuteStreamedQueryAsync();
+            await using var reader = await CreateCommand().ExecuteStreamedQueryAsync();
             Assert.Multiple(() =>
             {
                 Assert.That(reader.HasRows, Is.True);
@@ -825,12 +783,12 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
-        public void ExecuteStreamedQuery_ServerStallsInsideAMultiLineBody_ReportsTheParseError()
+        public void ExecuteStreamedQuery_ConnectionBreaksInsideAMultiLineBody_ReportsTheParseError()
         {
-            var stream = new JsonLinesStream(new[] { "{", "  \"errors\": [" }, stallAtEnd: true);
+            var stream = new JsonLinesStream(new[] { "{", "  \"errors\": [" }, failAtEnd: new IOException("Connection reset"));
             RespondWith(StreamResponse(stream));
 
-            var exception = Assert.ThrowsAsync<FireboltException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQueryAsync());
+            var exception = Assert.ThrowsAsync<FireboltException>(() => CreateCommand().ExecuteStreamedQueryAsync());
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.Message, Does.StartWith("Failed to parse JSON from stream on line: {"));
@@ -911,6 +869,7 @@ namespace FireboltDotNetSdk.Tests
 
         private static IEnumerable<string> SlowLines(int lineCount, int delayMillis)
         {
+            Thread.Sleep(delayMillis);
             yield return StartLine;
             for (var id = 0; id < lineCount; id++)
             {

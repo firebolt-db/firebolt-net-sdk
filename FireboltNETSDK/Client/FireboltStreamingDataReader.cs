@@ -45,13 +45,12 @@ namespace FireboltDotNetSdk.Client
         private int _bufferStart;
         private int _bufferEnd;
         private readonly StringBuilder _partialLine = new();
-        private readonly int _readTimeoutMillis;
         private readonly CancellationToken _cancellationToken;
         // Cancelled by the caller's token and by Close.
         private readonly CancellationTokenSource _cancellation = new();
         // Released with the stream, so a long-lived caller token does not keep every finished reader's source alive.
         private readonly CancellationTokenRegistration _cancellationRegistration;
-        // Bounds one wait for data. Reused across waits and replaced only after it was cancelled.
+        // Cancelled by the token of a single read. Reused across reads and replaced only after it was cancelled.
         private CancellationTokenSource _wait;
         // Held for every read, so Close never disposes the stream underneath one.
         private readonly SemaphoreSlim _readLock = new(1, 1);
@@ -64,7 +63,7 @@ namespace FireboltDotNetSdk.Client
         // 1 once Close has started; set atomically so concurrent Close calls shut down only once.
         private int _closing;
 
-        public FireboltStreamingDataReader(StreamReader streamReader) : this(streamReader, 0, CancellationToken.None)
+        public FireboltStreamingDataReader(StreamReader streamReader) : this(streamReader, CancellationToken.None)
         {
             try
             {
@@ -77,11 +76,10 @@ namespace FireboltDotNetSdk.Client
             }
         }
 
-        private FireboltStreamingDataReader(StreamReader reader, int readTimeoutMillis, CancellationToken cancellationToken) :
+        private FireboltStreamingDataReader(StreamReader reader, CancellationToken cancellationToken) :
             base(null, new QueryResult())
         {
             _reader = reader;
-            _readTimeoutMillis = readTimeoutMillis;
             _cancellationToken = cancellationToken;
             _cancellationRegistration = cancellationToken.UnsafeRegister(
                 static cancellation => ((CancellationTokenSource)cancellation!).Cancel(), _cancellation);
@@ -91,12 +89,11 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Creates a reader that has already read the schema and the first rows, so <see cref="HasRows"/> is known.
         /// </summary>
-        /// <param name="readTimeoutMillis">Limit for each wait on the server for more data, 0 for none.</param>
         /// <param name="cancellationToken">Cancels the stream at any point while it is being read.</param>
-        internal static async Task<FireboltStreamingDataReader> CreateAsync(StreamReader streamReader, int readTimeoutMillis,
+        internal static async Task<FireboltStreamingDataReader> CreateAsync(StreamReader streamReader,
             CancellationToken cancellationToken)
         {
-            var reader = new FireboltStreamingDataReader(streamReader, readTimeoutMillis, cancellationToken);
+            var reader = new FireboltStreamingDataReader(streamReader, cancellationToken);
             try
             {
                 await reader.InitializeAsync().ConfigureAwait(false);
@@ -318,7 +315,7 @@ namespace FireboltDotNetSdk.Client
             }
             catch (System.Exception e) when (e is not OperationCanceledException)
             {
-                // A stalled or broken body says less than the line that could not be parsed.
+                // A broken body says less than the line that could not be parsed.
                 return Fail("Failed to parse JSON from stream on line: " + firstLine, cause);
             }
             try
@@ -357,12 +354,12 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Waits for the next data from the server, bounded by the read timeout.
+        /// Waits for the next data from the server for as long as it takes unless cancelled, since a slow query can leave
+        /// long gaps in a healthy stream.
         /// </summary>
         private async Task<int> ReadChunkAsync(CancellationToken cancellationToken)
         {
             var wait = _wait;
-            if (_readTimeoutMillis > 0) wait.CancelAfter(_readTimeoutMillis);
             var registration = cancellationToken.UnsafeRegister(
                 static source => ((CancellationTokenSource)source!).Cancel(), wait);
             try
@@ -372,13 +369,13 @@ namespace FireboltDotNetSdk.Client
             }
             catch (System.Exception e)
             {
-                throw ReadFailure(e, cancellationToken, timedOut: wait.IsCancellationRequested);
+                throw ReadFailure(e, cancellationToken);
             }
             finally
             {
                 registration.Dispose();
-                // TryReset fails once the source was cancelled, including by a timer that fired just after the data
-                // arrived; a fresh source keeps that from cancelling the next wait.
+                // TryReset fails once the source was cancelled, including by a read's token that fired just after the
+                // data arrived; a fresh source keeps that from cancelling the next read.
                 if (!wait.TryReset())
                 {
                     wait.Dispose();
@@ -403,7 +400,7 @@ namespace FireboltDotNetSdk.Client
             return line.EndsWith('\r') ? line[..^1] : line;
         }
 
-        private System.Exception ReadFailure(System.Exception cause, CancellationToken cancellationToken, bool timedOut)
+        private System.Exception ReadFailure(System.Exception cause, CancellationToken cancellationToken)
         {
             if (IsClosing)
                 return Failed(new OperationCanceledException("The reader was closed while reading.", cause));
@@ -411,8 +408,6 @@ namespace FireboltDotNetSdk.Client
                 return Failed(new OperationCanceledException("The streamed query was cancelled.", cause, cancellationToken));
             if (_cancellationToken.IsCancellationRequested)
                 return Failed(new OperationCanceledException("The streamed query was cancelled.", cause, _cancellationToken));
-            if (timedOut)
-                return Failed(new FireboltTimeoutException(_readTimeoutMillis));
             return Fail("Failed to read the query result from the server.", cause);
         }
 
