@@ -809,6 +809,53 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(rows, Is.EqualTo(3));
         }
 
+        [Test]
+        public void ExecuteStreamedQuery_HugeNonJsonBodyWithoutNewlines_StopsReadingAndThrows()
+        {
+            var stream = new JsonLinesStream(HugeBodyWithoutNewlines("<html>\n", chunkCount: 10_000), appendNewlines: false);
+            RespondWith(StreamResponse(stream));
+
+            var exception = Assert.ThrowsAsync<FireboltException>(() => CreateCommand().ExecuteStreamedQueryAsync());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.StartWith("Failed to parse JSON from stream on line: <html>"));
+                Assert.That(stream.BytesProduced, Is.LessThan(8 * 1024 * 1024));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
+        }
+
+        [Test]
+        public void ExecuteStreamedQuery_ServerStallsInsideAMultiLineBody_ReportsTheParseError()
+        {
+            var stream = new JsonLinesStream(new[] { "{", "  \"errors\": [" }, stallAtEnd: true);
+            RespondWith(StreamResponse(stream));
+
+            var exception = Assert.ThrowsAsync<FireboltException>(() => CreateCommand(commandTimeoutMillis: 200).ExecuteStreamedQueryAsync());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.StartWith("Failed to parse JSON from stream on line: {"));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task DisposeAsync_WhileAReadWaits_EndsTheReadAndReleasesTheStream()
+        {
+            var stream = new JsonLinesStream(new[] { StartLine, DataLine(0, 1) }, stallAtEnd: true);
+            RespondWith(StreamResponse(stream));
+
+            var reader = await CreateCommand(commandTimeoutMillis: 0).ExecuteStreamedQueryAsync();
+            Assert.That(reader.Read(), Is.True);
+            var blockedRead = reader.ReadAsync();
+            await reader.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Multiple(() =>
+            {
+                Assert.CatchAsync<OperationCanceledException>(() => blockedRead);
+                Assert.That(stream.IsDisposed, Is.True);
+                Assert.That(reader.IsClosed, Is.True);
+            });
+        }
+
         private FireboltCommand CreateCommand(int commandTimeoutMillis = 30_000)
         {
             return new FireboltCommand(_connection, "SELECT id, payload FROM big_table", new FireboltParameterCollection())
@@ -882,6 +929,14 @@ namespace FireboltDotNetSdk.Tests
                 yield return piece;
             }
             yield return "\n" + FinishLine + "\n";
+        }
+
+        private static IEnumerable<string> HugeBodyWithoutNewlines(string firstLine, int chunkCount)
+        {
+            yield return firstLine;
+            var chunk = new string('x', 64 * 1024);
+            for (var i = 0; i < chunkCount; i++)
+                yield return chunk;
         }
 
         private static string DataLine(int firstId, int rowCount)

@@ -256,7 +256,7 @@ while (await reader.ReadAsync())
 }
 ```
 
-`CommandTimeout` limits the wait for the first response and each later wait for more data, not the total time it takes to read the result, so long-running exports are not cut off. Pass a `CancellationToken` to `ExecuteStreamedQueryAsync` to stop a stream at any point; disposing the reader before the end also stops the server from sending the rest.
+`CommandTimeout` limits each wait on the server for more data, not the total time, so long-running exports are not cut off. This also applies to `ExecuteStreamedQuery` itself, which waits for the response, the schema and the first rows, so the call can take longer than `CommandTimeout` while data keeps arriving. Pass a `CancellationToken` to `ExecuteStreamedQueryAsync` to stop a stream at any point; disposing the reader before the end also stops the server from sending the rest.
 
 ### Transaction Support
 

@@ -47,8 +47,12 @@ namespace FireboltDotNetSdk.Client
         private readonly StringBuilder _partialLine = new();
         private readonly int _readTimeoutMillis;
         private readonly CancellationToken _cancellationToken;
-        // Linked to the caller's token; Close cancels it too.
-        private readonly CancellationTokenSource _cancellation;
+        // Cancelled by the caller's token and by Close.
+        private readonly CancellationTokenSource _cancellation = new();
+        // Released with the stream, so a long-lived caller token does not keep every finished reader's source alive.
+        private readonly CancellationTokenRegistration _cancellationRegistration;
+        // Bounds one wait for data. Reused across waits and replaced only after it was cancelled.
+        private CancellationTokenSource _wait;
         // Held for every read, so Close never disposes the stream underneath one.
         private readonly SemaphoreSlim _readLock = new(1, 1);
         private List<Meta> _metas = new();
@@ -79,7 +83,9 @@ namespace FireboltDotNetSdk.Client
             _reader = reader;
             _readTimeoutMillis = readTimeoutMillis;
             _cancellationToken = cancellationToken;
-            _cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _cancellationRegistration = cancellationToken.UnsafeRegister(
+                static cancellation => ((CancellationTokenSource)cancellation!).Cancel(), _cancellation);
+            _wait = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
         }
 
         /// <summary>
@@ -302,9 +308,19 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         private async Task<System.Exception> ErrorFromBodyAsync(string firstLine, JsonException cause)
         {
-            var body = new StringBuilder(firstLine);
-            while (body.Length <= MaxErrorBodyChars && await NextLineAsync(CancellationToken.None).ConfigureAwait(false) is { } line)
-                body.Append('\n').Append(line);
+            // Read raw chunks rather than lines, so a body without newlines cannot grow past the limit.
+            var body = new StringBuilder(firstLine).Append('\n').Append(_buffer, _bufferStart, _bufferEnd - _bufferStart);
+            try
+            {
+                int read;
+                while (body.Length <= MaxErrorBodyChars && (read = await ReadChunkAsync(CancellationToken.None).ConfigureAwait(false)) > 0)
+                    body.Append(_buffer, 0, read);
+            }
+            catch (System.Exception e) when (e is not OperationCanceledException)
+            {
+                // A stalled or broken body says less than the line that could not be parsed.
+                return Fail("Failed to parse JSON from stream on line: " + firstLine, cause);
+            }
             try
             {
                 var errors = JsonConvert.DeserializeObject<JsonErrorQueryResult>(body.ToString())?.Errors;
@@ -345,20 +361,29 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         private async Task<int> ReadChunkAsync(CancellationToken cancellationToken)
         {
-            // A source per wait restarts the timeout whenever data arrives, and a timer that fires just after
-            // the data arrived cannot cancel any later read.
-            using var wait = _readTimeoutMillis > 0 || cancellationToken.CanBeCanceled
-                ? CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token, cancellationToken)
-                : null;
-            if (_readTimeoutMillis > 0) wait!.CancelAfter(_readTimeoutMillis);
+            var wait = _wait;
+            if (_readTimeoutMillis > 0) wait.CancelAfter(_readTimeoutMillis);
+            var registration = cancellationToken.UnsafeRegister(
+                static source => ((CancellationTokenSource)source!).Cancel(), wait);
             try
             {
                 // The token reaches the HTTP stack, which aborts the connection itself when it is cancelled.
-                return await _reader.ReadAsync(_buffer.AsMemory(), wait?.Token ?? _cancellation.Token).ConfigureAwait(false);
+                return await _reader.ReadAsync(_buffer.AsMemory(), wait.Token).ConfigureAwait(false);
             }
             catch (System.Exception e)
             {
-                throw ReadFailure(e, cancellationToken, timedOut: wait?.IsCancellationRequested == true);
+                throw ReadFailure(e, cancellationToken, timedOut: wait.IsCancellationRequested);
+            }
+            finally
+            {
+                registration.Dispose();
+                // TryReset fails once the source was cancelled, including by a timer that fired just after the data
+                // arrived; a fresh source keeps that from cancelling the next wait.
+                if (!wait.TryReset())
+                {
+                    wait.Dispose();
+                    _wait = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
+                }
             }
         }
 
@@ -415,19 +440,50 @@ namespace FireboltDotNetSdk.Client
         {
             // Ending the response right away returns the connection even if the caller never disposes the reader.
             _reader.Dispose();
+            _cancellationRegistration.Dispose();
         }
 
         /// <inheritdoc/>
         public override void Close()
         {
-            if (Interlocked.Exchange(ref _closing, 1) == 1) return;
+            if (!BeginClose()) return;
+            _readLock.Wait(CancellationToken.None);
+            EndClose();
+        }
+
+        /// <inheritdoc/>
+        public override async Task CloseAsync()
+        {
+            if (!BeginClose()) return;
+            await _readLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            EndClose();
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask DisposeAsync()
+        {
+            // The base implementation disposes synchronously, which would block on the read lock.
+            await CloseAsync().ConfigureAwait(false);
+        }
+
+        private bool BeginClose()
+        {
+            if (Interlocked.Exchange(ref _closing, 1) == 1) return false;
             // Cancelling first ends a read that is waiting on the server, so the lock is not held for long.
             _cancellation.Cancel();
-            _readLock.Wait(CancellationToken.None);
+            return true;
+        }
+
+        /// <summary>
+        /// Shuts the reader down. Must be called while holding the read lock, which it releases.
+        /// </summary>
+        private void EndClose()
+        {
             try
             {
                 // Disposing before the end aborts the HTTP response, so the server stops sending the rest.
                 Finish();
+                _wait.Dispose();
                 _cancellation.Dispose();
                 base.Close();
             }
