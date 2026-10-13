@@ -180,7 +180,7 @@ namespace FireboltDotNetSdk.Tests
         {
             var client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "secret", "http://api.mock.firebolt.io",
                 null, "account", httpClient);
-            typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(client, "token");
+            client.SetToken("token");
             return client;
         }
 

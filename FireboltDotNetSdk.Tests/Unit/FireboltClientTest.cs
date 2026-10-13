@@ -1,7 +1,7 @@
 using System.Net;
-using System.Reflection;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Tests.Helpers;
 using FireboltDotNetSdk.Utils;
 using FireboltNETSDK.Exception;
 using Moq;
@@ -42,10 +42,7 @@ namespace FireboltDotNetSdk.Tests
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, "any", "any", "test.api.firebolt.io", null,
                 "account", httpClient);
-            var tokenField = typeof(FireboltClient).GetField("_token",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.That(tokenField, Is.Not.Null);
-            tokenField!.SetValue(client, "abc");
+            client.SetToken("abc");
 
             handlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>("SendAsync",
@@ -64,10 +61,7 @@ namespace FireboltDotNetSdk.Tests
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password",
                 "http://test.api.firebolt.io", null, "account", httpClient);
-            var tokenField = typeof(FireboltClient).GetField("_token",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.That(tokenField, Is.Not.Null);
-            tokenField!.SetValue(client, "abc");
+            client.SetToken("abc");
 
             handlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>("SendAsync",
@@ -114,8 +108,7 @@ namespace FireboltDotNetSdk.Tests
             var connection = new FireboltConnection(connectionString);
             FireboltClient client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "password",
                 "http://test.api.firebolt.io", null, "account", httpClient);
-            var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
-            tokenField!.SetValue(client, "abc");
+            client.SetToken("abc");
 
             const string engineError = "{\"errors\":[{\"location\":{\"failing_line\":1,\"start_offset\":9}," +
                                        "\"description\":\"Line 1, Column 9: syntax error\"}]}";
@@ -455,10 +448,7 @@ namespace FireboltDotNetSdk.Tests
                 "test_account", httpClient);
 
             // Set up token
-            var tokenField = typeof(FireboltClient).GetField("_token",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.That(tokenField, Is.Not.Null);
-            tokenField!.SetValue(client, "test_token");
+            client.SetToken("test_token");
 
             HttpRequestMessage? capturedRequest = null;
 
@@ -514,10 +504,7 @@ namespace FireboltDotNetSdk.Tests
             await client1.EstablishConnection();
 
             // Set up token for client2
-            var tokenField = typeof(FireboltClient).GetField("_token",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.That(tokenField, Is.Not.Null);
-            tokenField!.SetValue(client2, "test_token");
+            client2.SetToken("test_token");
 
             HttpRequestMessage? capturedRequest = null;
 
