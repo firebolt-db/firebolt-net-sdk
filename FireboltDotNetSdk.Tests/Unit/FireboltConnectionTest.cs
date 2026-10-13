@@ -345,6 +345,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase("compression=false", true)]
         [TestCase("tokenstorage=None", true)]
         [TestCase("cacheconnection=false", true)]
+        [TestCase("endpoint=https://api.test.firebolt.io", true)]
         [TestCase("preparedstatementparamstyle=FbNumeric", false)]
         public void SetConnectionStringChangingOnlyAnOption_ReconnectsIfTheClientDependsOnIt(string option, bool reconnects)
         {

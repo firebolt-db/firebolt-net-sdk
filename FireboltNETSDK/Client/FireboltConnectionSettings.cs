@@ -100,6 +100,24 @@ namespace FireboltDotNetSdk.Client
             Compression = builder.Compression;
         }
 
+        // Database and Engine are left to the connection, which tracks their current values because USE statements
+        // change them on an open connection.
+        private static readonly HashSet<string> NotRequiringReconnect = new()
+        {
+            nameof(ConnectionString), nameof(PreparedStatementParamStyle), nameof(Database), nameof(Engine)
+        };
+
+        /// <summary>
+        /// Whether switching from <paramref name="current"/> to these settings requires reconnecting. Every setting
+        /// does unless it is explicitly exempted, so a newly added one cannot be silently swapped under a running client.
+        /// </summary>
+        internal bool RequiresReconnectFrom(FireboltConnectionSettings current)
+        {
+            return typeof(FireboltConnectionSettings).GetProperties()
+                .Where(p => !NotRequiringReconnect.Contains(p.Name))
+                .Any(p => !Equals(p.GetValue(this), p.GetValue(current)));
+        }
+
         static string? ExtractEndpointEnv(string endpoint)
         {
             var pattern = new Regex(@"(\w*://)?api\.(?<env>\w+)\.firebolt\.io", RegexOptions.None, TimeSpan.FromSeconds(RegexTimeoutSeconds));

@@ -214,17 +214,8 @@ namespace FireboltDotNetSdk.Client
                 }
                 var connectionSettings = new FireboltConnectionStringBuilder(value).BuildSettings();
                 if (connectionSettings.Database == Database && connectionSettings.Engine == EngineName
-                    && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
-                    && connectionSettings.Account == Account
-                    && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
-                    && connectionSettings.Compression == IsCompressionEnabled
-                    && connectionSettings.TokenStorageType == TokenStorageType
-                    && connectionSettings.CacheConnection == IsCacheConnectionEnabled
-                    )
+                    && !connectionSettings.RequiresReconnectFrom(_connectionState.Settings))
                 {
-                    // Only options the running client reads on every use, such as PreparedStatementParamStyle, can change
-                    // without a reconnect. Compression, TokenStorageType and CacheConnection are fixed when the client is
-                    // created or connects.
                     _connectionString = value;
                     _connectionState.Settings = connectionSettings;
                     return;
