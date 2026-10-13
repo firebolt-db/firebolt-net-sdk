@@ -260,7 +260,7 @@ while (await reader.ReadAsync())
 
 ### Compression
 
-Query results are sent gzip-compressed by default, which reduces network traffic considerably at a small CPU cost on both sides. Decompression is transparent, also for streamed results. The server sends compressed data in pieces of about 1 MiB (default configuration for compression), though, so a streamed query whose rows arrive slowly may deliver its first rows later, and can hit `CommandTimeout` if less than that is produced within the timeout. The SDK asks for it with an `Accept-Encoding: gzip` request header. To turn compression off, add `compression=false` to the connection string, and the header is no longer sent:
+Query results are sent gzip-compressed by default, which reduces network traffic considerably at a small CPU cost on both sides. Decompression is transparent, also for streamed results. The server sends compressed data in pieces of about 1 MiB (default configuration for compression), though, so a streamed query whose rows arrive slowly may deliver its first rows later. The SDK asks for it with an `Accept-Encoding: gzip` request header. To turn compression off, add `compression=false` to the connection string, and the header is no longer sent:
 
 ```cs
 string conn_string = $"account={account};clientid={clientId};clientsecret={clientSecret};database={database};engine={engine};compression=false";
