@@ -109,6 +109,11 @@ namespace FireboltDotNetSdk.Client
             get => _connectionState.Settings?.CacheConnection ?? true;
         }
 
+        internal bool IsCompressionEnabled
+        {
+            get => _connectionState.Settings?.Compression ?? true;
+        }
+
         internal PreparedStatementParamStyleType PreparedStatementParamStyle
         {
             get => _connectionState.Settings?.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
@@ -209,12 +214,10 @@ namespace FireboltDotNetSdk.Client
                 }
                 var connectionSettings = new FireboltConnectionStringBuilder(value).BuildSettings();
                 if (connectionSettings.Database == Database && connectionSettings.Engine == EngineName
-                    && connectionSettings.Endpoint == Endpoint && connectionSettings.Env == Env
-                    && connectionSettings.Account == Account
-                    && connectionSettings.Principal == Principal && connectionSettings.Secret == Secret
-                    )
+                    && !connectionSettings.RequiresReconnectFrom(_connectionState.Settings))
                 {
                     _connectionString = value;
+                    _connectionState.Settings = connectionSettings;
                     return;
                 }
                 bool isOpen = Client != null;
@@ -356,8 +359,8 @@ namespace FireboltDotNetSdk.Client
             var builder = new FireboltConnectionStringBuilder(_connectionString);
             switch (builder.Version)
             {
-                case 1: return new FireboltClient1(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
-                case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance());
+                case 1: return new FireboltClient1(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance(IsCompressionEnabled));
+                case 2: return new FireboltClient2(this, Principal, Secret, Endpoint, Env, Account, HttpClientSingleton.GetInstance(IsCompressionEnabled));
                 default: throw new NotSupportedException("Unsupported DB version");
             }
         }

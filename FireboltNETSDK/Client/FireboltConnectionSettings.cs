@@ -69,6 +69,11 @@ namespace FireboltDotNetSdk.Client
         /// </summary>
         public bool CacheConnection { get; }
 
+        /// <summary>
+        /// Gets whether query results are sent gzip-compressed. Default is true.
+        /// </summary>
+        public bool Compression { get; }
+
         internal FireboltConnectionSettings()
         {
             Principal = string.Empty;
@@ -76,6 +81,7 @@ namespace FireboltDotNetSdk.Client
             TokenStorageType = TokenStorageType.Memory;
             PreparedStatementParamStyle = PreparedStatementParamStyleType.Native;
             CacheConnection = true; // Default to true
+            Compression = true;
         }
 
         internal FireboltConnectionSettings(FireboltConnectionStringBuilder builder)
@@ -91,6 +97,25 @@ namespace FireboltDotNetSdk.Client
             TokenStorageType = builder.TokenStorage ?? TokenStorageType.Memory;
             PreparedStatementParamStyle = builder.PreparedStatementParamStyle ?? PreparedStatementParamStyleType.Native;
             CacheConnection = builder.CacheConnection; // Defaults to true in builder
+            Compression = builder.Compression;
+        }
+
+        // Database and Engine are left to the connection, which tracks their current values because USE statements
+        // change them on an open connection.
+        private static readonly HashSet<string> NotRequiringReconnect = new()
+        {
+            nameof(ConnectionString), nameof(PreparedStatementParamStyle), nameof(Database), nameof(Engine)
+        };
+
+        /// <summary>
+        /// Whether switching from <paramref name="current"/> to these settings requires reconnecting. Every setting
+        /// does unless it is explicitly exempted, so a newly added one cannot be silently swapped under a running client.
+        /// </summary>
+        internal bool RequiresReconnectFrom(FireboltConnectionSettings current)
+        {
+            return typeof(FireboltConnectionSettings).GetProperties()
+                .Where(p => !NotRequiringReconnect.Contains(p.Name))
+                .Any(p => !Equals(p.GetValue(this), p.GetValue(current)));
         }
 
         static string? ExtractEndpointEnv(string endpoint)

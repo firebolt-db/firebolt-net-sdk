@@ -2,6 +2,7 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using FireboltDotNetSdk.Client;
+using FireboltDotNetSdk.Tests.Helpers;
 using Moq;
 using Moq.Protected;
 using static Newtonsoft.Json.JsonConvert;
@@ -20,8 +21,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var connection = new FireboltConnection(ConnectionString);
             var client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClient);
 
-            var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
-            tokenField!.SetValue(client, "test_token");
+            client.SetToken("test_token");
 
             var queryParams = GetQueryParams(client);
             queryParams["test_param"] = "test_value";
@@ -52,8 +52,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var connection = new FireboltConnection(ConnectionString);
             var client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClient);
 
-            var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
-            tokenField!.SetValue(client, "test_token");
+            client.SetToken("test_token");
 
             var queryParams = GetQueryParams(client);
             queryParams["param1"] = "value1";
@@ -90,8 +89,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var connection = new FireboltConnection(ConnectionString);
             var client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClient);
 
-            var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
-            tokenField!.SetValue(client, "test_token");
+            client.SetToken("test_token");
 
             var queryParams = GetQueryParams(client);
             queryParams["param_with_space"] = "value1";
@@ -122,8 +120,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var connection = new FireboltConnection(ConnectionString);
             var client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClient);
 
-            var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
-            tokenField!.SetValue(client, "test_token");
+            client.SetToken("test_token");
 
             var queryParams = GetQueryParams(client);
             queryParams["existing_param"] = "value";
@@ -149,8 +146,7 @@ namespace FireboltDotNetSdk.Tests.Unit
             var connection = new FireboltConnection(ConnectionString);
             var client = new FireboltClient2(connection, Guid.NewGuid().ToString(), "password", "http://test.api.firebolt.io", null, "account", httpClient);
 
-            var tokenField = typeof(FireboltClient).GetField("_token", BindingFlags.NonPublic | BindingFlags.Instance);
-            tokenField!.SetValue(client, "test_token");
+            client.SetToken("test_token");
 
             var queryParams = GetQueryParams(client);
             queryParams["param1"] = "value1";

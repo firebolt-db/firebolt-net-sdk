@@ -258,6 +258,14 @@ while (await reader.ReadAsync())
 
 `CommandTimeout` limits only the wait for the response to start. Reading the streamed result has no timeout, because a slow query can go a long time without sending data. This also means a read waits indefinitely if the connection stays open but the server or a proxy stops sending. Pass a `CancellationToken` to `ExecuteStreamedQueryAsync` or `ReadAsync` (for example one with `CancelAfter`) to stop a stream at any point. The synchronous `ExecuteStreamedQuery` and `Read` take no token: a stalled `Read` can only be ended by closing or disposing the reader from another thread, and a stall before the first rows blocks `ExecuteStreamedQuery` itself. Disposing the reader before the end also stops the server from sending the rest.
 
+### Compression
+
+Query results are sent gzip-compressed by default, which reduces network traffic considerably at a small CPU cost on both sides. Decompression is transparent, also for streamed results. The server sends compressed data in pieces of about 1 MiB (default configuration for compression), though, so a streamed query whose rows arrive slowly may deliver its first rows later. The SDK asks for it with an `Accept-Encoding: gzip` request header. To turn compression off, add `compression=false` to the connection string, and the header is no longer sent:
+
+```cs
+string conn_string = $"account={account};clientid={clientId};clientsecret={clientSecret};database={database};engine={engine};compression=false";
+```
+
 ### Transaction Support
 
 The Firebolt .NET SDK provides full support for database transactions, allowing you to group multiple operations into atomic units of work.
