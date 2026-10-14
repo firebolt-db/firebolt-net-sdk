@@ -1,5 +1,6 @@
 using FireboltNETSDK.Exception;
 using FireboltDotNetSdk.Utils;
+using Newtonsoft.Json;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -81,6 +82,88 @@ namespace FireboltDotNetSdk.Tests
             var exception = new FireboltStructuredException(input.ToList());
             string expected = "ERROR: MissingFieldsError (3001)\n";
             Assert.That(exception.Message, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ParseError_OnlyDescription_HasNoLeadingSeparator()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError> { new() { Description = "Division by zero" } });
+            Assert.That(exception.Message, Is.EqualTo("Division by zero\n"));
+        }
+
+        [Test]
+        public void ParseError_EmptyLocation_IsLeftOut()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError>
+            {
+                new() { Description = "Division by zero", Location = new Location() }
+            });
+            Assert.That(exception.Message, Is.EqualTo("Division by zero\n"));
+        }
+
+        [Test]
+        public void ParseError_SeverityAndDescription_HasNoCommaAfterSeverity()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError>
+            {
+                new() { Severity = "ERROR", Description = "Division by zero" }
+            });
+            Assert.That(exception.Message, Is.EqualTo("ERROR: Division by zero\n"));
+        }
+
+        [TestCase("resolution: X", "{\"resolution\":\"X\"}")]
+        [TestCase("at FailingLine: 1", "{\"location\":{\"failing_line\":1}}")]
+        [TestCase("see http://help.link", "{\"helpLink\":\"http://help.link\"}")]
+        [TestCase("see http://help.link", "{\"help_link\":\"http://help.link\"}")]
+        public void ParseError_FirstPresentField_HasNoLeadingSeparator(string expected, string json)
+        {
+            var error = JsonConvert.DeserializeObject<StructuredError>(json)!;
+            var exception = new FireboltStructuredException(new List<StructuredError> { error });
+            Assert.That(exception.Message, Is.EqualTo(expected + "\n"));
+        }
+
+        [Test]
+        public void ParseError_PartialLocation_HasNoLeadingSeparator()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError>
+            {
+                new() { Description = "Division by zero", Location = new Location { StartOffset = 9 } }
+            });
+            Assert.That(exception.Message, Is.EqualTo("Division by zero at StartOffset: 9\n"));
+        }
+
+        [Test]
+        public void ParseError_DescriptionEndingInNewline_KeepsLocationOnSameLine()
+        {
+            var exception = new FireboltStructuredException(new List<StructuredError>
+            {
+                new()
+                {
+                    Description = "Line 1, Column 9: Division by zero\nselect 1/0\n",
+                    Location = new Location { FailingLine = 1, StartOffset = 9 }
+                }
+            });
+            Assert.That(exception.Message, Is.EqualTo("Line 1, Column 9: Division by zero\nselect 1/0 at FailingLine: 1, StartOffset: 9\n"));
+        }
+
+        [TestCase("{\"failing_line\":1,\"start_offset\":9,\"end_offset\":12}")]
+        [TestCase("{\"failingLine\":1,\"startOffset\":9,\"endOffset\":12}")]
+        public void DeserializeLocation_EngineSnakeCaseAndCamelCase_AreBothRead(string json)
+        {
+            var location = JsonConvert.DeserializeObject<Location>(json)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(location.FailingLine, Is.EqualTo(1));
+                Assert.That(location.StartOffset, Is.EqualTo(9));
+                Assert.That(location.EndOffset, Is.EqualTo(12));
+            });
+        }
+
+        [Test]
+        public void SerializeLocation_WritesEachFieldOnce()
+        {
+            var json = JsonConvert.SerializeObject(new Location { FailingLine = 1, StartOffset = 9, EndOffset = 12 });
+            Assert.That(json, Is.EqualTo("{\"FailingLine\":1,\"StartOffset\":9,\"EndOffset\":12}"));
         }
 
         [Test]

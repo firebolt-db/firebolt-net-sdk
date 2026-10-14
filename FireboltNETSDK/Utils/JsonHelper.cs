@@ -117,6 +117,10 @@ namespace FireboltDotNetSdk.Utils
         public string? Resolution { get; set; }
         public string? HelpLink { get; set; }
         public Location? Location { get; set; }
+
+        // Same snake_case alias as on Location, in case the engine writes help_link.
+        [JsonProperty("help_link", NullValueHandling = NullValueHandling.Ignore)]
+        private string? HelpLinkSnakeCase { get => null; set => HelpLink = value; }
     }
 
     public class Location
@@ -124,6 +128,15 @@ namespace FireboltDotNetSdk.Utils
         public int? FailingLine { get; set; }
         public int? StartOffset { get; set; }
         public int? EndOffset { get; set; }
+
+        // The engine writes snake_case names; the public properties keep binding camelCase payloads too.
+        // The aliases read as null, so serializing still writes each field once.
+        [JsonProperty("failing_line", NullValueHandling = NullValueHandling.Ignore)]
+        private int? FailingLineSnakeCase { get => null; set => FailingLine = value; }
+        [JsonProperty("start_offset", NullValueHandling = NullValueHandling.Ignore)]
+        private int? StartOffsetSnakeCase { get => null; set => StartOffset = value; }
+        [JsonProperty("end_offset", NullValueHandling = NullValueHandling.Ignore)]
+        private int? EndOffsetSnakeCase { get => null; set => EndOffset = value; }
     }
 }
 
