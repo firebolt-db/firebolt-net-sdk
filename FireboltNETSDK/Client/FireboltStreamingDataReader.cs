@@ -18,6 +18,7 @@
 using System.Collections;
 using System.Data;
 using System.Data.Common;
+using System.Text;
 using FireboltDotNetSdk.Exception;
 using FireboltDotNetSdk.Utils;
 using FireboltNETSDK.Exception;
@@ -26,30 +27,87 @@ using Newtonsoft.Json;
 namespace FireboltDotNetSdk.Client
 {
     /// <summary>
-    /// Represents a data reader to stream data form a FireBolt database. This class cannot be inherited.
+    /// Represents a data reader to stream data from a Firebolt database. This class cannot be inherited.
     /// </summary>
     public sealed class FireboltStreamingDataReader : FireboltDataReader
     {
-        private readonly StreamReader _streamReader;
-        private List<Meta> _metas = new();
-        private readonly Queue<List<object?>> _currentRowQueue = new();
-        private List<object?>? _currentRow;
-        private bool _endOfStream = false;
         private const string Start = "START";
         private const string Data = "DATA";
         private const string FinishWithErrors = "FINISH_WITH_ERRORS";
         private const string FinishSuccessfully = "FINISH_SUCCESSFULLY";
 
-        public FireboltStreamingDataReader(StreamReader streamReader) :
+        // Limits how much of a multi-line JSON error body is read before giving up on parsing it.
+        private const int MaxErrorBodyChars = 1024 * 1024;
+
+        // Read through the StreamReader rather than its BaseStream, so nothing it has buffered and no BOM is lost.
+        private readonly StreamReader _reader;
+        private readonly char[] _buffer = new char[16 * 1024];
+        private int _bufferStart;
+        private int _bufferEnd;
+        private readonly StringBuilder _partialLine = new();
+        private readonly CancellationToken _cancellationToken;
+        // Cancelled by the caller's token and by Close.
+        private readonly CancellationTokenSource _cancellation = new();
+        // Released with the stream, so a long-lived caller token does not keep every finished reader's source alive.
+        private readonly CancellationTokenRegistration _cancellationRegistration;
+        // Cancelled by the token of a single read. Reused across reads and replaced only after it was cancelled.
+        private CancellationTokenSource _wait;
+        // Held for every read, so Close never disposes the stream underneath one.
+        private readonly SemaphoreSlim _readLock = new(1, 1);
+        private List<Meta> _metas = new();
+        private readonly Queue<List<object?>> _currentRowQueue = new();
+        private List<object?>? _currentRow;
+        private bool _endOfStream;
+        // Set once a read fails, so later reads keep failing instead of looking like the end of the result.
+        private System.Exception? _failure;
+        // 1 once Close has started; set atomically so concurrent Close calls shut down only once.
+        private int _closing;
+
+        public FireboltStreamingDataReader(StreamReader streamReader) : this(streamReader, CancellationToken.None)
+        {
+            try
+            {
+                InitializeAsync().GetAwaiter().GetResult();
+            }
+            catch
+            {
+                Close();
+                throw;
+            }
+        }
+
+        private FireboltStreamingDataReader(StreamReader reader, CancellationToken cancellationToken) :
             base(null, new QueryResult())
         {
-            _streamReader = streamReader;
-            InitializeMetadata();
-            FetchRow();
+            _reader = reader;
+            _cancellationToken = cancellationToken;
+            _cancellationRegistration = cancellationToken.UnsafeRegister(
+                static cancellation => ((CancellationTokenSource)cancellation!).Cancel(), _cancellation);
+            _wait = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
+        }
+
+        /// <summary>
+        /// Creates a reader that has already read the schema and the first rows, so <see cref="HasRows"/> is known.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels the stream at any point while it is being read.</param>
+        internal static async Task<FireboltStreamingDataReader> CreateAsync(StreamReader streamReader,
+            CancellationToken cancellationToken)
+        {
+            var reader = new FireboltStreamingDataReader(streamReader, cancellationToken);
+            try
+            {
+                await reader.InitializeAsync().ConfigureAwait(false);
+                return reader;
+            }
+            catch
+            {
+                await reader.CloseAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         /// <inheritdoc/>
-        public override bool HasRows => _currentRowIndex > 0 || _currentRowQueue.Count > 0;
+        public override bool HasRows => _currentRowIndex >= 0 || _currentRowQueue.Count > 0;
 
         /// <inheritdoc/>
         public override int FieldCount => _metas.Count;
@@ -118,8 +176,14 @@ namespace FireboltDotNetSdk.Client
         /// <inheritdoc/>
         public override bool Read()
         {
-            if (IsStreamClosed()) return false;
-            if (_currentRowQueue.Count == 0 && !FetchRow())
+            return ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
+        public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
+        {
+            if (IsClosing) return false;
+            if (_currentRowQueue.Count == 0 && !await FetchRowAsync(cancellationToken).ConfigureAwait(false))
                 return false;
 
             _currentRow = _currentRowQueue.Dequeue();
@@ -142,52 +206,82 @@ namespace FireboltDotNetSdk.Client
             return ColumnType.Of(TypesConverter.GetFullColumnTypeName(_metas[ordinal]));
         }
 
-        private bool FetchRow()
+        private async Task InitializeAsync()
         {
-            if (IsStreamClosed()) return false;
-
-            var line = _streamReader.ReadLine();
-            if (string.IsNullOrWhiteSpace(line)) throw new FireboltException("Failed to read line from stream");
-
-            var json = JsonConvert.DeserializeObject<StreamingJsonData>(line);
-            var messageType = json?.MessageType;
-
-            switch (messageType)
+            await _readLock.WaitAsync(_cancellationToken).ConfigureAwait(false);
+            try
             {
-                case Data:
-                    json!.Data.ForEach(_currentRowQueue.Enqueue);
-                    return true;
+                var line = await NextLineAsync(CancellationToken.None, MaxErrorBodyChars).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(line)) throw Fail("Failed to read line from stream");
 
-                case FinishSuccessfully:
-                    _endOfStream = true;
-                    break;
-
-                default:
-                    HandleError(line);
-                    break;
+                StreamingJsonStart? start;
+                try
+                {
+                    start = JsonConvert.DeserializeObject<StreamingJsonStart>(line);
+                }
+                catch (JsonException e)
+                {
+                    throw await ErrorFromBodyAsync(line, e).ConfigureAwait(false);
+                }
+                if (start?.MessageType != Start) throw ErrorFromLine(line);
+                _metas = start.Meta ?? new List<Meta>();
+            }
+            finally
+            {
+                _readLock.Release();
             }
 
-            return false;
+            await FetchRowAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
-        private void InitializeMetadata()
+        private async Task<bool> FetchRowAsync(CancellationToken cancellationToken)
         {
-            var line = _streamReader.ReadLine();
-            if (string.IsNullOrWhiteSpace(line))
+            await _readLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                _endOfStream = true;
-                throw new FireboltException("Failed to read line from stream");
+                if (_failure != null)
+                    throw new FireboltException("The query result cannot be read further because an earlier read failed.", _failure);
+                while (!_endOfStream)
+                {
+                    var line = await NextLineAsync(cancellationToken).ConfigureAwait(false);
+                    if (line == null) throw Fail("Stream ended before the server signalled the end of the result");
+                    if (string.IsNullOrWhiteSpace(line)) throw Fail("Failed to read line from stream");
+
+                    StreamingJsonData? json;
+                    try
+                    {
+                        json = JsonConvert.DeserializeObject<StreamingJsonData>(line);
+                    }
+                    catch (JsonException e)
+                    {
+                        // Also how a stream cut off inside a line shows up, so release it like any other failure.
+                        throw Fail("Failed to parse JSON from stream on line: " + line, e);
+                    }
+                    switch (json?.MessageType)
+                    {
+                        case Data:
+                            if (json.Data == null) throw Fail("Missing data in DATA message on line: " + line);
+                            json.Data.ForEach(_currentRowQueue.Enqueue);
+                            // An empty DATA message gives the caller nothing to read, so move on to the next one.
+                            if (_currentRowQueue.Count > 0) return true;
+                            break;
+                        case FinishSuccessfully:
+                            Finish();
+                            break;
+                        default:
+                            throw ErrorFromLine(line);
+                    }
+                }
+                return false;
             }
-
-            var json = JsonConvert.DeserializeObject<StreamingJsonStart>(line);
-
-            if (json?.MessageType != Start) HandleError(line);
-            _metas = json?.Meta ?? new List<Meta>();
+            finally
+            {
+                _readLock.Release();
+            }
         }
 
-        private void HandleError(string line)
+        private System.Exception ErrorFromLine(string line)
         {
-            _endOfStream = true;
             StreamingJsonFinishError? json;
             try
             {
@@ -195,19 +289,205 @@ namespace FireboltDotNetSdk.Client
             }
             catch (System.Exception e)
             {
-                throw new FireboltException("Failed to parse JSON from stream on line: " + line, e);
+                return Fail("Failed to parse JSON from stream on line: " + line, e);
             }
-            if (json?.MessageType == FinishWithErrors)
-                throw new FireboltStructuredException(json.Errors);
-            throw new FireboltException("Failed to parse JSON from stream. Unexpected messageType: " + json?.MessageType + " in line: " + line);
+            // A plain JSON error body (no message_type) can still arrive if the server failed before streaming.
+            if (json?.MessageType == FinishWithErrors || (json?.MessageType == null && json?.Errors != null))
+                return json.Errors != null
+                    ? Failed(new FireboltStructuredException(json.Errors))
+                    : Fail("Missing errors in " + FinishWithErrors + " message on line: " + line);
+            return Fail("Failed to parse JSON from stream. Unexpected messageType: " + json?.MessageType + " in line: " + line);
         }
 
-        private bool IsStreamClosed()
+        /// <summary>
+        /// Handles a first line that is not valid JSON on its own, which is how a pretty-printed JSON error body
+        /// with a successful status shows up. Such a body is small, so the rest of it is read to parse it whole.
+        /// </summary>
+        private async Task<System.Exception> ErrorFromBodyAsync(string firstLine, JsonException cause)
         {
-            if (!_streamReader.EndOfStream || _endOfStream) return false;
-            _endOfStream = true;
-            return true;
+            // Read raw chunks rather than lines, so a body without newlines cannot grow past the limit.
+            var body = new StringBuilder(firstLine).Append('\n').Append(_buffer, _bufferStart, _bufferEnd - _bufferStart);
+            try
+            {
+                int read;
+                while (body.Length <= MaxErrorBodyChars && (read = await ReadChunkAsync(CancellationToken.None).ConfigureAwait(false)) > 0)
+                    body.Append(_buffer, 0, read);
+            }
+            catch (System.Exception e) when (e is not OperationCanceledException)
+            {
+                // A broken body says less than the line that could not be parsed.
+                return Fail("Failed to parse JSON from stream on line: " + firstLine, cause);
+            }
+            try
+            {
+                var errors = JsonConvert.DeserializeObject<JsonErrorQueryResult>(body.ToString())?.Errors;
+                if (errors != null) return Failed(new FireboltStructuredException(errors));
+            }
+            catch (JsonException)
+            {
+                // Not an error body either; report the original line below.
+            }
+            return Fail("Failed to parse JSON from stream on line: " + firstLine, cause);
+        }
 
+        /// <summary>
+        /// Reads the next line, cut short once it grows past <paramref name="maxChars"/>. Must be called while holding
+        /// the read lock.
+        /// </summary>
+        private async Task<string?> NextLineAsync(CancellationToken cancellationToken, int maxChars = int.MaxValue)
+        {
+            while (true)
+            {
+                var newline = Array.IndexOf(_buffer, '\n', _bufferStart, _bufferEnd - _bufferStart);
+                if (newline >= 0)
+                {
+                    var line = TakeLine(newline - _bufferStart);
+                    _bufferStart = newline + 1;
+                    return line;
+                }
+
+                _partialLine.Append(_buffer, _bufferStart, _bufferEnd - _bufferStart);
+                _bufferStart = _bufferEnd = 0;
+                if (_partialLine.Length > maxChars) return TakeLine(0);
+                var read = await ReadChunkAsync(cancellationToken).ConfigureAwait(false);
+                if (read == 0) return _partialLine.Length == 0 ? null : TakeLine(0);
+                _bufferEnd = read;
+            }
+        }
+
+        /// <summary>
+        /// Waits for the next data from the server for as long as it takes unless cancelled, since a slow query can leave
+        /// long gaps in a healthy stream.
+        /// </summary>
+        private async Task<int> ReadChunkAsync(CancellationToken cancellationToken)
+        {
+            var wait = _wait;
+            var registration = cancellationToken.UnsafeRegister(
+                static source => ((CancellationTokenSource)source!).Cancel(), wait);
+            try
+            {
+                // The token reaches the HTTP stack, which aborts the connection itself when it is cancelled.
+                return await _reader.ReadAsync(_buffer.AsMemory(), wait.Token).ConfigureAwait(false);
+            }
+            catch (System.Exception e)
+            {
+                throw ReadFailure(e, cancellationToken);
+            }
+            finally
+            {
+                registration.Dispose();
+                // TryReset fails once the source was cancelled, including by a read's token that fired just after the
+                // data arrived; a fresh source keeps that from cancelling the next read.
+                if (!wait.TryReset())
+                {
+                    wait.Dispose();
+                    _wait = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
+                }
+            }
+        }
+
+        private string TakeLine(int length)
+        {
+            string line;
+            if (_partialLine.Length == 0)
+            {
+                line = new string(_buffer, _bufferStart, length);
+            }
+            else
+            {
+                _partialLine.Append(_buffer, _bufferStart, length);
+                line = _partialLine.ToString();
+                _partialLine.Clear();
+            }
+            return line.EndsWith('\r') ? line[..^1] : line;
+        }
+
+        private System.Exception ReadFailure(System.Exception cause, CancellationToken cancellationToken)
+        {
+            if (IsClosing)
+                return Failed(new OperationCanceledException("The reader was closed while reading.", cause));
+            if (cancellationToken.IsCancellationRequested)
+                return Failed(new OperationCanceledException("The streamed query was cancelled.", cause, cancellationToken));
+            if (_cancellationToken.IsCancellationRequested)
+                return Failed(new OperationCanceledException("The streamed query was cancelled.", cause, _cancellationToken));
+            return Fail("Failed to read the query result from the server.", cause);
+        }
+
+        private bool IsClosing => Volatile.Read(ref _closing) == 1;
+
+        private FireboltException Fail(string message, System.Exception? cause = null)
+        {
+            return Failed(cause == null ? new FireboltException(message) : new FireboltException(message, cause));
+        }
+
+        private T Failed<T>(T failure) where T : System.Exception
+        {
+            _failure = failure;
+            ReleaseStream();
+            return failure;
+        }
+
+        private void Finish()
+        {
+            _endOfStream = true;
+            ReleaseStream();
+        }
+
+        private void ReleaseStream()
+        {
+            // Ending the response right away returns the connection even if the caller never disposes the reader.
+            _reader.Dispose();
+            _cancellationRegistration.Dispose();
+        }
+
+        /// <inheritdoc/>
+        public override void Close()
+        {
+            if (!BeginClose()) return;
+            _readLock.Wait(CancellationToken.None);
+            EndClose();
+        }
+
+        /// <inheritdoc/>
+        public override async Task CloseAsync()
+        {
+            if (!BeginClose()) return;
+            await _readLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            EndClose();
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask DisposeAsync()
+        {
+            // The base implementation disposes synchronously, which would block on the read lock.
+            await CloseAsync().ConfigureAwait(false);
+        }
+
+        private bool BeginClose()
+        {
+            if (Interlocked.Exchange(ref _closing, 1) == 1) return false;
+            // Cancelling first ends a read that is waiting on the server, so the lock is not held for long.
+            _cancellation.Cancel();
+            return true;
+        }
+
+        /// <summary>
+        /// Shuts the reader down. Must be called while holding the read lock, which it releases.
+        /// </summary>
+        private void EndClose()
+        {
+            try
+            {
+                // Disposing before the end aborts the HTTP response, so the server stops sending the rest.
+                Finish();
+                _wait.Dispose();
+                _cancellation.Dispose();
+                base.Close();
+            }
+            finally
+            {
+                _readLock.Release();
+            }
         }
 
         protected override DbDataReader GetDbDataReader(int ordinal)

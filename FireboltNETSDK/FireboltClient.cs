@@ -181,7 +181,7 @@ public abstract class FireboltClient
         if (typeof(T) == typeof(StreamReader))
         {
             var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            return new ObjectResponseResult<T>((T)(object)new StreamReader(stream), string.Empty);
+            return new ObjectResponseResult<T>((T)(object)new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 64 * 1024), string.Empty);
         }
 
         if (readResponseAsString)
@@ -258,6 +258,7 @@ public abstract class FireboltClient
                     : HttpCompletionOption.ResponseContentRead, cancellationToken)
             .ConfigureAwait(false);
 
+        var handedOverToCaller = false;
         try
         {
             ProcessResponseHeaders(response.Headers, cancellationToken);
@@ -265,15 +266,21 @@ public abstract class FireboltClient
             foreach (var item in response.Content.Headers)
                 headers[item.Key] = item.Value;
 
-            await ThrowIfErroredResponse(response, headers, cancellationToken);
+            // Reading the body here would buffer a whole streamed result in memory. FireboltStreamingDataReader
+            // raises the errors of a successful stream instead, from FINISH_WITH_ERRORS messages or a one-line JSON error.
+            if (!isStreamingRequest || !response.IsSuccessStatusCode)
+                await ThrowIfErroredResponse(response, headers, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 var objectResponse = await ReadObjectResponseAsync<T>(response, headers, readResponseAsString: false, cancellationToken).ConfigureAwait(false);
 
-                return objectResponse.Object ?? throw new FireboltException("Response was null which was not expected.",
+                var result = objectResponse.Object ?? throw new FireboltException("Response was null which was not expected.",
                     HttpStatusCode.OK,
                     objectResponse.Text, headers, null);
+                // The caller now owns the response through the returned stream; disposing that releases the connection.
+                handedOverToCaller = isStreamingRequest;
+                return result;
             }
             else
             {
@@ -288,7 +295,7 @@ public abstract class FireboltClient
         }
         finally
         {
-            if (!isStreamingRequest)
+            if (!handedOverToCaller)
             {
                 response.Dispose();
             }
