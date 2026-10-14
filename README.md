@@ -256,7 +256,7 @@ while (await reader.ReadAsync())
 }
 ```
 
-`CommandTimeout` limits only the wait for the response to start. Reading the streamed result has no timeout, because a slow query can go a long time without sending data. Pass a `CancellationToken` to `ExecuteStreamedQueryAsync` to stop a stream at any point; disposing the reader before the end also stops the server from sending the rest.
+`CommandTimeout` limits only the wait for the response to start. Reading the streamed result has no timeout, because a slow query can go a long time without sending data. This also means a read waits indefinitely if the connection stays open but the server or a proxy stops sending. Pass a `CancellationToken` to `ExecuteStreamedQueryAsync` or `ReadAsync` (for example one with `CancelAfter`) to stop a stream at any point. The synchronous `ExecuteStreamedQuery` and `Read` take no token: a stalled `Read` can only be ended by closing or disposing the reader from another thread, and a stall before the first rows blocks `ExecuteStreamedQuery` itself. Disposing the reader before the end also stops the server from sending the rest.
 
 ### Transaction Support
 

@@ -211,7 +211,7 @@ namespace FireboltDotNetSdk.Client
             await _readLock.WaitAsync(_cancellationToken).ConfigureAwait(false);
             try
             {
-                var line = await NextLineAsync(CancellationToken.None).ConfigureAwait(false);
+                var line = await NextLineAsync(CancellationToken.None, MaxErrorBodyChars).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(line)) throw Fail("Failed to read line from stream");
 
                 StreamingJsonStart? start;
@@ -331,9 +331,10 @@ namespace FireboltDotNetSdk.Client
         }
 
         /// <summary>
-        /// Reads the next line. Must be called while holding the read lock.
+        /// Reads the next line, cut short once it grows past <paramref name="maxChars"/>. Must be called while holding
+        /// the read lock.
         /// </summary>
-        private async Task<string?> NextLineAsync(CancellationToken cancellationToken)
+        private async Task<string?> NextLineAsync(CancellationToken cancellationToken, int maxChars = int.MaxValue)
         {
             while (true)
             {
@@ -347,6 +348,7 @@ namespace FireboltDotNetSdk.Client
 
                 _partialLine.Append(_buffer, _bufferStart, _bufferEnd - _bufferStart);
                 _bufferStart = _bufferEnd = 0;
+                if (_partialLine.Length > maxChars) return TakeLine(0);
                 var read = await ReadChunkAsync(cancellationToken).ConfigureAwait(false);
                 if (read == 0) return _partialLine.Length == 0 ? null : TakeLine(0);
                 _bufferEnd = read;

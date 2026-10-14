@@ -540,7 +540,9 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Executes a query and streams its results instead of loading them all into memory.
         /// <see cref="CommandTimeout"/> limits only the wait for the response to start; reading the schema and the rows
-        /// has no timeout, since a slow query can go long without sending data.
+        /// has no timeout, since a slow query can go long without sending data. If the stream stops sending, this call
+        /// or a read waits indefinitely; a waiting read ends only when the reader is closed from another thread. Use
+        /// <see cref="ExecuteStreamedQueryAsync"/> with a token to bound the wait.
         /// </summary>
         /// <returns>A reader over the streamed result; dispose it to release the connection.</returns>
         public FireboltDataReader ExecuteStreamedQuery()
@@ -551,7 +553,8 @@ namespace FireboltDotNetSdk.Client
         /// <summary>
         /// Executes a query and streams its results instead of loading them all into memory.
         /// <see cref="CommandTimeout"/> limits only the wait for the response to start; reading the schema and the rows
-        /// has no timeout, since a slow query can go long without sending data.
+        /// has no timeout, since a slow query can go long without sending data. A read on a stream that stopped sending
+        /// waits until <paramref name="cancellationToken"/> is cancelled or the reader is closed.
         /// </summary>
         /// <param name="cancellationToken">Cancels the query, including while the returned reader is being read.</param>
         /// <returns>A reader over the streamed result; dispose it to release the connection.</returns>

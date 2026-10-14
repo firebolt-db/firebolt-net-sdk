@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
@@ -455,6 +456,22 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public async Task Cancel_AfterReadingToTheEndWithoutDisposing_NoLongerReachesTheReader()
+        {
+            RespondWith(StreamResponse(new JsonLinesStream(ResultLines(3, rowsPerLine: 2))));
+            using var cancellation = new CancellationTokenSource();
+
+            var reader = await CreateCommand().ExecuteStreamedQueryAsync(cancellation.Token);
+            while (await reader.ReadAsync()) { }
+            cancellation.Cancel();
+
+            // A registration left on a long-lived caller token would keep the reader's source alive and cancel it here.
+            var readerCancellation = (CancellationTokenSource)typeof(FireboltStreamingDataReader)
+                .GetField("_cancellation", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(reader)!;
+            Assert.That(readerCancellation.IsCancellationRequested, Is.False);
+        }
+
+        [Test]
         public void Read_AfterExecuteSynchronously_StreamsOverHttp()
         {
             RespondWith(StreamResponse(new JsonLinesStream(ResultLines(3, rowsPerLine: 2))));
@@ -771,6 +788,21 @@ namespace FireboltDotNetSdk.Tests
         public void ExecuteStreamedQuery_HugeNonJsonBodyWithoutNewlines_StopsReadingAndThrows()
         {
             var stream = new JsonLinesStream(HugeBodyWithoutNewlines("<html>\n", chunkCount: 10_000), appendNewlines: false);
+            RespondWith(StreamResponse(stream));
+
+            var exception = Assert.ThrowsAsync<FireboltException>(() => CreateCommand().ExecuteStreamedQueryAsync());
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Message, Does.StartWith("Failed to parse JSON from stream on line: <html>"));
+                Assert.That(stream.BytesProduced, Is.LessThan(8 * 1024 * 1024));
+                Assert.That(stream.IsDisposed, Is.True);
+            });
+        }
+
+        [Test]
+        public void ExecuteStreamedQuery_HugeBodyWithoutAnyNewline_StopsReadingAndThrows()
+        {
+            var stream = new JsonLinesStream(HugeBodyWithoutNewlines("<html>", chunkCount: 10_000), appendNewlines: false);
             RespondWith(StreamResponse(stream));
 
             var exception = Assert.ThrowsAsync<FireboltException>(() => CreateCommand().ExecuteStreamedQueryAsync());
