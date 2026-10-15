@@ -46,7 +46,13 @@ namespace FireboltDotNetSdk.Tests
                 .Where(p => p.Item2 != null)
                 .ToDictionary(p => p.Item1, p => p.Item2);
             }
-            return string.Join(";", conf.Where(p => p.Value != null).Select(p => p.Key + "=" + p.Value));
+            // Let the builder quote values, so that secrets containing characters such as ';' or '"' stay parseable.
+            var builder = new DbConnectionStringBuilder();
+            foreach (var p in conf.Where(p => p.Value != null))
+            {
+                builder[p.Key] = p.Value;
+            }
+            return builder.ConnectionString;
         }
 
         protected static string ConnectionStringWithout(params string[] names)
