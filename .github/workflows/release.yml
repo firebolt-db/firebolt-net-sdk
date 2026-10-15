@@ -26,11 +26,18 @@ jobs:
     outputs:
       release_tag: ${{ steps.sanitize.outputs.value }}
     steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.GH_APP_FB_DB_CI_WRITER_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_FB_DB_CI_WRITER_APP_KEY_PEM }}
+          permission-contents: write
+
       - name: Check out code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_PAT }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup git config
         run: |
