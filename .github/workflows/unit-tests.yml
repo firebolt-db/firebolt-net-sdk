@@ -14,11 +14,11 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
     
     - name: Set up .NET 6.0
       id: dotnet-setup
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 6.0
 
@@ -39,7 +39,7 @@ jobs:
         dotnet-coverage collect 'dotnet test --filter "Category!=Integration" --logger trx' -f xml -o "coverage/coverage.xml"
 
     - name: Upload test artifacts
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: test-artifacts
         path: |
