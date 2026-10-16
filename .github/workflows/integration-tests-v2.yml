@@ -38,33 +38,48 @@ on:
       ECOSYSTEM_FIREBOLT_SA_NO_USER_CLIENT_SECRET_STG:
         required: true
         
+permissions: {}
+
 jobs:
   tests:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Resolve account
         id: set-account
+        env:
+          INPUT_ACCOUNT: ${{ inputs.account }}
+          DEFAULT_ACCOUNT: ${{ vars.FIREBOLT_ACCOUNT }}
         run: |
-          if ! [[ -z "${{ inputs.account }}" ]]; then
-            echo "account=${{ inputs.account }}" >> $GITHUB_OUTPUT
-            echo "account=${{ inputs.account }}"
+          if ! [[ -z "$INPUT_ACCOUNT" ]]; then
+            echo "account=$INPUT_ACCOUNT" >> "$GITHUB_OUTPUT"
+            echo "account=$INPUT_ACCOUNT"
           else
-            echo "account=${{ vars.FIREBOLT_ACCOUNT }}" >> $GITHUB_OUTPUT
-            echo "account=${{ vars.FIREBOLT_ACCOUNT }}"
+            echo "account=$DEFAULT_ACCOUNT" >> "$GITHUB_OUTPUT"
+            echo "account=$DEFAULT_ACCOUNT"
           fi
 
       - name: Check out code
-        uses: actions/checkout@v6
-
-      - name: Set up .NET 6.0
-        id: dotnet-setup
-        uses: actions/setup-dotnet@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          dotnet-version: 6.0
+          persist-credentials: false
 
-      - name: use .NET 6.0
+      - name: Set up .NET 8.0 SDK and .NET 6.0
+        id: dotnet-setup
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          # The test project targets net6.0, so it needs the 6.0 runtime; build with the
+          # 8.0 SDK (the dotnet-version output is the latest installed SDK).
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: use .NET 8.0 SDK
+        env:
+          DOTNET_VERSION: ${{ steps.dotnet-setup.outputs.dotnet-version }}
         run: |
-          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'    
+          dotnet new globaljson --sdk-version "$DOTNET_VERSION"
 
       - name: Install dependencies
         run: |
@@ -73,7 +88,7 @@ jobs:
       - name: Setup database and engine
         if: ${{ inputs.database == '' }}
         id: setup
-        uses: firebolt-db/integration-testing-setup@v2
+        uses: firebolt-db/integration-testing-setup@813c4835ef38adcba3f8760e7afc21a3c7248023 # v2.6.2
         with:
           firebolt-client-id: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
           firebolt-client-secret: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
@@ -82,20 +97,26 @@ jobs:
 
       - name: Determine database name
         id: find-database-name
+        env:
+          INPUT_DATABASE: ${{ inputs.database }}
+          SETUP_DATABASE: ${{ steps.setup.outputs.database_name }}
         run: |
-          if ! [[ -z "${{ inputs.database }}" ]]; then
-              echo "database_name=${{ inputs.database }}" >> $GITHUB_OUTPUT
+          if ! [[ -z "$INPUT_DATABASE" ]]; then
+              echo "database_name=$INPUT_DATABASE" >> "$GITHUB_OUTPUT"
           else
-              echo "database_name=${{ steps.setup.outputs.database_name }}" >> $GITHUB_OUTPUT
+              echo "database_name=$SETUP_DATABASE" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Determine engine name
         id: find-engine-name
+        env:
+          INPUT_ENGINE: ${{ inputs.engine }}
+          SETUP_ENGINE: ${{ steps.setup.outputs.engine_name }}
         run: |
-          if ! [[ -z "${{ inputs.engine }}" ]]; then
-              echo "engine_name=${{ inputs.engine }}" >> $GITHUB_OUTPUT
+          if ! [[ -z "$INPUT_ENGINE" ]]; then
+              echo "engine_name=$INPUT_ENGINE" >> "$GITHUB_OUTPUT"
           else
-              echo "engine_name=${{ steps.setup.outputs.engine_name }}" >> $GITHUB_OUTPUT
+              echo "engine_name=$SETUP_ENGINE" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run integration tests

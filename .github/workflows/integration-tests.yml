@@ -18,15 +18,21 @@ on:
       ECOSYSTEM_FIREBOLT_SA_NO_USER_CLIENT_SECRET_STG:
         required: true
 
+permissions: {}
+
 jobs:
   integration-test-v1:
     uses: ./.github/workflows/integration-tests-v1.yml
+    permissions:
+      contents: read
     secrets:
       FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
       FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
 
   integration-test-v2:
     uses: ./.github/workflows/integration-tests-v2.yml
+    permissions:
+      contents: read
     secrets:
       FIREBOLT_CLIENT_ID_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
       FIREBOLT_CLIENT_SECRET_STG_NEW_IDN: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
