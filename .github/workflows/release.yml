@@ -177,6 +177,8 @@ jobs:
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # toJSON() turns each value into a quoted, escaped string, so a channel name or
+          # tag can't break the YAML payload or add keys to it.
           payload: |
-            channel: ${{ matrix.channel }}
-            "text": "Firebolt .NET SDK ${{ env.RELEASE_TAG }} has been released: <https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}|Release notes>"
+            channel: ${{ toJSON(matrix.channel) }}
+            "text": ${{ toJSON(format('Firebolt .NET SDK {0} has been released: <https://github.com/{1}/releases/tag/{0}|Release notes>', env.RELEASE_TAG, github.repository)) }}
