@@ -40,13 +40,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up .NET 6.0
+      - name: Set up .NET 8.0 SDK and .NET 6.0
         id: dotnet-setup
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: 6.0
+          # The test project targets net6.0, so it needs the 6.0 runtime; build with the
+          # 8.0 SDK (the dotnet-version output is the latest installed SDK).
+          dotnet-version: |
+            6.0.x
+            8.0.x
 
-      - name: use .NET 6.0
+      - name: use .NET 8.0 SDK
         env:
           DOTNET_VERSION: ${{ steps.dotnet-setup.outputs.dotnet-version }}
         run: |

@@ -88,13 +88,13 @@ jobs:
           git push origin "$VERSION"
         shell: bash
 
-      - name: Set up .NET 6.0
+      - name: Set up .NET 8.0
         id: dotnet-setup
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: 6.0
+          dotnet-version: 8.0
           
-      - name: use .NET 6.0
+      - name: use .NET 8.0
         env:
           DOTNET_VERSION: ${{ steps.dotnet-setup.outputs.dotnet-version }}
         run: |
