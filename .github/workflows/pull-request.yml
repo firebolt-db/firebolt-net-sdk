@@ -6,22 +6,35 @@ on:
   push:
     branches: [ main ]
 
+permissions: {}
+
 jobs:
   check-title:
     runs-on: ubuntu-latest
+    permissions:
+      # The PR title check reads the PR and posts/deletes a hint comment.
+      pull-requests: write
     steps:
       - name: Check title name convention
-        uses: firebolt-db/action-pr-checks@519d59493b028e944971deaeca570933c378f09e
+        uses: firebolt-db/action-pr-checks@519d59493b028e944971deaeca570933c378f09e # main
         with:
           github-key: ${{ secrets.GITHUB_TOKEN }}
   build:
     uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
   code-checkers:
     uses: ./.github/workflows/code-check.yml
+    permissions:
+      contents: read
   unit-tests:
     uses: ./.github/workflows/unit-tests.yml
+    permissions:
+      contents: read
   sonar-scan:
     uses: ./.github/workflows/sonar-scan.yml
+    permissions:
+      contents: read
     needs: [build, unit-tests]
     secrets:
       SONARCLOUD_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}

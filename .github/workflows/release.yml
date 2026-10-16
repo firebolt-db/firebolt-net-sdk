@@ -7,9 +7,13 @@ on:
         required: true
         description: 'Release tag to use (e.g. 1.2.3)'
 
+permissions: {}
+
 jobs:
   integration-tests:
     uses: ./.github/workflows/integration-tests.yml
+    permissions:
+      contents: read
     secrets:
       FIREBOLT_STG_USERNAME: ${{ secrets.FIREBOLT_STG_USERNAME }}
       FIREBOLT_STG_PASSWORD: ${{ secrets.FIREBOLT_STG_PASSWORD }}
@@ -21,6 +25,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
+      # Creates/updates the GitHub release with GITHUB_TOKEN.
       contents: write
     needs: integration-tests
     outputs:
@@ -34,10 +39,12 @@ jobs:
           permission-contents: write
 
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
+          # The release steps push the version bump commit and tag.
+          persist-credentials: true
 
       - name: Setup git config
         run: |
@@ -60,32 +67,38 @@ jobs:
           echo "value=$SANITIZED" >> "$GITHUB_OUTPUT"
 
       - name: Version bump
+        env:
+          VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${{ steps.sanitize.outputs.value }}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${{ steps.sanitize.outputs.value }}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
-          sed -i "s/^    <Version>.*<\/Version>/    <Version>${{ steps.sanitize.outputs.value }}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${VERSION}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${VERSION}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
+          sed -i "s/^    <Version>.*<\/Version>/    <Version>${VERSION}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
           git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${{ steps.sanitize.outputs.value }}"
+          git commit -m "Automatic version bump to ${VERSION}"
           git push origin main
         shell: bash
         
       - name: Publish tag on github
+        env:
+          VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-          git tag ${{ steps.sanitize.outputs.value }}
-          git push origin ${{ steps.sanitize.outputs.value }}
+          git tag "$VERSION"
+          git push origin "$VERSION"
         shell: bash
 
       - name: Set up .NET 6.0
         id: dotnet-setup
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 6.0
           
       - name: use .NET 6.0
+        env:
+          DOTNET_VERSION: ${{ steps.dotnet-setup.outputs.dotnet-version }}
         run: |
-          dotnet new globaljson --sdk-version '${{ steps.dotnet-setup.outputs.dotnet-version }}'
+          dotnet new globaljson --sdk-version "$DOTNET_VERSION"
 
       - name: Build package
         run: |
@@ -97,18 +110,21 @@ jobs:
       - name: Publish package on Nuget
         env:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
+          VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-           dotnet nuget push FireboltNETSDK/bin/Debug/FireboltNetSDK.${{ steps.sanitize.outputs.value }}.nupkg \
+           dotnet nuget push "FireboltNETSDK/bin/Debug/FireboltNetSDK.${VERSION}.nupkg" \
             --api-key "$PUBLISH_API_KEY" \
             --source https://api.nuget.org/v3/index.json
         shell: bash
 
       - name: Generate and update GitHub release notes
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RELEASE_TAG: ${{ steps.sanitize.outputs.value }}
         with:
          github-token: ${{ secrets.GITHUB_TOKEN }}
          script: |
-           const tag = `${{ steps.sanitize.outputs.value }}`;
+           const tag = process.env.RELEASE_TAG;
            const { owner, repo } = context.repo;
            
            // Try to fetch existing release by tag
@@ -145,6 +161,7 @@ jobs:
   notify:
     needs: publish
     runs-on: ubuntu-latest
+    permissions: {}
     env:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
@@ -153,11 +170,10 @@ jobs:
         # convert the comma separated values into a json
         channel: ${{ fromJson(vars.RELEASE_NOTES_SLACK_CHANNELS) }}
     steps:
-      - run: test -n "${{ env.SLACK_BOT_TOKEN }}" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
+      - run: test -n "$SLACK_BOT_TOKEN" || (echo "SLACK_BOT_TOKEN is empty" && exit 1)
 
       - name: Notify Slack of Kafka Sink Connector
-        # 91efab103c0de0a537f72a35f6b8cda0ee76bf0a is v2.1.1
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
