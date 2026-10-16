@@ -10,6 +10,8 @@ permissions: {}
 
 jobs:
   check-title:
+    # Only pull requests have a title to check; the workflow also runs on push to main.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       # The PR title check reads the PR and posts/deletes a hint comment.
