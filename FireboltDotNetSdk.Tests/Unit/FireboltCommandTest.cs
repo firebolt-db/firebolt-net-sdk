@@ -616,6 +616,26 @@ namespace FireboltDotNetSdk.Tests
         }
 
         [Test]
+        public void ExecuteServerSidePreparedStatement_UrlEncodesQueryParametersValue()
+        {
+            string response = "{\"meta\":[],\"data\":[],\"rows\":0}";
+            var mockClient = new MockClient(response);
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = mockClient, EngineUrl = "engine" };
+            const string value = "a;b&c#d+e%f é\"";
+
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT $1";
+            command.Parameters.Add(new FireboltParameter("$1", value));
+            command.ExecuteNonQuery();
+
+            var queryParameters = mockClient.CapturedSetParamList.Single(param => param.StartsWith("query_parameters="));
+            var encoded = queryParameters.Substring("query_parameters=".Length);
+            Assert.That(encoded, Does.Not.Contain(";").And.Not.Contain("&").And.Not.Contain("#").And.Not.Contain("+").And.Not.Contain("\""));
+            var decoded = Newtonsoft.Json.Linq.JArray.Parse(Uri.UnescapeDataString(encoded));
+            Assert.That((string?)decoded[0]["value"], Is.EqualTo(value));
+        }
+
+        [Test]
         public void ExecuteServerSidePreparedStatement_DoesNotPersistQueryParametersInConnectionState()
         {
             string response = "{\"meta\":[],\"data\":[],\"rows\":0}";
