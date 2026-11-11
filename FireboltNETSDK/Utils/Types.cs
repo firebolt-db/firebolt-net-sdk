@@ -204,7 +204,7 @@ namespace FireboltDotNetSdk.Utils
             var type = GetType(arrayType);
             return val switch
             {
-                string str => JsonConvert.DeserializeObject(str, type) as Array,
+                string str => QueryResultParser.Deserialize(str, type) as Array,
                 _ => throw new FireboltException("Unexpected array value type: " + val.GetType())
             };
         }
@@ -213,7 +213,7 @@ namespace FireboltDotNetSdk.Utils
         {
             return val switch
             {
-                string str => ConvertDict(JsonConvert.DeserializeObject<Dictionary<string, object>>(str)),
+                string str => ConvertDict(QueryResultParser.Deserialize<Dictionary<string, object>>(str)),
                 _ => throw new FireboltException("Unexpected struct value type: " + val.GetType())
             };
             Dictionary<string, object?>? ConvertDict(Dictionary<string, object>? dict) => dict?.ToDictionary(x => x.Key, x => ConvertToCSharpVal(x.Value, structType.Fields[x.Key]));
@@ -272,8 +272,7 @@ namespace FireboltDotNetSdk.Utils
             }
             try
             {
-                var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
-                return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+                return QueryResultParser.Parse(response);
             }
             catch (System.Exception e)
             {

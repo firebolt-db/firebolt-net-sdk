@@ -46,6 +46,9 @@ namespace FireboltDotNetSdk.Client
         private static readonly string USE_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_USE_SUFFIX;
         private static readonly string SET_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_SET_SUFFIX;
         private static readonly TimeSpan regexTimeout = TimeSpan.FromSeconds(5);
+        private static readonly Regex parameterReference = new(@"@\w+", RegexOptions.None, regexTimeout);
+        private static readonly Regex validParameterName = new(@"^@\w+\z", RegexOptions.None, regexTimeout);
+        private static readonly CultureInfo usCulture = CultureInfo.ReadOnly(new CultureInfo("en-US", false));
         internal static readonly string BYTE_ARRAY_PREFIX = "\\x";
 
         private string? _commandText;
@@ -193,7 +196,12 @@ namespace FireboltDotNetSdk.Client
         private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
         {
             VerifyConnection();
-            commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
+            commandText = commandText.TrimStart().Substring("SET".Length).Trim();
+            if (commandText.Length == 0)
+            {
+                throw new InvalidOperationException("SET command must specify a parameter, e.g. 'SET name=value'");
+            }
+            commandText = ValidateSetCommand(commandText);
             SetParamList.Add(commandText);
             try
             {
@@ -249,7 +257,7 @@ namespace FireboltDotNetSdk.Client
 
         private static bool IsSetCommand(string commandText)
         {
-            return commandText.Trim().ToUpper().StartsWith("SET");
+            return commandText.AsSpan().TrimStart().StartsWith("SET", StringComparison.OrdinalIgnoreCase);
         }
 
         private string? GetDatabase()
@@ -302,6 +310,7 @@ namespace FireboltDotNetSdk.Client
         {
             try
             {
+                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var parameter in Parameters.ToList())
                 {
                     //need to validate parameters are of native type
@@ -309,11 +318,15 @@ namespace FireboltDotNetSdk.Client
                     {
                         throw new FireboltException("Parameter name should start with '@' when using native PreparedStatementParamStyle");
                     }
-                    string pattern = $@"\{parameter.ParameterName}\b";
-                    string verifyParameters = GetParamValue(parameter.Value);
-                    commandText = Regex.Replace(commandText, pattern, verifyParameters, RegexOptions.IgnoreCase, regexTimeout);
+                    // Matches what a reference in the SQL can be. Names like '@my-param' used to bind as literal text; they are rejected now.
+                    if (!validParameterName.IsMatch(parameter.ParameterName))
+                    {
+                        throw new FireboltException($"Parameter name '{parameter.ParameterName}' must be '@' followed by word characters (letters, digits, underscores) when using native PreparedStatementParamStyle");
+                    }
+                    values.TryAdd(parameter.ParameterName, GetParamValue(parameter.Value));
                 }
-                return commandText;
+                // One pass over the SQL: inserted values are never scanned again, as with server-side binding.
+                return parameterReference.Replace(commandText, match => values.TryGetValue(match.Value, out var value) ? value : match.Value);
             }
             catch (System.Exception ex)
             {
@@ -339,7 +352,6 @@ namespace FireboltDotNetSdk.Client
                             sourceText = sourceText.Replace("\\", "\\\\");
                         }
                         verifyParameters = "'" + sourceText + "'";
-                        verifyParameters = verifyParameters.Replace("$", "$$"); // Escape $
                         break;
                     }
                 case DateTime dateTime:
@@ -376,7 +388,7 @@ namespace FireboltDotNetSdk.Client
                     // Some locales use comma instead or period to separate integer from the fractional part of number, 
                     // so making this representation portable requires replacing comma by dot in string. 
                     // The easier solution is to specify "standard" locale e.g. en_US.
-                    verifyParameters = convertible.ToString(new CultureInfo("en-US", false));
+                    verifyParameters = convertible.ToString(usCulture);
                     break;
             }
             return verifyParameters;
@@ -386,17 +398,16 @@ namespace FireboltDotNetSdk.Client
         /// Gets original data in JSON format for further manipulation.
         /// </summary>
         /// <returns>The data in JSON format</returns>
-        private static QueryResult? GetOriginalJsonData(string? response)
+        internal static QueryResult? GetOriginalJsonData(string? response)
         {
             if (response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
             try
             {
-                var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
-                return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+                return QueryResultParser.Parse(response);
             }
-            catch (JsonReaderException e)
+            catch (JsonException e)
             {
-                throw new FireboltException($"Failed to execute a query. Invalid response body format. Try again or contact support.", e);
+                throw new FireboltException("Failed to execute a query. Invalid response body format. Try again or contact support.", e);
             }
         }
 

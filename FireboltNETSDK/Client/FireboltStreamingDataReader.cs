@@ -217,7 +217,7 @@ namespace FireboltDotNetSdk.Client
                 StreamingJsonStart? start;
                 try
                 {
-                    start = JsonConvert.DeserializeObject<StreamingJsonStart>(line);
+                    start = QueryResultParser.Deserialize<StreamingJsonStart>(line);
                 }
                 catch (JsonException e)
                 {
@@ -250,7 +250,7 @@ namespace FireboltDotNetSdk.Client
                     StreamingJsonData? json;
                     try
                     {
-                        json = JsonConvert.DeserializeObject<StreamingJsonData>(line);
+                        json = QueryResultParser.Deserialize<StreamingJsonData>(line);
                     }
                     catch (JsonException e)
                     {
@@ -285,7 +285,7 @@ namespace FireboltDotNetSdk.Client
             StreamingJsonFinishError? json;
             try
             {
-                json = JsonConvert.DeserializeObject<StreamingJsonFinishError>(line);
+                json = QueryResultParser.Deserialize<StreamingJsonFinishError>(line);
             }
             catch (System.Exception e)
             {
@@ -320,7 +320,7 @@ namespace FireboltDotNetSdk.Client
             }
             try
             {
-                var errors = JsonConvert.DeserializeObject<JsonErrorQueryResult>(body.ToString())?.Errors;
+                var errors = QueryResultParser.Deserialize<JsonErrorQueryResult>(body.ToString())?.Errors;
                 if (errors != null) return Failed(new FireboltStructuredException(errors));
             }
             catch (JsonException)
