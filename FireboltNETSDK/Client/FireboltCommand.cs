@@ -196,7 +196,12 @@ namespace FireboltDotNetSdk.Client
         private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
         {
             VerifyConnection();
-            commandText = ValidateSetCommand(commandText.TrimStart().Substring("SET".Length).Trim());
+            commandText = commandText.TrimStart().Substring("SET".Length).Trim();
+            if (commandText.Length == 0)
+            {
+                throw new InvalidOperationException("SET command must specify a parameter, e.g. 'SET name=value'");
+            }
+            commandText = ValidateSetCommand(commandText);
             SetParamList.Add(commandText);
             try
             {
@@ -313,10 +318,10 @@ namespace FireboltDotNetSdk.Client
                     {
                         throw new FireboltException("Parameter name should start with '@' when using native PreparedStatementParamStyle");
                     }
-                    // Any other name could never be referenced, so the SQL would silently keep it unbound.
+                    // Matches what a reference in the SQL can be. Names like '@my-param' used to bind as literal text; they are rejected now.
                     if (!validParameterName.IsMatch(parameter.ParameterName))
                     {
-                        throw new FireboltException($"Parameter name '{parameter.ParameterName}' must be '@' followed by letters, digits or underscores when using native PreparedStatementParamStyle");
+                        throw new FireboltException($"Parameter name '{parameter.ParameterName}' must be '@' followed by word characters (letters, digits, underscores) when using native PreparedStatementParamStyle");
                     }
                     values.TryAdd(parameter.ParameterName, GetParamValue(parameter.Value));
                 }

@@ -120,6 +120,17 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(client.Query, Is.EqualTo("SELECT 1"));
         }
 
+        [TestCase("SET")]
+        [TestCase("SET   ")]
+        [TestCase("  set\n")]
+        public void EmptySetCommandIsRejected(string commandText)
+        {
+            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" }, commandText, new FireboltParameterCollection());
+            var exception = Assert.Throws<InvalidOperationException>(() => cs.ExecuteNonQuery());
+            Assert.That(exception!.Message, Is.EqualTo("SET command must specify a parameter, e.g. 'SET name=value'"));
+            Assert.That(cs.SetParamList, Is.Empty);
+        }
+
         [Test]
         public void ForbiddenSetCommandWithLeadingWhitespaceIsRejected()
         {
@@ -485,10 +496,18 @@ namespace FireboltDotNetSdk.Tests
             }
             sql.Append("1 = 0");
             var parameters = Enumerable.Range(1, count).Select(i => ($"@p{i}", (object?)$"value-{i:D5}")).ToArray();
+            var client = new MockClient("");
+            var command = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine", InfraVersion = 2 }, sql.ToString(), new FireboltParameterCollection());
+            foreach (var (name, value) in parameters)
+            {
+                command.Parameters.Add(new FireboltParameter(name, value));
+            }
+            command.ExecuteNonQuery();
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var query = BindNativeParameters(sql.ToString(), parameters);
+            command.ExecuteNonQuery();
             stopwatch.Stop();
+            var query = client.Query;
 
             Assert.Multiple(() =>
             {
@@ -511,7 +530,7 @@ namespace FireboltDotNetSdk.Tests
             var exception = Assert.Throws<FireboltException>(() => BindNativeParameters($"SELECT {name}, @ok", ("@ok", 1), (name, 2)));
             Assert.That(exception!.Message, Is.EqualTo("Error while verifying parameters for query"));
             Assert.That(exception.InnerException!.Message, Is.EqualTo(
-                $"Parameter name '{name}' must be '@' followed by letters, digits or underscores when using native PreparedStatementParamStyle"));
+                $"Parameter name '{name}' must be '@' followed by word characters (letters, digits, underscores) when using native PreparedStatementParamStyle"));
         }
 
         [TestCase("@_")]

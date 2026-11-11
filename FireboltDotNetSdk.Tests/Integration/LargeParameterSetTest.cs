@@ -41,8 +41,9 @@ namespace FireboltDotNetSdk.Tests
             AssertArrayResult(CreateArrayCommand(connection, PreparedStatementParamStyleType.Native, TwentyKbParameterCount), TwentyKbParameterCount);
         }
 
+        // Gateway and runtime limits, not SDK behaviour, so CI does not run them: --filter Category=infra-limits
         [Test]
-        [Category("engine-v2")]
+        [Category("infra-limits")]
         public void FbNumericWithTwentyKbOfParametersExceedsGatewayLimit()
         {
             if (GetEnvironmentVariable("FIREBOLT_CORE_URL") != null)
@@ -68,7 +69,7 @@ namespace FireboltDotNetSdk.Tests
 
         // query_parameters travel in the URL, and System.Uri rejects URLs over ~64 KB before anything is sent.
         [Test]
-        [Category("engine-v2")]
+        [Category("infra-limits")]
         public void FbNumericWithCustomerSizedParameterSetExceedsUriLimit()
         {
             using var connection = OpenConnection(PreparedStatementParamStyleType.FbNumeric);

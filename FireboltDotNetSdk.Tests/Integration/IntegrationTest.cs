@@ -76,8 +76,10 @@ namespace FireboltDotNetSdk.Tests
             Endpoint = GetEnvironmentVariable("FIREBOLT_ENDPOINT");
             Env = EnvWithDefault("FIREBOLT_ENV", "staging");
             // Endpoint is not specified by CI/CD (YAML) for v2 where account and engine name are mandatory.
-            Account = Endpoint == null ? EnvWithDefault("FIREBOLT_ACCOUNT") : GetEnvironmentVariable("FIREBOLT_ACCOUNT");
-            Engine = Endpoint == null ? EnvWithDefault("FIREBOLT_ENGINE_NAME") : GetEnvironmentVariable("FIREBOLT_ENGINE_NAME");
+            // Firebolt Core has neither, see OpenConnection.
+            var requireAccountAndEngine = Endpoint == null && GetEnvironmentVariable("FIREBOLT_CORE_URL") == null;
+            Account = requireAccountAndEngine ? EnvWithDefault("FIREBOLT_ACCOUNT") : GetEnvironmentVariable("FIREBOLT_ACCOUNT");
+            Engine = requireAccountAndEngine ? EnvWithDefault("FIREBOLT_ENGINE_NAME") : GetEnvironmentVariable("FIREBOLT_ENGINE_NAME");
             ClientId = GetEnvironmentVariable("FIREBOLT_CLIENT_ID");
             ClientSecret = GetEnvironmentVariable("FIREBOLT_CLIENT_SECRET");
             UserName = GetEnvironmentVariable("FIREBOLT_USERNAME");
