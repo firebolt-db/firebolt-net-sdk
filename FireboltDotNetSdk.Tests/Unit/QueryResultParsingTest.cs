@@ -81,24 +81,14 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(ParseCell("null"), Is.Null);
         }
 
-        // Newtonsoft turns ISO 8601 strings into DateTime by default; keep that for any string value that looks like one.
-        [Test]
-        public void IsoDateStringsAreParsedAsDateTime()
+        // Cells are converted by column type later; Json.NET's date detection would turn TEXT values into DateTime.
+        [TestCase("2023-10-24T16:21:42")]
+        [TestCase("2023-10-24T16:21:42.1234567Z")]
+        [TestCase("2023-10-24T16:21:42.5+02:00")]
+        public void IsoDateStringsStayStrings(string text)
         {
-            var unspecified = ParseCell("\"2023-10-24T16:21:42\"");
-            Assert.That(unspecified, Is.TypeOf<DateTime>());
-            Assert.That((DateTime)unspecified!, Is.EqualTo(new DateTime(2023, 10, 24, 16, 21, 42)));
-            Assert.That(((DateTime)unspecified!).Kind, Is.EqualTo(DateTimeKind.Unspecified));
-
-            var utc = ParseCell("\"2023-10-24T16:21:42.1234567Z\"");
-            Assert.That(utc, Is.TypeOf<DateTime>());
-            Assert.That(((DateTime)utc!).Kind, Is.EqualTo(DateTimeKind.Utc));
-            Assert.That((DateTime)utc!, Is.EqualTo(new DateTime(2023, 10, 24, 16, 21, 42, DateTimeKind.Utc).AddTicks(1234567)));
-
-            var offset = ParseCell("\"2023-10-24T16:21:42.5+02:00\"");
-            Assert.That(offset, Is.TypeOf<DateTime>());
-            Assert.That(((DateTime)offset!).Kind, Is.EqualTo(DateTimeKind.Local));
-            Assert.That(((DateTime)offset!).ToUniversalTime(), Is.EqualTo(new DateTime(2023, 10, 24, 14, 21, 42, 500, DateTimeKind.Utc)));
+            Assert.That(ParseCell($"\"{text}\""), Is.EqualTo(text));
+            Assert.That(((JArray)ParseCell($"[\"{text}\"]")!)[0].Type, Is.EqualTo(JTokenType.String));
         }
 
         [Test]
@@ -172,6 +162,54 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(cell, Is.TypeOf<JObject>());
             Assert.That(((JObject)cell!).ToString(Formatting.None), Is.EqualTo("{\"a\":2}"));
         }
+
+        // JToken.Parse kept the last value even when it was null; NullValueHandling.Ignore now skips a null.
+        [Test]
+        public void RepeatedKeyWithLastValueNullKeepsTheEarlierValue()
+        {
+            var result = FireboltCommand.GetOriginalJsonData("{\"data\":[[1]],\"data\":null}")!;
+            Assert.That(result.Data, Is.EqualTo(new[] { new object?[] { 1L } }));
+        }
+
+        // JToken.Parse dropped the earlier value before checking its shape; now every value is read into the result.
+        [Test]
+        public void RepeatedKeyWithEarlierValueOfTheWrongShapeIsRejected()
+        {
+            var exception = Assert.Throws<FireboltException>(() => FireboltCommand.GetOriginalJsonData("{\"data\":1,\"data\":[[2]]}"));
+            Assert.That(exception!.Message, Is.EqualTo(InvalidFormatMessage));
+            Assert.That(exception.InnerException, Is.TypeOf<JsonSerializationException>());
+        }
+
+        // Firebolt sends these quoted ("nan", "inf"). Unquoted they used to come back as the strings "NaN"/"Infinity".
+        [TestCase("NaN", double.NaN)]
+        [TestCase("Infinity", double.PositiveInfinity)]
+        [TestCase("-Infinity", double.NegativeInfinity)]
+        [TestCase("1e400", double.PositiveInfinity)]
+        public void UnquotedNonFiniteNumbersAreParsedAsDouble(string json, double expected)
+        {
+            var cell = ParseCell(json);
+            Assert.That(cell, Is.TypeOf<double>());
+            Assert.That(cell, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void NestingUpToTheMaxDepthIsAccepted()
+        {
+            Assert.That(ParseCell(NestedArrays(MaxCellNesting)), Is.TypeOf<JArray>());
+        }
+
+        [Test]
+        public void NestingBeyondTheMaxDepthIsRejected()
+        {
+            var exception = Assert.Throws<FireboltException>(() => ParseCell(NestedArrays(MaxCellNesting + 1)));
+            Assert.That(exception!.Message, Is.EqualTo(InvalidFormatMessage));
+            Assert.That(exception.InnerException, Is.TypeOf<JsonReaderException>());
+        }
+
+        // Json.NET's default MaxDepth of 64 includes the response object, "data" and the row around a cell.
+        private const int MaxCellNesting = 61;
+
+        private static string NestedArrays(int depth) => new string('[', depth) + new string(']', depth);
 
         [Test]
         public void MissingFieldsStayNull()
@@ -273,7 +311,7 @@ namespace FireboltDotNetSdk.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(result.Data, Has.Count.EqualTo(1));
-                    Assert.That(result.Data[0][0], Is.TypeOf<DateTime>());
+                    Assert.That(result.Data[0][0], Is.EqualTo("2023-10-24T16:21:42"));
                     Assert.That(result.Data[0][1], Is.TypeOf<double>());
                 });
             }
