@@ -231,7 +231,7 @@ namespace FireboltDotNetSdk.Client
             {
                 if (Connection!.PreparedStatementParamStyle == PreparedStatementParamStyleType.FbNumeric)
                 {
-                    paramList.Add("query_parameters=" + GetServerSideQueryParameters());
+                    paramList.Add("query_parameters=" + Uri.EscapeDataString(GetServerSideQueryParameters()));
                 }
                 else
                 {
