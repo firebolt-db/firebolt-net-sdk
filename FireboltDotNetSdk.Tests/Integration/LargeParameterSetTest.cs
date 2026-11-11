@@ -12,8 +12,9 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class LargeParameterSetTest : IntegrationTest
     {
-        // The cloud gateway rejects URLs over ~16 KB with 414, so ~10 KB of query_parameters fits and ~20 KB does not.
-        private const int TenKbParameterCount = 215;
+        // The cloud gateway rejects URLs over ~16 KB with 414, so ~10 KB of URL-escaped query_parameters fits and ~20 KB does not.
+        // Escaping inflates the JSON roughly 1.6x, so the count is sized on the escaped length.
+        private const int TenKbParameterCount = 130;
         private const int TwentyKbParameterCount = 425;
         // Matches the customer report.
         private const int CustomerParameterCount = 7350;
@@ -25,7 +26,7 @@ namespace FireboltDotNetSdk.Tests
         [Category("engine-v2")]
         public void ExecuteWithTenKbOfParameters(PreparedStatementParamStyleType style)
         {
-            Assert.That(QueryParametersJson(TenKbParameterCount).Length, Is.InRange(10 * 1024, 11 * 1024));
+            Assert.That(Uri.EscapeDataString(QueryParametersJson(TenKbParameterCount)).Length, Is.InRange(10 * 1024, 11 * 1024));
             using var connection = OpenConnection(style);
 
             AssertArrayResult(CreateArrayCommand(connection, style, TenKbParameterCount), TenKbParameterCount);
