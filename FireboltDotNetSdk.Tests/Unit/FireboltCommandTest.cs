@@ -312,6 +312,91 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(client.Query, Is.EqualTo(expect));
         }
 
+        private static string? BindNativeParameters(string commandText, params (string Name, object? Value)[] parameters)
+        {
+            var client = new MockClient("");
+            var command = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine", InfraVersion = 2 }, commandText, new FireboltParameterCollection());
+            foreach (var (name, value) in parameters)
+            {
+                command.Parameters.Add(new FireboltParameter(name, value));
+            }
+            command.ExecuteNonQuery();
+            return client.Query;
+        }
+
+        [Test]
+        public void NativeBindingReplacesMultiplePlaceholders()
+        {
+            Assert.That(BindNativeParameters("SELECT * FROM t WHERE a = @a AND b = @b", ("@a", 1), ("@b", "x")),
+                Is.EqualTo("SELECT * FROM t WHERE a = 1 AND b = 'x'"));
+        }
+
+        [Test]
+        public void NativeBindingReplacesEveryOccurrenceOfPlaceholder()
+        {
+            Assert.That(BindNativeParameters("SELECT @a + @a", ("@a", 2)), Is.EqualTo("SELECT 2 + 2"));
+        }
+
+        [TestCase("@p1", "@p10")]
+        [TestCase("@p10", "@p1")]
+        public void NativeBindingDoesNotMatchPlaceholderPrefixes(string first, string second)
+        {
+            var values = new Dictionary<string, object> { ["@p1"] = 1, ["@p10"] = 10 };
+            Assert.That(BindNativeParameters("SELECT @p1, @p10", (first, values[first]), (second, values[second])),
+                Is.EqualTo("SELECT 1, 10"));
+        }
+
+        [Test]
+        public void NativeBindingIsCaseInsensitive()
+        {
+            Assert.That(BindNativeParameters("SELECT @PARAM, @Param, @param", ("@param", 5)), Is.EqualTo("SELECT 5, 5, 5"));
+        }
+
+        [Test]
+        public void NativeBindingReplacesOnlyWholeTokens()
+        {
+            Assert.That(BindNativeParameters("SELECT @param_x, @param2, @param.x, (@param), @param, 1", ("@param", 7)),
+                Is.EqualTo("SELECT @param_x, @param2, 7.x, (7), 7, 1"));
+        }
+
+        [Test]
+        public void NativeBindingLeavesUnknownTokensUntouched()
+        {
+            Assert.That(BindNativeParameters("SELECT @param, @unused, 'a@b.com'", ("@param", 1)),
+                Is.EqualTo("SELECT 1, @unused, 'a@b.com'"));
+        }
+
+        // Binding does not parse SQL, so placeholders inside literals and comments are replaced too.
+        [Test]
+        public void NativeBindingReplacesPlaceholdersInLiteralsAndComments()
+        {
+            Assert.That(BindNativeParameters("SELECT '@param' /* @param */ -- @param", ("@param", 1)),
+                Is.EqualTo("SELECT '1' /* 1 */ -- 1"));
+        }
+
+        [Test]
+        public void NativeBindingUsesFirstOfDuplicateParameters()
+        {
+            Assert.That(BindNativeParameters("SELECT @a", ("@a", 1), ("@a", 2)), Is.EqualTo("SELECT 1"));
+        }
+
+        [Test]
+        public void NativeBindingRejectsParameterWithoutAtPrefix()
+        {
+            var exception = Assert.Throws<FireboltException>(() => BindNativeParameters("SELECT @param", ("param", 1)));
+            Assert.That(exception!.Message, Is.EqualTo("Error while verifying parameters for query"));
+            Assert.That(exception.InnerException!.Message, Is.EqualTo("Parameter name should start with '@' when using native PreparedStatementParamStyle"));
+        }
+
+        [TestCase("@1", "@10")]
+        [TestCase("@10", "@1")]
+        public void NativeBindingSupportsNumericParameterNames(string first, string second)
+        {
+            var values = new Dictionary<string, object> { ["@1"] = "a", ["@10"] = "b" };
+            Assert.That(BindNativeParameters("SELECT @1, @10", (first, values[first]), (second, values[second])),
+                Is.EqualTo("SELECT 'a', 'b'"));
+        }
+
 
         [TestCase("TimestampTz", "2022-05-10 21:01:02.12345+00", "TimestampTz", "2022-05-10 21:01:02Z", 1234500, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]
         [TestCase("TimestampTz", "2022-05-10 21:01:02.0+00", "TimestampTz", "2022-05-10 21:01:02Z", 0, TestName = "TimestampTzWithNotAllMicrosecondsWithSecondsInTzTest")]
