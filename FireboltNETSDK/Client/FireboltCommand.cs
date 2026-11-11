@@ -48,6 +48,7 @@ namespace FireboltDotNetSdk.Client
         private static readonly TimeSpan regexTimeout = TimeSpan.FromSeconds(5);
         private static readonly Regex parameterReference = new(@"@\w+", RegexOptions.None, regexTimeout);
         private static readonly Regex validParameterName = new(@"^@\w+\z", RegexOptions.None, regexTimeout);
+        private static readonly CultureInfo usCulture = CultureInfo.ReadOnly(new CultureInfo("en-US", false));
         internal static readonly string BYTE_ARRAY_PREFIX = "\\x";
 
         private string? _commandText;
@@ -195,7 +196,7 @@ namespace FireboltDotNetSdk.Client
         private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
         {
             VerifyConnection();
-            commandText = ValidateSetCommand(commandText.Remove(0, 4).Trim());
+            commandText = ValidateSetCommand(commandText.TrimStart().Substring("SET".Length).Trim());
             SetParamList.Add(commandText);
             try
             {
@@ -251,7 +252,7 @@ namespace FireboltDotNetSdk.Client
 
         private static bool IsSetCommand(string commandText)
         {
-            return commandText.Trim().ToUpper().StartsWith("SET");
+            return commandText.AsSpan().TrimStart().StartsWith("SET", StringComparison.OrdinalIgnoreCase);
         }
 
         private string? GetDatabase()
@@ -382,7 +383,7 @@ namespace FireboltDotNetSdk.Client
                     // Some locales use comma instead or period to separate integer from the fractional part of number, 
                     // so making this representation portable requires replacing comma by dot in string. 
                     // The easier solution is to specify "standard" locale e.g. en_US.
-                    verifyParameters = convertible.ToString(new CultureInfo("en-US", false));
+                    verifyParameters = convertible.ToString(usCulture);
                     break;
             }
             return verifyParameters;

@@ -82,6 +82,53 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string>(new string[] { commandText.Replace("SET ", "") })));
         }
 
+        [TestCase("set param=1")]
+        [TestCase("SeT param=1")]
+        public void SetCommandIsCaseInsensitive(string commandText)
+        {
+            var client = new MockClient("{}");
+            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine" }, commandText, new FireboltParameterCollection());
+            cs.ExecuteNonQuery();
+            Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string> { "param=1" }));
+            // A SET is applied locally and only validated with SELECT 1; its own text is never sent.
+            Assert.That(client.Query, Is.EqualTo("SELECT 1"));
+        }
+
+        [TestCase("SELECT 1")]
+        [TestCase("  \n\tSELECT 1")]
+        [TestCase("SE")]
+        public void NonSetCommandIsSentAsQuery(string commandText)
+        {
+            var client = new MockClient("");
+            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine" }, commandText, new FireboltParameterCollection());
+            cs.ExecuteNonQuery();
+            Assert.That(client.Query, Is.EqualTo(commandText));
+            Assert.That(cs.SetParamList, Is.Empty);
+        }
+
+        [TestCase("  \n\tSET param=1")]
+        [TestCase("  SET   param=1  ")]
+        [TestCase("SET\tparam=1")]
+        [TestCase("SET\nparam=1")]
+        public void SetCommandWithSurroundingWhitespaceIsApplied(string commandText)
+        {
+            var client = new MockClient("{}");
+            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = client, EngineUrl = "engine" }, commandText, new FireboltParameterCollection());
+            cs.ExecuteNonQuery();
+            Assert.That(cs.SetParamList, Is.EqualTo(new HashSet<string> { "param=1" }));
+            // A SET is applied locally and only validated with SELECT 1; its own text is never sent.
+            Assert.That(client.Query, Is.EqualTo("SELECT 1"));
+        }
+
+        [Test]
+        public void ForbiddenSetCommandWithLeadingWhitespaceIsRejected()
+        {
+            var cs = new FireboltCommand(new FireboltConnection(mockConnectionString) { Client = new MockClient("{}"), EngineUrl = "engine" }, "  SET database=my", new FireboltParameterCollection());
+            var exception = Assert.Throws<InvalidOperationException>(() => cs.ExecuteNonQuery());
+            Assert.That(exception!.Message, Does.Contain("'database'"));
+            Assert.That(cs.SetParamList, Is.Empty);
+        }
+
         [TestCase("SET param=1")]
         [TestCase("SET param=1,param=2")]
         public async Task SetTestAsync(string commandText)
@@ -410,6 +457,14 @@ namespace FireboltDotNetSdk.Tests
             }
             Assert.That(BindNativeParameters("SELECT @a, @b", parameters), Is.EqualTo("SELECT 'x@b', 'y'"));
             Assert.That(BindNativeParameters("SELECT @a", ("@a", "@a")), Is.EqualTo("SELECT '@a'"));
+        }
+
+        [Test]
+        [SetCulture("de-DE")]
+        public void NativeBindingFormatsNumbersIndependentlyOfCurrentCulture()
+        {
+            Assert.That(BindNativeParameters("SELECT @d, @f, @m, @l, @b", ("@d", 1.5), ("@f", 5.75F), ("@m", 1234.5m), ("@l", 15000000000L), ("@b", true)),
+                Is.EqualTo("SELECT 1.5, 5.75, 1234.5, 15000000000, True"));
         }
 
         [Test]
