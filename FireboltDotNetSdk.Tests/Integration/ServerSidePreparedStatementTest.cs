@@ -1,5 +1,6 @@
 using System.Data.Common;
 using FireboltDotNetSdk.Client;
+using FireboltDotNetSdk.Utils;
 using FireboltNETSDK.Exception;
 
 namespace FireboltDotNetSdk.Tests
@@ -35,6 +36,29 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.Read(), Is.EqualTo(false));
             }
         }
+
+        [TestCase("a;b")]
+        [TestCase("a&b")]
+        [TestCase("a#b")]
+        [TestCase("a+b")]
+        [TestCase("x%26y")]
+        [TestCase("100%")]
+        [TestCase("a;b&c#d+e%f é\"")]
+        [Category("engine-v2")]
+        public void ExecutePreparedStatementWithUrlReservedCharacters(string value)
+        {
+            using var connection = OpenConnection(PreparedStatementParamStyleType.FbNumeric);
+
+            FireboltCommand command = (FireboltCommand)connection.CreateCommand();
+            command.CommandText = "SELECT $1::text";
+            command.Parameters.Add(CreateParameter(command, "$1", value));
+
+            using DbDataReader reader = command.ExecuteReader();
+            Assert.That(reader.Read(), Is.EqualTo(true));
+            Assert.That(reader.GetString(0), Is.EqualTo(value));
+            Assert.That(reader.Read(), Is.EqualTo(false));
+        }
+
         [Test]
         [Category("engine-v2")]
         public void ExecutePreparedStatementNative()
