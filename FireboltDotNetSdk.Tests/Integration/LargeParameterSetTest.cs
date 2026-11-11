@@ -4,7 +4,7 @@ using System.Net;
 using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
-using Newtonsoft.Json;
+using static FireboltDotNetSdk.Tests.Helpers.LargeParameterSet;
 using static System.Environment;
 
 namespace FireboltDotNetSdk.Tests
@@ -12,15 +12,6 @@ namespace FireboltDotNetSdk.Tests
     [TestFixture]
     internal class LargeParameterSetTest : IntegrationTest
     {
-        // The cloud gateway rejects URLs over ~16 KB with 414, so ~10 KB of URL-escaped query_parameters fits and ~20 KB does not.
-        // Escaping inflates the JSON roughly 1.6x, so the count is sized on the escaped length.
-        private const int TenKbParameterCount = 130;
-        private const int TwentyKbParameterCount = 425;
-        // Matches the customer report.
-        private const int CustomerParameterCount = 7350;
-
-        private static string Value(int i) => $"value-{i:D5}-abcdefghij";
-
         [TestCase(PreparedStatementParamStyleType.Native)]
         [TestCase(PreparedStatementParamStyleType.FbNumeric)]
         [Category("engine-v2")]
@@ -77,11 +68,6 @@ namespace FireboltDotNetSdk.Tests
             var command = CreateArrayCommand(connection, PreparedStatementParamStyleType.FbNumeric, CustomerParameterCount);
 
             Assert.Throws<UriFormatException>(() => command.ExecuteReader());
-        }
-
-        private static string QueryParametersJson(int count)
-        {
-            return JsonConvert.SerializeObject(Enumerable.Range(1, count).Select(i => new { name = $"${i}", value = Value(i) }));
         }
 
         private static DbCommand CreateArrayCommand(DbConnection connection, PreparedStatementParamStyleType style, int count)
