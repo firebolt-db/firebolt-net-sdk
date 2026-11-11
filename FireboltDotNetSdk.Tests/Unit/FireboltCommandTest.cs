@@ -280,6 +280,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(false, "False")]
         [TestCase(new byte[0], "E'\\x'::BYTEA")]
         [TestCase(new byte[] { 1, 2, 3 }, "E'\\x01\\x02\\x03'::BYTEA")]
+        [TestCase("a$1$&$$b$`$'", "'a$1$&$$b$`$'''")]
         public void SetParamTest(object paramValue, object expect)
         {
             MockClient client = new MockClient("");
@@ -303,6 +304,7 @@ namespace FireboltDotNetSdk.Tests
         [TestCase(false, "False")]
         [TestCase(new byte[0], "E'\\x'::BYTEA")]
         [TestCase(new byte[] { 1, 2, 3 }, "E'\\x01\\x02\\x03'::BYTEA")]
+        [TestCase("a$1$&$$b$`$'", "'a$1$&$$b$`$'''")]
         public void SetParamTestV1(object paramValue, object expect)
         {
             MockClient client = new MockClient("");
@@ -395,6 +397,80 @@ namespace FireboltDotNetSdk.Tests
             var values = new Dictionary<string, object> { ["@1"] = "a", ["@10"] = "b" };
             Assert.That(BindNativeParameters("SELECT @1, @10", (first, values[first]), (second, values[second])),
                 Is.EqualTo("SELECT 'a', 'b'"));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NativeBindingDoesNotReplaceInsideInsertedValues(bool reverseOrder)
+        {
+            var parameters = new (string, object?)[] { ("@a", "x@b"), ("@b", "y") };
+            if (reverseOrder)
+            {
+                Array.Reverse(parameters);
+            }
+            Assert.That(BindNativeParameters("SELECT @a, @b", parameters), Is.EqualTo("SELECT 'x@b', 'y'"));
+            Assert.That(BindNativeParameters("SELECT @a", ("@a", "@a")), Is.EqualTo("SELECT '@a'"));
+        }
+
+        [Test]
+        public void NativeBindingSupportsUnicodeParameterNames()
+        {
+            Assert.That(BindNativeParameters("SELECT @größe, @GRÖßE", ("@größe", 1)), Is.EqualTo("SELECT 1, 1"));
+        }
+
+        // Guards against going back to one pass over the SQL per parameter, which took ~1.8 s for this input.
+        [Test]
+        public void NativeBindingScalesToLargeParameterSets()
+        {
+            const int count = 7350;
+            var sql = new System.Text.StringBuilder("SELECT * FROM t WHERE ");
+            for (int i = 1; i <= count; i++)
+            {
+                sql.Append($"(col_a = @p{i} AND col_b IN ('some filler text to pad the sql out', 'x')) OR\n");
+            }
+            sql.Append("1 = 0");
+            var parameters = Enumerable.Range(1, count).Select(i => ($"@p{i}", (object?)$"value-{i:D5}")).ToArray();
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var query = BindNativeParameters(sql.ToString(), parameters);
+            stopwatch.Stop();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(500));
+                Assert.That(query, Does.Contain("(col_a = 'value-00001' AND"));
+                Assert.That(query, Does.Contain("(col_a = 'value-07350' AND"));
+                Assert.That(query, Does.Not.Contain("@p"));
+            });
+        }
+
+        // Like server-side binding, a reference is '@' plus word characters, so other names could never be bound.
+        [TestCase("@a.b")]
+        [TestCase("@my-param")]
+        [TestCase("@a b")]
+        [TestCase("@")]
+        [TestCase("@@a")]
+        [TestCase("@a\n")]
+        public void NativeBindingRejectsParameterNamesThatCannotBeReferenced(string name)
+        {
+            var exception = Assert.Throws<FireboltException>(() => BindNativeParameters($"SELECT {name}, @ok", ("@ok", 1), (name, 2)));
+            Assert.That(exception!.Message, Is.EqualTo("Error while verifying parameters for query"));
+            Assert.That(exception.InnerException!.Message, Is.EqualTo(
+                $"Parameter name '{name}' must be '@' followed by letters, digits or underscores when using native PreparedStatementParamStyle"));
+        }
+
+        [TestCase("@_")]
+        [TestCase("@_a1")]
+        [TestCase("@A_b_2")]
+        public void NativeBindingAcceptsWordCharacterParameterNames(string name)
+        {
+            Assert.That(BindNativeParameters($"SELECT {name}", (name, 1)), Is.EqualTo("SELECT 1"));
+        }
+
+        [Test]
+        public void NativeBindingLeavesNonWordSuffixOfReferenceUntouched()
+        {
+            Assert.That(BindNativeParameters("SELECT @a.b, @axb", ("@a", 1)), Is.EqualTo("SELECT 1.b, @axb"));
         }
 
 

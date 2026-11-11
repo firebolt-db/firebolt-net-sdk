@@ -1,5 +1,7 @@
 ﻿using System.Data.Common;
+using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Exception;
+using FireboltDotNetSdk.Utils;
 using static System.Environment;
 
 namespace FireboltDotNetSdk.Tests
@@ -94,6 +96,26 @@ namespace FireboltDotNetSdk.Tests
                 {nameof(Password).ToLower(), Password},
                 {nameof(PreparedStatementParamStyle).ToLower(), PreparedStatementParamStyle},
             };
+        }
+
+        // FIREBOLT_CORE_URL (e.g. http://localhost:3473) routes the SDK's requests to a local Firebolt Core,
+        // which the SDK cannot connect to by itself (no auth, plain http).
+        protected static FireboltConnection OpenConnection(PreparedStatementParamStyleType style)
+        {
+            var coreUrl = GetEnvironmentVariable("FIREBOLT_CORE_URL");
+            if (coreUrl == null)
+            {
+                var connection = new FireboltConnection(ConnectionString(new Tuple<string, string?>("preparedStatementParamStyle", style.ToString())));
+                connection.Open();
+                return connection;
+            }
+            var coreConnection = new FireboltConnection($"database={Database};clientid=core;clientsecret=core;account=core;env=core;preparedStatementParamStyle={style}")
+            {
+                EngineUrl = "core",
+                InfraVersion = 2,
+            };
+            coreConnection.Client = new CoreClient(coreConnection, new Uri(coreUrl));
+            return coreConnection;
         }
 
         protected static DbParameter CreateParameter(DbCommand command, string name, object? value)

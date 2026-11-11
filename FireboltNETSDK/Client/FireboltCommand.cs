@@ -46,6 +46,8 @@ namespace FireboltDotNetSdk.Client
         private static readonly string USE_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_USE_SUFFIX;
         private static readonly string SET_ERROR = FORBIDDEN_PROPERTY_ERROR_PREFIX + FORBIDDEN_PROPERTY_ERROR_SET_SUFFIX;
         private static readonly TimeSpan regexTimeout = TimeSpan.FromSeconds(5);
+        private static readonly Regex parameterReference = new(@"@\w+", RegexOptions.None, regexTimeout);
+        private static readonly Regex validParameterName = new(@"^@\w+\z", RegexOptions.None, regexTimeout);
         internal static readonly string BYTE_ARRAY_PREFIX = "\\x";
 
         private string? _commandText;
@@ -302,6 +304,7 @@ namespace FireboltDotNetSdk.Client
         {
             try
             {
+                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var parameter in Parameters.ToList())
                 {
                     //need to validate parameters are of native type
@@ -309,11 +312,15 @@ namespace FireboltDotNetSdk.Client
                     {
                         throw new FireboltException("Parameter name should start with '@' when using native PreparedStatementParamStyle");
                     }
-                    string pattern = $@"\{parameter.ParameterName}\b";
-                    string verifyParameters = GetParamValue(parameter.Value);
-                    commandText = Regex.Replace(commandText, pattern, verifyParameters, RegexOptions.IgnoreCase, regexTimeout);
+                    // Any other name could never be referenced, so the SQL would silently keep it unbound.
+                    if (!validParameterName.IsMatch(parameter.ParameterName))
+                    {
+                        throw new FireboltException($"Parameter name '{parameter.ParameterName}' must be '@' followed by letters, digits or underscores when using native PreparedStatementParamStyle");
+                    }
+                    values.TryAdd(parameter.ParameterName, GetParamValue(parameter.Value));
                 }
-                return commandText;
+                // One pass over the SQL: inserted values are never scanned again, as with server-side binding.
+                return parameterReference.Replace(commandText, match => values.TryGetValue(match.Value, out var value) ? value : match.Value);
             }
             catch (System.Exception ex)
             {
@@ -339,7 +346,6 @@ namespace FireboltDotNetSdk.Client
                             sourceText = sourceText.Replace("\\", "\\\\");
                         }
                         verifyParameters = "'" + sourceText + "'";
-                        verifyParameters = verifyParameters.Replace("$", "$$"); // Escape $
                         break;
                     }
                 case DateTime dateTime:

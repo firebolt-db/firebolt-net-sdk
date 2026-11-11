@@ -5,7 +5,6 @@ using FireboltDotNetSdk.Client;
 using FireboltDotNetSdk.Utils;
 using FireboltDotNetSdk.Exception;
 using Newtonsoft.Json;
-using static FireboltDotNetSdk.Client.FireResponse;
 using static System.Environment;
 
 namespace FireboltDotNetSdk.Tests
@@ -109,57 +108,6 @@ namespace FireboltDotNetSdk.Tests
                 Assert.That(reader.GetString(2), Is.EqualTo(Value(count)));
                 Assert.That(reader.Read(), Is.False);
             });
-        }
-
-        // FIREBOLT_CORE_URL (e.g. http://localhost:3473) routes the SDK's requests to a local Firebolt Core,
-        // which the SDK cannot connect to by itself (no auth, plain http).
-        private static FireboltConnection OpenConnection(PreparedStatementParamStyleType style)
-        {
-            var coreUrl = GetEnvironmentVariable("FIREBOLT_CORE_URL");
-            if (coreUrl == null)
-            {
-                var connection = new FireboltConnection(ConnectionString(new Tuple<string, string?>("preparedStatementParamStyle", style.ToString())));
-                connection.Open();
-                return connection;
-            }
-            var coreConnection = new FireboltConnection($"database={Database};clientid=core;clientsecret=core;account=core;env=core;preparedStatementParamStyle={style}")
-            {
-                EngineUrl = "core",
-                InfraVersion = 2,
-            };
-            coreConnection.Client = new CoreClient(coreConnection, new Uri(coreUrl));
-            return coreConnection;
-        }
-
-        private class CoreClient : FireboltClient
-        {
-            private static readonly HttpClient CoreHttpClient = new();
-            private readonly Uri _coreUri;
-
-            public CoreClient(FireboltConnection connection, Uri coreUri) : base(connection, "core", "core", "", null, null, CoreHttpClient)
-            {
-                _coreUri = coreUri;
-            }
-
-            // The SDK always builds https URLs without a port; redirect them to Core and skip the bearer token.
-            protected override async Task<HttpRequestMessage> GetHttpRequest(HttpMethod method, string uri, HttpContent? content, bool needsAccessToken)
-            {
-                var request = await base.GetHttpRequest(method, uri, content, needsAccessToken: false);
-                request.RequestUri = new UriBuilder(request.RequestUri!) { Scheme = _coreUri.Scheme, Host = _coreUri.Host, Port = _coreUri.Port }.Uri;
-                TestContext.Progress.WriteLine($"{TestContext.CurrentContext.Test.Name}: request URL is {request.RequestUri.AbsoluteUri.Length} chars");
-                return request;
-            }
-
-            protected override Task<LoginResponse> Login(string id, string secret, string env) => throw new NotSupportedException();
-
-            public override Task<GetAccountIdByNameResponse> GetAccountIdByNameAsync(string account, CancellationToken cancellationToken) =>
-                Task.FromResult(new GetAccountIdByNameResponse { infraVersion = 2 });
-
-            public override Task<ConnectionResponse> ConnectAsync(string? engineName, string database, CancellationToken cancellationToken) => throw new NotSupportedException();
-
-            internal override void CleanupCache()
-            {
-            }
         }
     }
 }
