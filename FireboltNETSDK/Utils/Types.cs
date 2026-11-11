@@ -272,8 +272,7 @@ namespace FireboltDotNetSdk.Utils
             }
             try
             {
-                var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
-                return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+                return QueryResultParser.Parse(response);
             }
             catch (System.Exception e)
             {

@@ -386,17 +386,16 @@ namespace FireboltDotNetSdk.Client
         /// Gets original data in JSON format for further manipulation.
         /// </summary>
         /// <returns>The data in JSON format</returns>
-        private static QueryResult? GetOriginalJsonData(string? response)
+        internal static QueryResult? GetOriginalJsonData(string? response)
         {
             if (response == null) throw new FireboltException("Response is empty while GetOriginalJSONData");
             try
             {
-                var prettyJson = JToken.Parse(response).ToString(Formatting.Indented);
-                return JsonConvert.DeserializeObject<QueryResult>(prettyJson);
+                return QueryResultParser.Parse(response);
             }
-            catch (JsonReaderException e)
+            catch (JsonException e)
             {
-                throw new FireboltException($"Failed to execute a query. Invalid response body format. Try again or contact support.", e);
+                throw new FireboltException("Failed to execute a query. Invalid response body format. Try again or contact support.", e);
             }
         }
 
