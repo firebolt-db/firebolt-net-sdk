@@ -196,20 +196,22 @@ namespace FireboltDotNetSdk.Client
         private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
         {
             VerifyConnection();
-            commandText = commandText.TrimStart().Substring("SET".Length).Trim();
-            if (commandText.Length == 0)
+            commandText = NormalizeSetParameter(commandText.TrimStart().Substring("SET".Length));
+            if (commandText.Length == 0 || commandText[0] == '=')
             {
                 throw new InvalidOperationException("SET command must specify a parameter, e.g. 'SET name=value'");
             }
             commandText = ValidateSetCommand(commandText);
-            SetParamList.Add(commandText);
+            var added = SetParamList.Add(commandText);
             try
             {
                 await Connection!.ValidateConnection(cancellationToken);
             }
             catch (AggregateException)
             {
-                SetParamList.Remove(commandText);
+                // An identical SET applied earlier stays in place.
+                if (added)
+                    SetParamList.Remove(commandText);
                 throw;
             }
         }
@@ -239,7 +241,7 @@ namespace FireboltDotNetSdk.Client
             {
                 if (Connection!.PreparedStatementParamStyle == PreparedStatementParamStyleType.FbNumeric)
                 {
-                    paramList.Add("query_parameters=" + Uri.EscapeDataString(GetServerSideQueryParameters()));
+                    paramList.Add("query_parameters=" + GetServerSideQueryParameters());
                 }
                 else
                 {
@@ -274,6 +276,21 @@ namespace FireboltDotNetSdk.Client
                     value = parameter.Value
                 })
             );
+        }
+
+        // Turns "name = 'value';" into "name=value", the raw form that is URL-encoded when sent.
+        private static string NormalizeSetParameter(string setCommand)
+        {
+            var parts = setCommand.Trim().TrimEnd(';').Split('=', 2);
+            var name = parts[0].Trim();
+            return parts.Length == 1 ? name : name + "=" + Unquote(parts[1].Trim());
+        }
+
+        private static string Unquote(string value)
+        {
+            return value.Length >= 2 && value[0] == '\'' && value[^1] == '\''
+                ? value[1..^1].Replace("''", "'")
+                : value;
         }
 
         private string ValidateSetCommand(string setCommand)

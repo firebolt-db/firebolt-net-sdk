@@ -1,3 +1,7 @@
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+
 namespace FireboltDotNetSdk.Tests;
 
 public class HttpClientSingletonTest
@@ -65,5 +69,44 @@ public class HttpClientSingletonTest
             Assert.That(client1.Timeout, Is.EqualTo(TimeSpan.FromMilliseconds(-1)),
                 "Client should maintain configured timeout");
         });
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task ResponseHeadersAreDecodedAsUtf8(bool compression)
+    {
+        const string database = "db ü 日本";
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            await AssertHeaderIsDecoded(listener, compression, database);
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    private static async Task AssertHeaderIsDecoded(TcpListener listener, bool compression, string database)
+    {
+        var server = Task.Run(async () =>
+        {
+            using var socket = await listener.AcceptTcpClientAsync();
+            var stream = socket.GetStream();
+            var buffer = new byte[4096];
+            var request = "";
+            int read;
+            while (!request.Contains("\r\n\r\n") && (read = await stream.ReadAsync(buffer)) > 0)
+                request += Encoding.ASCII.GetString(buffer, 0, read);
+            var response = $"HTTP/1.1 200 OK\r\nFirebolt-Update-Parameters: database={database}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(response));
+        });
+
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        using var result = await HttpClientSingleton.GetInstance(compression).GetAsync($"http://127.0.0.1:{port}/");
+        await server;
+
+        Assert.That(result.Headers.GetValues("Firebolt-Update-Parameters").Single(), Is.EqualTo("database=" + database));
     }
 }

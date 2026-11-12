@@ -1,6 +1,7 @@
 using System.Net;
 using System.Reflection;
 using System.Net.Sockets;
+using System.Text;
 
 
 namespace FireboltDotNetSdk;
@@ -43,6 +44,8 @@ public static class HttpClientSingleton
         {
             ConnectCallback = ConfigureSocketTcpKeepAlive,
             AutomaticDecompression = decompression,
+            // Firebolt sends database and engine names in response headers as raw UTF-8; the default is Latin-1.
+            ResponseHeaderEncodingSelector = (_, _) => Encoding.UTF8,
         };
         var client = new HttpClient(httpHandler);
 
