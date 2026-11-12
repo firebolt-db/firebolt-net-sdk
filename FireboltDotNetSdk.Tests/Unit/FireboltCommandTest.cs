@@ -5,7 +5,13 @@ using FireboltDotNetSdk.Utils;
 using System.Data.Common;
 using System.Data;
 using Moq;
+using Moq.Protected;
 using FireboltNETSDK.Exception;
+using System.Net;
+using System.Web;
+using FireboltDotNetSdk.Tests.Helpers;
+using Newtonsoft.Json.Linq;
+using static FireboltDotNetSdk.Tests.Helpers.HttpResponseHelper;
 
 namespace FireboltDotNetSdk.Tests
 {
@@ -848,6 +854,34 @@ namespace FireboltDotNetSdk.Tests
                     Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(long)));
                 });
             }
+        }
+
+        [TestCase("a;b&c#d+e%f é\"")]
+        [TestCase("x%26y")]
+        [TestCase("100%")]
+        [TestCase("日本語 'quote' \\ / ? = [ ]")]
+        public void ExecuteServerSidePreparedStatement_SendsQueryParametersThatDecodeToTheOriginalValue(string value)
+        {
+            var (handlerMock, httpClient) = FireboltClientTest.GetHttpMocks();
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { EngineUrl = "engine.mock.firebolt.io" };
+            var client = new FireboltClient1(connection, Guid.NewGuid().ToString(), "secret", "http://api.mock.firebolt.io", null, "a", httpClient);
+            client.SetToken("token");
+            connection.Client = client;
+            Uri? sentUri = null;
+            handlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .Callback((HttpRequestMessage request, CancellationToken _) => sentUri = request.RequestUri)
+                .ReturnsAsync(() => GetResponseMessage("{\"meta\":[],\"data\":[],\"rows\":0}", HttpStatusCode.OK));
+
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT $1";
+            command.Parameters.Add(new FireboltParameter("$1", value));
+            command.ExecuteNonQuery();
+
+            // Decode the way the server does, including '+' as space, to catch both missing and double encoding.
+            var queryParameters = HttpUtility.ParseQueryString(sentUri!.Query)["query_parameters"];
+            var decoded = JArray.Parse(queryParameters!);
+            Assert.That((string?)decoded[0]["value"], Is.EqualTo(value));
         }
 
         [Test]
