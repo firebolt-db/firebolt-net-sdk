@@ -158,7 +158,8 @@ public abstract class FireboltClient
     private Dictionary<string, string?> GetQueryParameters(string? databaseName, string? accountId, bool isStreamingRequest)
     {
         var outputFormat = isStreamingRequest ? "JSONLines_Compact" : "JSON_Compact";
-        var parameters = new Dictionary<string, string?>() { { "output_format", outputFormat } };
+        // The server treats parameter names case-insensitively, so SET QUERY_LABEL must replace query_label.
+        var parameters = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) { { "output_format", outputFormat } };
         if (databaseName != null)
         {
             parameters["database"] = databaseName;

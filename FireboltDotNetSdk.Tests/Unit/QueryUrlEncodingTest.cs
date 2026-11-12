@@ -258,6 +258,32 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(SentParameters(_sentUris.Single()).GetValues("query_label"), Is.EqualTo(new[] { "mine" }));
         }
 
+        [Test]
+        public async Task SetQueryLabelInAnyCaseReplacesTheGeneratedLabel()
+        {
+            var connection = new FireboltConnection(ConnectionString) { InfraVersion = 2 };
+            connection.UpdateConnectionSettings(new FireboltConnectionStringBuilder(ConnectionString) { Engine = "engine" }, CancellationToken.None);
+            var client = CreateClient(connection);
+
+            await ExecuteQuery(client, "db", "QUERY_LABEL=mine");
+
+            var parameters = SentParameters(_sentUris.Single());
+            Assert.That(parameters.AllKeys.Count(key => "query_label".Equals(key, StringComparison.OrdinalIgnoreCase)), Is.EqualTo(1));
+            Assert.That(parameters["query_label"], Is.EqualTo("mine"));
+        }
+
+        [Test]
+        public void SetInAnotherCaseReplacesTheEarlierSet()
+        {
+            var connection = new FireboltConnection(ConnectionString) { EngineUrl = "engine.mock.firebolt.io" };
+            CreateClient(connection);
+
+            new FireboltCommand(connection, "SET time_zone='UTC'", new FireboltParameterCollection()).ExecuteNonQuery();
+            new FireboltCommand(connection, "SET TIME_ZONE='Etc/GMT+1'", new FireboltParameterCollection()).ExecuteNonQuery();
+
+            Assert.That(connection.SetParamList, Is.EqualTo(new HashSet<string> { "TIME_ZONE=Etc/GMT+1" }));
+        }
+
         [TestCase("SET time_zone = 'Europe/Berlin'", "time_zone=Europe/Berlin")]
         [TestCase("SET time_zone='Europe/Berlin';", "time_zone=Europe/Berlin")]
         [TestCase("SET query_label = 'it''s a#b&c=d' ; ", "query_label=it's a#b&c=d")]

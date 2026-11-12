@@ -203,7 +203,7 @@ namespace FireboltDotNetSdk.Client
             }
             commandText = ValidateSetCommand(commandText);
             var name = SetParameterName(commandText);
-            var replaced = SetParamList.Where(parameter => SetParameterName(parameter) == name).ToList();
+            var replaced = SetParamList.Where(parameter => SetParameterName(parameter).Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
             SetParamList.ExceptWith(replaced);
             SetParamList.Add(commandText);
             try
