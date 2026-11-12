@@ -66,7 +66,33 @@ jobs:
           fi
           echo "value=$SANITIZED" >> "$GITHUB_OUTPUT"
 
+      # Lets a release that failed half-way be retried with the same version, while still refusing a
+      # version that was already released. The GitHub release is the last thing a release creates.
+      - name: Check release state
+        id: state
+        env:
+          VERSION: ${{ steps.sanitize.outputs.value }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if response=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${VERSION}" --silent 2>&1); then
+            echo "Version ${VERSION} is already released"; exit 1
+          elif ! grep -q "HTTP 404" <<< "$response"; then
+            echo "Could not check for an existing release: ${response}"; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "Tag ${VERSION} exists without a release, building the tagged commit"
+            git checkout --detach "refs/tags/${VERSION}"
+            for element in Version AssemblyVersion FileVersion; do
+              if ! grep -qxF "    <${element}>${VERSION}</${element}>" FireboltNETSDK/FireboltDotNetSdk.csproj; then
+                echo "Tag ${VERSION} does not set ${element} to ${VERSION} in FireboltDotNetSdk.csproj"; exit 1
+              fi
+            done
+            echo "existing_tag=true" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
       - name: Version bump
+        if: steps.state.outputs.existing_tag != 'true'
         env:
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
@@ -75,31 +101,28 @@ jobs:
           sed -i "s/^    <Version>.*<\/Version>/    <Version>${VERSION}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
-          # A rerun after a failed release finds the version already bumped on main.
           if git diff --quiet -- FireboltNETSDK/FireboltDotNetSdk.csproj; then
-            echo "Version is already ${VERSION}, nothing to commit"
+            # An earlier attempt pushed the bump but not the tag; tag that bump commit, not later commits on main.
+            BUMP_COMMIT=$(git log -1 --format=%H -S"<Version>${VERSION}</Version>" -- FireboltNETSDK/FireboltDotNetSdk.csproj)
+            if [ -z "$BUMP_COMMIT" ]; then
+              echo "Version is already ${VERSION}, but no commit sets it"; exit 1
+            fi
+            echo "Version is already ${VERSION}, tagging ${BUMP_COMMIT}"
+            git checkout --detach "$BUMP_COMMIT"
           else
             git add FireboltNETSDK/FireboltDotNetSdk.csproj
             git commit -m "Automatic version bump to ${VERSION}"
             git push origin main
           fi
         shell: bash
-
+        
       - name: Publish tag on github
+        if: steps.state.outputs.existing_tag != 'true'
         env:
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-          # A rerun after a failed release reuses the existing tag and builds exactly what it points at.
-          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
-            echo "Tag ${VERSION} already exists, building it"
-            git checkout --detach "refs/tags/${VERSION}"
-            if ! grep -q "^    <Version>${VERSION}</Version>" FireboltNETSDK/FireboltDotNetSdk.csproj; then
-              echo "Tag ${VERSION} does not contain version ${VERSION} in FireboltDotNetSdk.csproj"; exit 1
-            fi
-          else
-            git tag "$VERSION"
-            git push origin "$VERSION"
-          fi
+          git tag "$VERSION"
+          git push origin "$VERSION"
         shell: bash
 
       - name: Set up .NET 8.0
@@ -127,7 +150,8 @@ jobs:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-           # --skip-duplicate lets a rerun continue when an earlier attempt already published this version.
+           # --skip-duplicate lets a retry continue when its earlier attempt already published this version;
+           # versions with a GitHub release never get here.
            dotnet nuget push "FireboltNETSDK/bin/Release/FireboltNetSDK.${VERSION}.nupkg" \
             --api-key "$PUBLISH_API_KEY" \
             --source https://api.nuget.org/v3/index.json \
