@@ -66,21 +66,71 @@ jobs:
           fi
           echo "value=$SANITIZED" >> "$GITHUB_OUTPUT"
 
-      - name: Version bump
+      # Lets a release that failed half-way be retried with the same version, while still refusing a
+      # version that was already released. The GitHub release is the last thing a release creates.
+      - name: Check release state
+        id: state
         env:
           VERSION: ${{ steps.sanitize.outputs.value }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if response=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${VERSION}" --silent 2>&1); then
+            echo "Version ${VERSION} is already released"; exit 1
+          elif ! grep -q "HTTP 404" <<< "$response"; then
+            echo "Could not check for an existing release: ${response}"; exit 1
+          fi
+          # Only code on the protected main branch may be published: the commit on main that set the version.
+          CSPROJ=FireboltNETSDK/FireboltDotNetSdk.csproj
+          BUMP_COMMIT=""
+          for commit in $(git log --format=%H -S"<Version>${VERSION}</Version>" origin/main -- "$CSPROJ"); do
+            if git show "${commit}:${CSPROJ}" | grep -qxF "    <Version>${VERSION}</Version>"; then
+              BUMP_COMMIT="$commit"; break
+            fi
+          done
+          echo "bump_commit=${BUMP_COMMIT}" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            TAG_COMMIT=$(git rev-parse "refs/tags/${VERSION}^{commit}")
+            if [ "$TAG_COMMIT" != "$BUMP_COMMIT" ]; then
+              echo "Tag ${VERSION} points at ${TAG_COMMIT}, not at the commit on main that set version ${VERSION} (${BUMP_COMMIT:-none})"; exit 1
+            fi
+            echo "Tag ${VERSION} exists without a release, building the tagged commit"
+            git checkout --detach "$TAG_COMMIT"
+            for element in Version AssemblyVersion FileVersion; do
+              if ! grep -qxF "    <${element}>${VERSION}</${element}>" FireboltNETSDK/FireboltDotNetSdk.csproj; then
+                echo "Tag ${VERSION} does not set ${element} to ${VERSION} in FireboltDotNetSdk.csproj"; exit 1
+              fi
+            done
+            echo "existing_tag=true" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Version bump
+        if: steps.state.outputs.existing_tag != 'true'
+        env:
+          VERSION: ${{ steps.sanitize.outputs.value }}
+          BUMP_COMMIT: ${{ steps.state.outputs.bump_commit }}
         run: |
           sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${VERSION}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${VERSION}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           sed -i "s/^    <Version>.*<\/Version>/    <Version>${VERSION}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
-          git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${VERSION}"
-          git push origin main
+          if git diff --quiet -- FireboltNETSDK/FireboltDotNetSdk.csproj; then
+            # An earlier attempt pushed the bump but not the tag; tag that bump commit, not later commits on main.
+            if [ -z "$BUMP_COMMIT" ]; then
+              echo "Version is already ${VERSION}, but no commit sets it"; exit 1
+            fi
+            echo "Version is already ${VERSION}, tagging ${BUMP_COMMIT}"
+            git checkout --detach "$BUMP_COMMIT"
+          else
+            git add FireboltNETSDK/FireboltDotNetSdk.csproj
+            git commit -m "Automatic version bump to ${VERSION}"
+            git push origin main
+          fi
         shell: bash
         
       - name: Publish tag on github
+        if: steps.state.outputs.existing_tag != 'true'
         env:
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
@@ -103,8 +153,9 @@ jobs:
       - name: Build package
         run: |
           dotnet restore
-          dotnet build
-          dotnet pack
+          # GeneratePackageOnBuild packs during the build; a separate dotnet pack defaults to Release
+          # since the .NET 8 SDK and expects a Release build that may not exist.
+          dotnet build -c Release
         shell: bash
 
       - name: Publish package on Nuget
@@ -112,9 +163,12 @@ jobs:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-           dotnet nuget push "FireboltNETSDK/bin/Debug/FireboltNetSDK.${VERSION}.nupkg" \
+           # --skip-duplicate lets a retry continue when its earlier attempt already published this version;
+           # versions with a GitHub release never get here.
+           dotnet nuget push "FireboltNETSDK/bin/Release/FireboltNetSDK.${VERSION}.nupkg" \
             --api-key "$PUBLISH_API_KEY" \
-            --source https://api.nuget.org/v3/index.json
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
         shell: bash
 
       - name: Generate and update GitHub release notes
