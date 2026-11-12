@@ -67,7 +67,7 @@ jobs:
 
       - name: Set up .NET 8.0 SDK and .NET 6.0
         id: dotnet-setup
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           # The test project targets net6.0, so it needs the 6.0 runtime; build with the
           # 8.0 SDK (the dotnet-version output is the latest installed SDK).
@@ -88,7 +88,7 @@ jobs:
       - name: Setup database and engine
         if: ${{ inputs.database == '' }}
         id: setup
-        uses: firebolt-db/integration-testing-setup@813c4835ef38adcba3f8760e7afc21a3c7248023 # v2.6.2
+        uses: firebolt-db/integration-testing-setup@1feb289e8da573c5f1f74d8ff3cd69bcb5b5891a # v1.0.4
         with:
           firebolt-client-id: ${{ secrets.FIREBOLT_CLIENT_ID_STG_NEW_IDN }}
           firebolt-client-secret: ${{ secrets.FIREBOLT_CLIENT_SECRET_STG_NEW_IDN }}
