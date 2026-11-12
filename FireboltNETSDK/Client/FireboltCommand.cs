@@ -243,7 +243,7 @@ namespace FireboltDotNetSdk.Client
             {
                 if (Connection!.PreparedStatementParamStyle == PreparedStatementParamStyleType.FbNumeric)
                 {
-                    paramList.Add("query_parameters=" + GetServerSideQueryParameters());
+                    SetRequestParameter(paramList, "query_parameters", GetServerSideQueryParameters());
                 }
                 else
                 {
@@ -253,7 +253,7 @@ namespace FireboltDotNetSdk.Client
             // Need to tell the backend we are running async
             if (isServerAsync)
             {
-                paramList.Add("async=true");
+                SetRequestParameter(paramList, "async", "true");
             }
 
             return await Connection!.Client.ExecuteQueryAsync<T>(engineUrl, GetDatabase(), Connection.AccountId, newCommandText, paramList, cancellationToken);
@@ -286,6 +286,14 @@ namespace FireboltDotNetSdk.Client
             var parts = setCommand.Trim().TrimEnd(';').Split('=', 2);
             var name = parts[0].Trim();
             return parts.Length == 1 ? name : name + "=" + Unquote(parts[1].Trim());
+        }
+
+        // A request-scoped parameter replaces a SET of the same name, which would otherwise be sent in its place
+        // or not, depending on HashSet enumeration order.
+        private static void SetRequestParameter(HashSet<string> paramList, string name, string value)
+        {
+            paramList.RemoveWhere(parameter => SetParameterName(parameter).Equals(name, StringComparison.OrdinalIgnoreCase));
+            paramList.Add(name + "=" + value);
         }
 
         private static string SetParameterName(string setParameter)
