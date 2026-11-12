@@ -5,7 +5,7 @@ namespace FireboltDotNetSdk.Tests
 {
     internal class CoreClient : FireboltClient
     {
-        private static readonly HttpClient CoreHttpClient = new();
+        private static readonly HttpClient CoreHttpClient = HttpClientSingleton.GetInstance();
         private readonly Uri _coreUri;
 
         public CoreClient(FireboltConnection connection, Uri coreUri) : base(connection, "core", "core", "", null, null, CoreHttpClient)

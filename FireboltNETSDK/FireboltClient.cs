@@ -125,24 +125,41 @@ public abstract class FireboltClient
 
     private string GetUrl(string engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, bool isStreamingRequest)
     {
-        var setParams = setParamList.Aggregate(string.Empty, (current, item) => current + "&" + item);
+        var parameters = GetQueryParameters(databaseName, accountId, isStreamingRequest);
+        // SET entries are raw "name=value" strings; names never contain '=' but values may. A SET replaces a
+        // parameter of the same name, such as the generated query_label, because the server rejects duplicates.
+        foreach (var parts in setParamList.Select(item => item.Split('=', 2)))
+        {
+            parameters[parts[0]] = parts.Length > 1 ? parts[1] : null;
+        }
+        var queryStr = new StringBuilder();
+        foreach (var (key, value) in parameters)
+        {
+            AppendQueryParameter(queryStr, key, value);
+        }
         var urlBuilder = new UriBuilder(engineEndpoint)
         {
             Scheme = "https",
-            Port = -1
+            Port = -1,
+            Query = queryStr.ToString()
         };
-
-        var queryStr = GetQueryString(databaseName, accountId, isStreamingRequest);
-        if (setParams.Length > 0)
-            queryStr.Append('&').Append(setParams);
-        urlBuilder.Query = queryStr.ToString();
-        return urlBuilder.Uri.ToString();
+        return urlBuilder.Uri.AbsoluteUri;
     }
 
-    private StringBuilder GetQueryString(string? databaseName, string? accountId, bool isStreamingRequest)
+    private static void AppendQueryParameter(StringBuilder query, string key, string? value)
+    {
+        if (query.Length > 0)
+            query.Append('&');
+        query.Append(Uri.EscapeDataString(key));
+        if (value != null)
+            query.Append('=').Append(Uri.EscapeDataString(value));
+    }
+
+    private Dictionary<string, string?> GetQueryParameters(string? databaseName, string? accountId, bool isStreamingRequest)
     {
         var outputFormat = isStreamingRequest ? "JSONLines_Compact" : "JSON_Compact";
-        var parameters = new Dictionary<string, string>() { { "output_format", outputFormat } };
+        // The server treats parameter names case-insensitively, so SET QUERY_LABEL must replace query_label.
+        var parameters = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) { { "output_format", outputFormat } };
         if (databaseName != null)
         {
             parameters["database"] = databaseName;
@@ -163,9 +180,7 @@ public abstract class FireboltClient
         {
             parameters[item.Key] = item.Value;
         }
-        var queryStr = parameters.Aggregate(new StringBuilder(),
-            (q, param) => q.Append($"{(q.Length > 0 ? "&" : "")}{param.Key}={param.Value}"));
-        return queryStr;
+        return parameters;
     }
 
     private async Task<ObjectResponseResult<T>> ReadObjectResponseAsync<T>(HttpResponseMessage? response,
@@ -415,7 +430,7 @@ public abstract class FireboltClient
                 }
                 if (endpointHeaderParts.Length > 1)
                 {
-                    parameters.AddRange(endpointHeaderParts[1].Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList());
+                    parameters.AddRange(ExtractParameters(endpointHeaderParts[1]));
                 }
             }
         }
@@ -427,9 +442,12 @@ public abstract class FireboltClient
         return shouldUpdateConnection;
     }
 
+    // Unlike Firebolt-Update-Parameters values, the query of a URL sent by the server is URL-encoded.
     protected static List<string[]> ExtractParameters(string queryString)
     {
-        return queryString.Split("&").Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries)).ToList();
+        return queryString.Split("&")
+            .Select(p => p.Split('=', 2, StringSplitOptions.TrimEntries).Select(part => WebUtility.UrlDecode(part)!).ToArray())
+            .ToList();
     }
 
     protected bool ProcessParameters(FireboltConnectionStringBuilder connectionBuilder, List<string[]> parameters, bool shouldUpdateConnection)

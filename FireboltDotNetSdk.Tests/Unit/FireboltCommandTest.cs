@@ -815,6 +815,37 @@ namespace FireboltDotNetSdk.Tests
             });
         }
 
+        [TestCase("SET async=false")]
+        [TestCase("SET ASYNC = 'false'")]
+        public void ExecuteServerSideAsyncNonQuery_AsyncParameterReplacesSetAsync(string setCommand)
+        {
+            var mockClient = new MockClient("{\"token\":\"test-token\"}");
+            var connection = new FireboltConnection(mockConnectionString) { Client = mockClient, EngineUrl = "engine" };
+            new FireboltCommand(connection, setCommand, new FireboltParameterCollection()).ExecuteNonQuery();
+
+            new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection()).ExecuteServerSideAsyncNonQuery();
+
+            Assert.That(mockClient.CapturedSetParamList.Where(param => param.StartsWith("async", StringComparison.OrdinalIgnoreCase)),
+                Is.EqualTo(new[] { "async=true" }));
+            Assert.That(connection.SetParamList, Has.Count.EqualTo(1), "the SET stays in place for later commands");
+        }
+
+        [Test]
+        public void ExecuteServerSidePreparedStatement_QueryParametersReplaceSetQueryParameters()
+        {
+            var mockClient = new MockClient("{\"meta\":[],\"data\":[],\"rows\":0}");
+            var connection = new FireboltConnection(mockFbNumericConnectionString) { Client = mockClient, EngineUrl = "engine" };
+            new FireboltCommand(connection, "SET query_parameters=stale", new FireboltParameterCollection()).ExecuteNonQuery();
+
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT $1";
+            command.Parameters.Add(new FireboltParameter("$1", 1));
+            command.ExecuteNonQuery();
+
+            Assert.That(mockClient.CapturedSetParamList.Where(param => param.StartsWith("query_parameters=")),
+                Is.EqualTo(new[] { "query_parameters=[{\"name\":\"$1\",\"value\":1}]" }));
+        }
+
         [Test]
         public void RegexPatternsArrayParameter_IsEscapedAndInsertedLiterally()
         {

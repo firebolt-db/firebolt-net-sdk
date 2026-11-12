@@ -94,12 +94,12 @@ public class FireboltClient1 : FireboltClient
 
     private async Task<string?> GetDefaultEngineUrl(string? accountId, string database, CancellationToken cancellationToken)
     {
-        return await GetEngineAttribute<GetEngineUrlByDatabaseNameResponse>(accountId, "engines:getURLByDatabaseName?databaseName=" + database, engineByDatabase => engineByDatabase.Engine_url, cancellationToken);
+        return await GetEngineAttribute<GetEngineUrlByDatabaseNameResponse>(accountId, "engines:getURLByDatabaseName?databaseName=" + Uri.EscapeDataString(database), engineByDatabase => engineByDatabase.Engine_url, cancellationToken);
     }
 
     private async Task<string?> GetEngineUrlByEngineName(string? accountId, string engineName, CancellationToken cancellationToken)
     {
-        string? engineId = await GetEngineAttribute<GetEngineIdByEngineNameResponse>(accountId, "engines:getIdByName?engine_name=" + engineName, engineByName => engineByName.engine_id?.engine_id, cancellationToken);
+        string? engineId = await GetEngineAttribute<GetEngineIdByEngineNameResponse>(accountId, "engines:getIdByName?engine_name=" + Uri.EscapeDataString(engineName), engineByName => engineByName.engine_id?.engine_id, cancellationToken);
         if (engineId == null)
         {
             throw new FireboltException($"Cannot find an engine with name: {engineName}");
@@ -132,7 +132,7 @@ public class FireboltClient1 : FireboltClient
         {
             return await Task.FromResult(new GetAccountIdByNameResponse() { id = null });
         }
-        string url = $"https://{_endpoint}/iam/v2/accounts:getIdByName?accountName={account}";
+        string url = $"https://{_endpoint}/iam/v2/accounts:getIdByName?accountName={Uri.EscapeDataString(account)}";
         return await GetJsonResponseAsync<GetAccountIdByNameResponse>(HttpMethod.Get, url, null, requiresAuth: true, cancellationToken);
     }
 

@@ -1,7 +1,7 @@
 # firebolt-net-sdk
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Nuget](https://img.shields.io/nuget/v/FireboltNetSDK?style=plastic)](https://www.nuget.org/packages/FireboltNetSDK/0.0.1)
+[![Nuget](https://img.shields.io/nuget/v/FireboltNetSDK?style=plastic)](https://www.nuget.org/packages/FireboltNetSDK)
 [![Build](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/build.yml/badge.svg)](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/build.yml)
 [![Unit tests](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/unit-tests.yml)
 [![Code quality checks](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/code-check.yml/badge.svg)](https://github.com/firebolt-db/firebolt-net-sdk/actions/workflows/code-check.yml)
@@ -72,7 +72,7 @@ var command = conn.CreateCommand();
 // ... and set the SQL query
 command.CommandText = "CREATE DATABASE IF NOT EXISTS MY_DB";
 
-// Execute a SQL query and get a DB reader
+// Execute the SQL command
 command.ExecuteNonQuery();
 
 // Close the connection after all operations are done
@@ -96,11 +96,11 @@ DbDataReader reader = command.ExecuteReader();
 Console.WriteLine($"Has rows: {reader.HasRows}");
 
 // Discover the result metadata
-int n = reader.FieldCount();
+int n = reader.FieldCount;
 for (int i = 0; i < n; i++)
 {
-  Type type = reader.GetFieldType();
-  string name = reader.GetName();
+  Type type = reader.GetFieldType(i);
+  string name = reader.GetName(i);
 }
 
 // Iterate over the rows and get values
@@ -216,8 +216,7 @@ Other than this parameter, the API is the same, except for the command text.
 ```cs
 var command = (FireboltCommand)conn.CreateCommand();
 command.CommandText = "SELECT * FROM my_table WHERE id = $1";
-command.Parameters.AddWithValue("$1", 123);
-command.Prepare();
+command.Parameters.Add(new FireboltParameter("$1", 123));
 
 // Execute the query as any other command
 using var reader = command.ExecuteReader();
@@ -241,10 +240,9 @@ To execute a query that returns a large result set, you can use the `ExecuteStre
 FireboltCommand command = (FireboltCommand)conn.CreateCommand();
 command.CommandText = "SELECT * FROM large_table";
 
-// Execute the query asynchronously on the server
-using var reader = command.ExecuteStreamedQuery();
-// or use the asynchronous version
+// Execute the query and stream its results
 using var reader = await command.ExecuteStreamedQueryAsync();
+// or use the synchronous version: command.ExecuteStreamedQuery()
 
 // Iterate over the streamed results in the same way as with a regular DbDataReader
 while (await reader.ReadAsync())

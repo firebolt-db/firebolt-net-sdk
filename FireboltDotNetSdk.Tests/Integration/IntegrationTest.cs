@@ -100,18 +100,30 @@ namespace FireboltDotNetSdk.Tests
             };
         }
 
-        // FIREBOLT_CORE_URL (e.g. http://localhost:3473) routes the SDK's requests to a local Firebolt Core,
-        // which the SDK cannot connect to by itself (no auth, plain http).
-        protected static FireboltConnection OpenConnection(PreparedStatementParamStyleType style)
+        // FIREBOLT_CORE_URL (e.g. http://127.0.0.1:3473) routes the SDK's requests to a local Firebolt Core,
+        // which the SDK cannot connect to by itself (no auth, plain http). Use an IPv4 address: the SDK's
+        // HTTP client only tries the first address a host name resolves to, and localhost may resolve to ::1.
+        protected static FireboltConnection OpenConnection(PreparedStatementParamStyleType style, string? database = null)
         {
             var coreUrl = GetEnvironmentVariable("FIREBOLT_CORE_URL");
             if (coreUrl == null)
             {
-                var connection = new FireboltConnection(ConnectionString(new Tuple<string, string?>("preparedStatementParamStyle", style.ToString())));
+                var connection = new FireboltConnection(ConnectionString(
+                    new Tuple<string, string?>("preparedStatementParamStyle", style.ToString()),
+                    new Tuple<string, string?>(nameof(Database), database ?? Database)));
                 connection.Open();
                 return connection;
             }
-            var coreConnection = new FireboltConnection($"database={Database};clientid=core;clientsecret=core;account=core;env=core;preparedStatementParamStyle={style}")
+            var coreConnectionString = new DbConnectionStringBuilder
+            {
+                ["database"] = database ?? Database,
+                ["clientid"] = "core",
+                ["clientsecret"] = "core",
+                ["account"] = "core",
+                ["env"] = "core",
+                ["preparedStatementParamStyle"] = style.ToString(),
+            }.ConnectionString;
+            var coreConnection = new FireboltConnection(coreConnectionString)
             {
                 EngineUrl = "core",
                 InfraVersion = 2,

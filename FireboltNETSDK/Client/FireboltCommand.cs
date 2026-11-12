@@ -196,20 +196,24 @@ namespace FireboltDotNetSdk.Client
         private async Task ProcessSetCommand(string commandText, CancellationToken cancellationToken)
         {
             VerifyConnection();
-            commandText = commandText.TrimStart().Substring("SET".Length).Trim();
-            if (commandText.Length == 0)
+            commandText = NormalizeSetParameter(commandText.TrimStart().Substring("SET".Length));
+            if (commandText.Length == 0 || commandText[0] == '=')
             {
                 throw new InvalidOperationException("SET command must specify a parameter, e.g. 'SET name=value'");
             }
             commandText = ValidateSetCommand(commandText);
+            var name = SetParameterName(commandText);
+            var replaced = SetParamList.Where(parameter => SetParameterName(parameter).Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
+            SetParamList.ExceptWith(replaced);
             SetParamList.Add(commandText);
             try
             {
                 await Connection!.ValidateConnection(cancellationToken);
             }
-            catch (AggregateException)
+            catch
             {
                 SetParamList.Remove(commandText);
+                SetParamList.UnionWith(replaced);
                 throw;
             }
         }
@@ -239,7 +243,7 @@ namespace FireboltDotNetSdk.Client
             {
                 if (Connection!.PreparedStatementParamStyle == PreparedStatementParamStyleType.FbNumeric)
                 {
-                    paramList.Add("query_parameters=" + Uri.EscapeDataString(GetServerSideQueryParameters()));
+                    SetRequestParameter(paramList, "query_parameters", GetServerSideQueryParameters());
                 }
                 else
                 {
@@ -249,7 +253,7 @@ namespace FireboltDotNetSdk.Client
             // Need to tell the backend we are running async
             if (isServerAsync)
             {
-                paramList.Add("async=true");
+                SetRequestParameter(paramList, "async", "true");
             }
 
             return await Connection!.Client.ExecuteQueryAsync<T>(engineUrl, GetDatabase(), Connection.AccountId, newCommandText, paramList, cancellationToken);
@@ -274,6 +278,34 @@ namespace FireboltDotNetSdk.Client
                     value = parameter.Value
                 })
             );
+        }
+
+        // Turns "name = 'value';" into "name=value", the raw form that is URL-encoded when sent.
+        private static string NormalizeSetParameter(string setCommand)
+        {
+            var parts = setCommand.Trim().TrimEnd(';').Split('=', 2);
+            var name = parts[0].Trim();
+            return parts.Length == 1 ? name : name + "=" + Unquote(parts[1].Trim());
+        }
+
+        // A request-scoped parameter replaces a SET of the same name, which would otherwise be sent in its place
+        // or not, depending on HashSet enumeration order.
+        private static void SetRequestParameter(HashSet<string> paramList, string name, string value)
+        {
+            paramList.RemoveWhere(parameter => SetParameterName(parameter).Equals(name, StringComparison.OrdinalIgnoreCase));
+            paramList.Add(name + "=" + value);
+        }
+
+        private static string SetParameterName(string setParameter)
+        {
+            return setParameter.Split('=', 2)[0];
+        }
+
+        private static string Unquote(string value)
+        {
+            return value.Length >= 2 && value[0] == '\'' && value[^1] == '\''
+                ? value[1..^1].Replace("''", "'")
+                : value;
         }
 
         private string ValidateSetCommand(string setCommand)
