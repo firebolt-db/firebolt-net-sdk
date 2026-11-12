@@ -200,6 +200,64 @@ namespace FireboltDotNetSdk.Tests
             Assert.That(connection.SetParamList, Is.Empty);
         }
 
+        [Test]
+        public void SetReplacesTheValueOfAnEarlierSetWithTheSameName()
+        {
+            var connection = new FireboltConnection(ConnectionString) { EngineUrl = "engine.mock.firebolt.io" };
+            CreateClient(connection);
+
+            new FireboltCommand(connection, "SET time_zone='UTC'", new FireboltParameterCollection()).ExecuteNonQuery();
+            new FireboltCommand(connection, "SET time_zone='Etc/GMT+1'", new FireboltParameterCollection()).ExecuteNonQuery();
+            new FireboltCommand(connection, "SELECT 1", new FireboltParameterCollection()).ExecuteNonQuery();
+
+            Assert.That(connection.SetParamList, Is.EqualTo(new HashSet<string> { "time_zone=Etc/GMT+1" }));
+            Assert.That(SentParameters(_sentUris.Last()).GetValues("time_zone"), Is.EqualTo(new[] { "Etc/GMT+1" }));
+        }
+
+        [Test]
+        public void FailedSetKeepsTheEarlierValueOfTheSameName()
+        {
+            var connection = new FireboltConnection(ConnectionString) { EngineUrl = "engine.mock.firebolt.io" };
+            CreateClient(connection);
+            new FireboltCommand(connection, "SET time_zone='UTC'", new FireboltParameterCollection()).ExecuteNonQuery();
+            RespondWith(() => GetResponseMessage("engine unavailable", HttpStatusCode.ServiceUnavailable));
+
+            var command = new FireboltCommand(connection, "SET time_zone='Etc/GMT+1'", new FireboltParameterCollection());
+
+            Assert.Catch(() => command.ExecuteNonQuery());
+            Assert.That(connection.SetParamList, Is.EqualTo(new HashSet<string> { "time_zone=UTC" }));
+        }
+
+        [Test]
+        public void CancelledSetIsRolledBack()
+        {
+            var connection = new FireboltConnection(ConnectionString) { EngineUrl = "engine.mock.firebolt.io" };
+            CreateClient(connection);
+            using var cancellation = new CancellationTokenSource();
+            RespondWith(() =>
+            {
+                cancellation.Cancel();
+                return GetResponseMessage("{}", HttpStatusCode.OK);
+            });
+
+            var command = new FireboltCommand(connection, "SET time_zone='UTC'", new FireboltParameterCollection());
+
+            Assert.CatchAsync<OperationCanceledException>(() => command.ExecuteNonQueryAsync(cancellation.Token));
+            Assert.That(connection.SetParamList, Is.Empty);
+        }
+
+        [Test]
+        public async Task SetQueryLabelReplacesTheGeneratedLabel()
+        {
+            var connection = new FireboltConnection(ConnectionString) { InfraVersion = 2 };
+            connection.UpdateConnectionSettings(new FireboltConnectionStringBuilder(ConnectionString) { Engine = "engine" }, CancellationToken.None);
+            var client = CreateClient(connection);
+
+            await ExecuteQuery(client, "db", "query_label=mine");
+
+            Assert.That(SentParameters(_sentUris.Single()).GetValues("query_label"), Is.EqualTo(new[] { "mine" }));
+        }
+
         [TestCase("SET time_zone = 'Europe/Berlin'", "time_zone=Europe/Berlin")]
         [TestCase("SET time_zone='Europe/Berlin';", "time_zone=Europe/Berlin")]
         [TestCase("SET query_label = 'it''s a#b&c=d' ; ", "query_label=it's a#b&c=d")]

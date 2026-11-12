@@ -33,7 +33,10 @@ namespace FireboltDotNetSdk.Tests
             using var connection = OpenConnection(PreparedStatementParamStyleType.Native);
             Execute(connection, $"SET query_label = '{label.Replace("'", "''")}'");
 
-            Assert.That(Scalar(connection, "SELECT current_setting('query_label')"), Is.EqualTo(label));
+            // current_setting('query_label') is not supported in the cloud; the query finds its own running entry instead.
+            var marker = Guid.NewGuid().ToString();
+            Assert.That(Scalar(connection, $"SELECT query_label FROM information_schema.engine_running_queries WHERE query_text LIKE '%{marker}%'"),
+                Is.EqualTo(label));
             Assert.That(Scalar(connection, "SELECT current_database()"), Is.EqualTo(connection.Database));
         }
 

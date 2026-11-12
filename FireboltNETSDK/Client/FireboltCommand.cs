@@ -202,16 +202,18 @@ namespace FireboltDotNetSdk.Client
                 throw new InvalidOperationException("SET command must specify a parameter, e.g. 'SET name=value'");
             }
             commandText = ValidateSetCommand(commandText);
-            var added = SetParamList.Add(commandText);
+            var name = SetParameterName(commandText);
+            var replaced = SetParamList.Where(parameter => SetParameterName(parameter) == name).ToList();
+            SetParamList.ExceptWith(replaced);
+            SetParamList.Add(commandText);
             try
             {
                 await Connection!.ValidateConnection(cancellationToken);
             }
-            catch (AggregateException)
+            catch
             {
-                // An identical SET applied earlier stays in place.
-                if (added)
-                    SetParamList.Remove(commandText);
+                SetParamList.Remove(commandText);
+                SetParamList.UnionWith(replaced);
                 throw;
             }
         }
@@ -284,6 +286,11 @@ namespace FireboltDotNetSdk.Client
             var parts = setCommand.Trim().TrimEnd(';').Split('=', 2);
             var name = parts[0].Trim();
             return parts.Length == 1 ? name : name + "=" + Unquote(parts[1].Trim());
+        }
+
+        private static string SetParameterName(string setParameter)
+        {
+            return setParameter.Split('=', 2)[0];
         }
 
         private static string Unquote(string value)

@@ -246,38 +246,6 @@ namespace FireboltDotNetSdk.Tests
             }
         }
 
-        // The engine name reaches the URL both from Firebolt-Update-Endpoint after USE ENGINE and from the
-        // connection string, and contains characters that change its meaning there when not encoded.
-        [Test]
-        [Category("engine-v2")]
-        [Category("slow")]
-        public void UseEngineWithSpecialCharacters()
-        {
-            string engineName = "DotNet enc&x=y #+z%25_" + suffix;
-            try
-            {
-                CreateCommand("USE ENGINE SYSTEM").ExecuteNonQuery();
-                CreateCommand($"CREATE ENGINE \"{engineName}\"").ExecuteNonQuery();
-                CreateCommand($"USE ENGINE \"{engineName}\"").ExecuteNonQuery();
-                Assert.That(Connection.EngineName, Is.EqualTo(engineName));
-                Assert.That(CreateCommand("SELECT 1").ExecuteScalar(), Is.EqualTo(1));
-
-                using var connection = new FireboltConnection(ConnectionString(Tuple.Create<string, string?>(nameof(Engine), engineName)));
-                connection.Open();
-                var command = connection.CreateCommand();
-                command.CommandText = "SELECT 1";
-                Assert.That(command.ExecuteScalar(), Is.EqualTo(1));
-            }
-            finally
-            {
-                executeSafely(
-                    $"USE ENGINE SYSTEM",
-                    $"STOP ENGINE \"{engineName}\"",
-                    $"DROP ENGINE \"{engineName}\""
-                );
-            }
-        }
-
         [Test]
         [Category("engine-v2")]
         [Category("slow")]

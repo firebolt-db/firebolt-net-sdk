@@ -125,15 +125,17 @@ public abstract class FireboltClient
 
     private string GetUrl(string engineEndpoint, string? databaseName, string? accountId, HashSet<string> setParamList, bool isStreamingRequest)
     {
-        var queryStr = new StringBuilder();
-        foreach (var (key, value) in GetQueryParameters(databaseName, accountId, isStreamingRequest))
-        {
-            AppendQueryParameter(queryStr, key, value);
-        }
-        // SET entries are raw "name=value" strings; names never contain '=' but values may.
+        var parameters = GetQueryParameters(databaseName, accountId, isStreamingRequest);
+        // SET entries are raw "name=value" strings; names never contain '=' but values may. A SET replaces a
+        // parameter of the same name, such as the generated query_label, because the server rejects duplicates.
         foreach (var parts in setParamList.Select(item => item.Split('=', 2)))
         {
-            AppendQueryParameter(queryStr, parts[0], parts.Length > 1 ? parts[1] : null);
+            parameters[parts[0]] = parts.Length > 1 ? parts[1] : null;
+        }
+        var queryStr = new StringBuilder();
+        foreach (var (key, value) in parameters)
+        {
+            AppendQueryParameter(queryStr, key, value);
         }
         var urlBuilder = new UriBuilder(engineEndpoint)
         {
@@ -153,10 +155,10 @@ public abstract class FireboltClient
             query.Append('=').Append(Uri.EscapeDataString(value));
     }
 
-    private Dictionary<string, string> GetQueryParameters(string? databaseName, string? accountId, bool isStreamingRequest)
+    private Dictionary<string, string?> GetQueryParameters(string? databaseName, string? accountId, bool isStreamingRequest)
     {
         var outputFormat = isStreamingRequest ? "JSONLines_Compact" : "JSON_Compact";
-        var parameters = new Dictionary<string, string>() { { "output_format", outputFormat } };
+        var parameters = new Dictionary<string, string?>() { { "output_format", outputFormat } };
         if (databaseName != null)
         {
             parameters["database"] = databaseName;
