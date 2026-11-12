@@ -75,17 +75,31 @@ jobs:
           sed -i "s/^    <Version>.*<\/Version>/    <Version>${VERSION}<\/Version>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           git branch
           git diff
-          git add FireboltNETSDK/FireboltDotNetSdk.csproj
-          git commit -m "Automatic version bump to ${VERSION}"
-          git push origin main
+          # A rerun after a failed release finds the version already bumped on main.
+          if git diff --quiet -- FireboltNETSDK/FireboltDotNetSdk.csproj; then
+            echo "Version is already ${VERSION}, nothing to commit"
+          else
+            git add FireboltNETSDK/FireboltDotNetSdk.csproj
+            git commit -m "Automatic version bump to ${VERSION}"
+            git push origin main
+          fi
         shell: bash
-        
+
       - name: Publish tag on github
         env:
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-          git tag "$VERSION"
-          git push origin "$VERSION"
+          # A rerun after a failed release reuses the existing tag and builds exactly what it points at.
+          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "Tag ${VERSION} already exists, building it"
+            git checkout --detach "refs/tags/${VERSION}"
+            if ! grep -q "^    <Version>${VERSION}</Version>" FireboltNETSDK/FireboltDotNetSdk.csproj; then
+              echo "Tag ${VERSION} does not contain version ${VERSION} in FireboltDotNetSdk.csproj"; exit 1
+            fi
+          else
+            git tag "$VERSION"
+            git push origin "$VERSION"
+          fi
         shell: bash
 
       - name: Set up .NET 8.0
@@ -113,9 +127,11 @@ jobs:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
+           # --skip-duplicate lets a rerun continue when an earlier attempt already published this version.
            dotnet nuget push "FireboltNETSDK/bin/Release/FireboltNetSDK.${VERSION}.nupkg" \
             --api-key "$PUBLISH_API_KEY" \
-            --source https://api.nuget.org/v3/index.json
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
         shell: bash
 
       - name: Generate and update GitHub release notes
