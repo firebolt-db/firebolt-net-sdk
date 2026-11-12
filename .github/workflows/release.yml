@@ -103,8 +103,9 @@ jobs:
       - name: Build package
         run: |
           dotnet restore
-          dotnet build
-          dotnet pack
+          # GeneratePackageOnBuild packs during the build; a separate dotnet pack defaults to Release
+          # since the .NET 8 SDK and expects a Release build that may not exist.
+          dotnet build -c Release
         shell: bash
 
       - name: Publish package on Nuget
@@ -112,7 +113,7 @@ jobs:
           PUBLISH_API_KEY: ${{ secrets.PUBLISH_API_KEY }}
           VERSION: ${{ steps.sanitize.outputs.value }}
         run: |
-           dotnet nuget push "FireboltNETSDK/bin/Debug/FireboltNetSDK.${VERSION}.nupkg" \
+           dotnet nuget push "FireboltNETSDK/bin/Release/FireboltNetSDK.${VERSION}.nupkg" \
             --api-key "$PUBLISH_API_KEY" \
             --source https://api.nuget.org/v3/index.json
         shell: bash
