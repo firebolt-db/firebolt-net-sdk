@@ -79,9 +79,22 @@ jobs:
           elif ! grep -q "HTTP 404" <<< "$response"; then
             echo "Could not check for an existing release: ${response}"; exit 1
           fi
+          # Only code on the protected main branch may be published: the commit on main that set the version.
+          CSPROJ=FireboltNETSDK/FireboltDotNetSdk.csproj
+          BUMP_COMMIT=""
+          for commit in $(git log --format=%H -S"<Version>${VERSION}</Version>" origin/main -- "$CSPROJ"); do
+            if git show "${commit}:${CSPROJ}" | grep -qxF "    <Version>${VERSION}</Version>"; then
+              BUMP_COMMIT="$commit"; break
+            fi
+          done
+          echo "bump_commit=${BUMP_COMMIT}" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            TAG_COMMIT=$(git rev-parse "refs/tags/${VERSION}^{commit}")
+            if [ "$TAG_COMMIT" != "$BUMP_COMMIT" ]; then
+              echo "Tag ${VERSION} points at ${TAG_COMMIT}, not at the commit on main that set version ${VERSION} (${BUMP_COMMIT:-none})"; exit 1
+            fi
             echo "Tag ${VERSION} exists without a release, building the tagged commit"
-            git checkout --detach "refs/tags/${VERSION}"
+            git checkout --detach "$TAG_COMMIT"
             for element in Version AssemblyVersion FileVersion; do
               if ! grep -qxF "    <${element}>${VERSION}</${element}>" FireboltNETSDK/FireboltDotNetSdk.csproj; then
                 echo "Tag ${VERSION} does not set ${element} to ${VERSION} in FireboltDotNetSdk.csproj"; exit 1
@@ -95,6 +108,7 @@ jobs:
         if: steps.state.outputs.existing_tag != 'true'
         env:
           VERSION: ${{ steps.sanitize.outputs.value }}
+          BUMP_COMMIT: ${{ steps.state.outputs.bump_commit }}
         run: |
           sed -i "s/^    <FileVersion>.*<\/FileVersion>/    <FileVersion>${VERSION}<\/FileVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
           sed -i "s/^    <AssemblyVersion>.*<\/AssemblyVersion>/    <AssemblyVersion>${VERSION}<\/AssemblyVersion>/" FireboltNETSDK/FireboltDotNetSdk.csproj
@@ -103,7 +117,6 @@ jobs:
           git diff
           if git diff --quiet -- FireboltNETSDK/FireboltDotNetSdk.csproj; then
             # An earlier attempt pushed the bump but not the tag; tag that bump commit, not later commits on main.
-            BUMP_COMMIT=$(git log -1 --format=%H -S"<Version>${VERSION}</Version>" -- FireboltNETSDK/FireboltDotNetSdk.csproj)
             if [ -z "$BUMP_COMMIT" ]; then
               echo "Version is already ${VERSION}, but no commit sets it"; exit 1
             fi
