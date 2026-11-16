@@ -15,13 +15,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AltCover" Version="8.6.14" />
+    <PackageReference Include="AltCover" Version="9.0.145" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.1.0" />
     <PackageReference Include="moq" Version="4.18.4" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="NodaTime" Version="3.3.7" />
     <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
     <PackageReference Include="NUnit.Analyzers" Version="3.3.0" />
-    <PackageReference Include="System.Text.Encodings.Web" Version="4.5.1" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup>
